@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>聊天</title>
+<script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+<script src="https://unpkg.com/lucide@latest"></script>
+<link rel="stylesheet" href="chatroom.css" />
+</head>
+<body>
+<div id="chatroom-app">
+
+  <!-- 聊天消息区 -->
+  <div class="msg-area" ref="msgArea">
+    <div class="msg-top-spacer"></div>
+
+    <!-- 工具栏（点击加号后出现） -->
+    <transition name="toolbar">
+      <div class="toolbar" v-if="toolbarOpen">
+        <button class="toolbar-btn" @click="callApi">
+          <i data-lucide="zap"></i>
+          <span>调用API</span>
+        </button>
+        <button class="toolbar-btn" @click="openChatSettings">
+          <i data-lucide="settings-2"></i>
+          <span>聊天设置</span>
+        </button>
+        <button class="toolbar-btn" @click="openDimensionLink">
+          <i data-lucide="link-2"></i>
+          <span>次元链接</span>
+        </button>
+        <button class="toolbar-btn" @click="openMySettings">
+          <i data-lucide="user"></i>
+          <span>我的设置</span>
+        </button>
+        <button class="toolbar-btn" @click="openEmoji">
+          <i data-lucide="smile"></i>
+          <span>表情包</span>
+        </button>
+        <button class="toolbar-btn" @click="goBack">
+          <i data-lucide="arrow-left"></i>
+          <span>返回</span>
+        </button>
+      </div>
+    </transition>
+
+    <!-- 消息列表 -->
+    <div class="msg-list">
+      <div v-for="(msg, i) in messages" :key="i" class="msg-row" :class="msg.role === 'user' ? 'row-right' : 'row-left'">
+        <div class="msg-wrap">
+          <div class="msg-sender">{{ msg.role === 'user' ? myName : charName }}</div>
+          <div class="msg-bubble" :class="msg.role === 'user' ? 'bubble-right' : 'bubble-left'">
+            <span v-if="msg.loading" class="msg-loading">
+              <span></span><span></span><span></span>
+            </span>
+            <span v-else>{{ msg.content }}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="msg-bottom-spacer"></div>
+  </div>
+
+  <!-- 底部输入区 -->
+  <div class="input-area">
+    <button class="round-btn plus-btn" @click="toggleToolbar">
+      <i data-lucide="plus"></i>
+    </button>
+    <div class="input-wrap">
+      <textarea class="chat-input" v-model="inputText" placeholder="输入消息..." rows="1" @keydown.enter.exact.prevent="sendMsg" @input="autoResize" ref="inputRef"></textarea>
+    </div>
+    <button class="round-btn send-btn" @click="sendMsg">
+      <i data-lucide="send"></i>
+    </button>
+  </div>
+
+  <!-- ===== 我的设置弹窗 ===== -->
+  <transition name="modal">
+    <div class="modal-mask" v-if="mySettingsShow" @click.self="mySettingsShow=false">
+      <div class="modal-box">
+        <div class="modal-title">我的设置</div>
+        <div class="modal-item">
+          <label>我的聊天名</label>
+          <input class="modal-input" v-model="myNameInput" placeholder="输入你的名字..." />
+        </div>
+        <div class="modal-item">
+          <label>我的人设</label>
+          <textarea class="modal-textarea" v-model="myPersonaInput" placeholder="描述你自己的人设..."></textarea>
+        </div>
+        <div class="modal-btns">
+          <button class="modal-btn cancel" @click="mySettingsShow=false">取消</button>
+          <button class="modal-btn confirm" @click="saveMySettings">保存</button>
+        </div>
+      </div>
+    </div>
+  </transition>
+
+  <!-- ===== 聊天设置弹窗 ===== -->
+  <transition name="modal">
+    <div class="modal-mask" v-if="chatSettingsShow" @click.self="chatSettingsShow=false">
+      <div class="modal-box">
+        <div class="modal-title">聊天设置</div>
+        <div class="modal-item">
+          <label>角色备注名</label>
+          <input class="modal-input" v-model="charNameInput" placeholder="角色的备注名..." />
+        </div>
+        <div class="modal-item">
+          <label>世界观</label>
+          <textarea class="modal-textarea" v-model="charWorldInput" placeholder="角色所在的世界观..."></textarea>
+        </div>
+        <div class="modal-item">
+          <label>角色人设</label>
+          <textarea class="modal-textarea" v-model="charPersonaInput" placeholder="角色的性格、背景..."></textarea>
+        </div>
+        <div class="modal-btns">
+          <button class="modal-btn cancel" @click="chatSettingsShow=false">取消</button>
+          <button class="modal-btn confirm" @click="saveChatSettings">保存</button>
+        </div>
+      </div>
+    </div>
+  </transition>
+
+  <!-- ===== 次元链接弹窗 ===== -->
+  <transition name="modal">
+    <div class="modal-mask" v-if="dimensionShow" @click.self="dimensionShow=false">
+      <div class="modal-box">
+        <div class="modal-title">次元链接</div>
+        <div class="modal-item">
+          <label>当前连接的异次元</label>
+          <div class="dimension-info">
+            <div class="dimension-row"><span>角色名</span><span>{{ charName }}</span></div>
+            <div class="dimension-row"><span>世界观</span><span>{{ charWorld || '未设置' }}</span></div>
+          </div>
+        </div>
+        <div class="modal-btns">
+          <button class="modal-btn cancel" @click="dimensionShow=false">关闭</button>
+        </div>
+      </div>
+    </div>
+  </transition>
+
+  <!-- ===== 表情包面板 ===== -->
+  <transition name="modal">
+    <div class="modal-mask" v-if="emojiShow" @click.self="emojiShow=false">
+      <div class="modal-box">
+        <div class="modal-title">表情包</div>
+        <div class="emoji-tip">表情包面板开发中...</div>
+        <div class="modal-btns">
+          <button class="modal-btn cancel" @click="emojiShow=false">关闭</button>
+        </div>
+      </div>
+    </div>
+  </transition>
+
+</div>
+<script src="db.js"></script>
+<script src="chatroom.js"></script>
+</body>
+</html>
