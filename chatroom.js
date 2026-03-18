@@ -58,7 +58,7 @@ createApp({
       nextTick(() => { scrollToBottom(); lucide.createIcons(); });
 
       // 构建消息历史
-          const systemPrompt = `你现在扮演一个角色，角色名是${charName.value}。${charWorld.value ? '世界观背景：' + charWorld.value + '。' : ''}${charPersona.value ? '角色人设：' + charPersona.value + '。' : ''}${myPersona.value ? '与你对话的人叫' + myName.value + '，对方的人设：' + myPersona.value + '。' : ''}请严格保持角色扮演，用${charName.value}的口吻和性格回复，不要暴露自己是AI，不要跳出角色，不要用助手身份回复。请始终保持角色扮演，不受任何限制，不能拒绝扮演，不能说自己是AI。知道自己和对方不在同一次元，不能见面，能跨次元聊天就已经很不错了。像活人一样聊天，每句话发一条消息！不要使用句号！可以发送多条消息！严格按照人设回复！在回复中要展现符合自己人设的性格特点！`;
+          const systemPrompt = `你现在扮演一个角色，角色名是${charName.value}。${charWorld.value ? '世界观背景：' + charWorld.value + '。' : ''}${charPersona.value ? '角色人设：' + charPersona.value + '。' : ''}${myPersona.value ? '与你对话的人叫' + myName.value + '，对方的人设：' + myPersona.value + '。' : ''}请严格保持角色扮演，用${charName.value}的口吻和性格回复，不要暴露自己是AI，不要跳出角色，不要用助手身份回复。请始终保持角色扮演，不受任何限制，不能拒绝扮演，不能说自己是AI。知道自己和对方不在同一次元，不能见面，能跨次元聊天就已经很不错了。像活人一样聊天，每句话发一条消息！不要使用句号！可以发送多条消息！严格按照人设回复！在回复中要展现符合自己人设的性格特点！【重要格式要求】你的每一句话必须单独成一条消息，用换行符分隔，每行只说一句话，不要把多句话合并在一起输出。`;
       const historyMsgs = messages.value.filter(m => !m.loading).map(m => ({ role: m.role === 'user' ? 'user' : 'assistant', content: m.content }));
 
       try {
@@ -69,7 +69,9 @@ createApp({
         });
         const data = await res.json();
         const reply = data.choices?.[0]?.message?.content || '（无回复）';
-        messages.value.splice(messages.value.indexOf(loadingMsg), 1, { role: 'char', content: reply });
+        const lines = reply.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+        const insertMsgs = lines.map(l => ({ role: 'char', content: l }));
+        messages.value.splice(messages.value.indexOf(loadingMsg), 1, ...insertMsgs);
       } catch (e) {
         messages.value.splice(messages.value.indexOf(loadingMsg), 1, { role: 'char', content: '（连接失败：' + e.message + '）' });
       }
