@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>喜欢</title>
+<script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+<script src="https://unpkg.com/lucide@latest"></script>
+<link rel="stylesheet" href="like.css" />
+</head>
+<body>
+<div id="like-app">
+
+  <div class="page-wrap">
+
+    <div class="sidebar">
+      <button class="sidebar-btn" :class="{active: tab==='like'}" @click="tab='like'">
+        <i data-lucide="heart"></i>
+        <span>喜欢</span>
+      </button>
+      <button class="sidebar-btn" :class="{active: tab==='settings'}" @click="tab='settings'">
+        <i data-lucide="settings"></i>
+        <span>设置</span>
+      </button>
+      <button class="sidebar-btn" :class="{active: tab==='theme'}" @click="tab='theme'">
+        <i data-lucide="paintbrush"></i>
+        <span>美化</span>
+      </button>
+      <div class="sidebar-spacer"></div>
+      <button class="sidebar-btn back-btn" @click="goBack">
+        <i data-lucide="arrow-left"></i>
+        <span>返回</span>
+      </button>
+    </div>
+
+    <div class="content">
+
+      <div v-if="tab==='like'" class="tab-panel">
+        <div class="panel-title">喜欢</div>
+        <div class="like-empty">
+          <i data-lucide="heart" style="width:48px;height:48px;color:#ccc;"></i>
+          <p>还没有喜欢的角色</p>
+        </div>
+      </div>
+
+      <div v-if="tab==='settings'" class="tab-panel">
+        <div class="panel-title">设置</div>
+
+        <div class="settings-card">
+          <div class="settings-card-title">API 连接</div>
+          <div class="settings-item">
+            <label>API 网址</label>
+            <input class="settings-input" v-model="api.url" placeholder="https://api.example.com/v1" />
+          </div>
+          <div class="settings-item">
+            <label>API 密钥</label>
+            <input class="settings-input" type="password" v-model="api.key" placeholder="sk-..." />
+          </div>
+          <div class="settings-item">
+  <label>模型</label>
+  <div class="settings-row" style="gap:8px;">
+    <div class="model-input-wrap">
+      <input class="settings-input" v-model="api.model" placeholder="点击获取或手动输入" @click="showModelDrop=true" />
+      <div class="model-dropdown" v-if="showModelDrop && modelList.length">
+        <div class="model-item" v-for="m in modelList" :key="m" @click="selectModel(m)">{{ m }}</div>
+      </div>
+    </div>
+    <button class="settings-btn" @click="fetchModels">获取</button>
+  </div>
+</div>
+          <div class="settings-row" style="margin-top:10px;gap:8px;">
+            <button class="settings-btn primary" @click="saveApi">保存</button>
+            <button class="settings-btn" @click="showPresetPanel=!showPresetPanel">API 预设</button>
+          </div>
+          <div v-if="showPresetPanel" class="preset-panel">
+            <div class="settings-card-title">保存的预设</div>
+            <div class="preset-item" v-for="(p,i) in apiPresets" :key="i">
+              <span @click="loadPreset(p)">{{ p.name }}</span>
+              <button class="preset-del" @click="deletePreset(i)">删除</button>
+            </div>
+            <div class="settings-row" style="gap:8px;margin-top:8px;">
+              <input class="settings-input" v-model="presetName" placeholder="预设名称" />
+              <button class="settings-btn primary" @click="savePreset">保存预设</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="settings-card">
+          <div class="settings-card-title">导入 / 导出</div>
+          <div class="settings-row" style="gap:8px;">
+            <button class="settings-btn primary" @click="exportData">导出数据</button>
+            <button class="settings-btn" @click="triggerImport">导入数据</button>
+          </div>
+          <input type="file" ref="importFile" accept=".json" style="display:none" @change="importData" />
+        </div>
+
+        <div class="settings-card">
+          <div class="settings-card-title">储存查看</div>
+          <div class="storage-info">
+            <div class="storage-row"><span>角色名</span><span>{{ storageInfo.charName || '未设置' }}</span></div>
+            <div class="storage-row"><span>个性签名</span><span>{{ storageInfo.charBio || '未设置' }}</span></div>
+            <div class="storage-row"><span>背景图</span><span>{{ storageInfo.hasBg ? '已设置' : '未设置' }}</span></div>
+            <div class="storage-row"><span>头像</span><span>{{ storageInfo.hasAvatar ? '已设置' : '未设置' }}</span></div>
+            <div class="storage-row"><span>胶片图片</span><span>{{ storageInfo.filmCount }} / 3</span></div>
+            <div class="storage-row"><span>API网址</span><span>{{ storageInfo.apiUrl || '未设置' }}</span></div>
+          </div>
+          <button class="settings-btn danger" style="margin-top:10px;" @click="clearStorage">清空所有储存</button>
+        </div>
+
+        <div class="settings-card">
+          <div class="settings-card-title">控制台日志</div>
+          <div class="console-box">
+            <div class="console-line" v-for="(log,i) in consoleLogs" :key="i" :class="log.type">
+              <span class="console-time">{{ log.time }}</span>
+              <span>{{ log.msg }}</span>
+            </div>
+            <div v-if="!consoleLogs.length" class="console-empty">暂无日志</div>
+          </div>
+          <button class="settings-btn" style="margin-top:8px;" @click="consoleLogs=[]">清空日志</button>
+        </div>
+      </div>
+
+      <div v-if="tab==='theme'" class="tab-panel">
+        <div class="panel-title">美化</div>
+
+        <div class="settings-card">
+          <div class="settings-card-title">夜间模式</div>
+          <div class="settings-row" style="justify-content:space-between;align-items:center;">
+            <span style="font-size:14px;color:#333;">开启夜间模式</span>
+            <div class="toggle" :class="{on: darkMode}" @click="toggleDark"></div>
+          </div>
+        </div>
+
+        <div class="settings-card">
+          <div class="settings-card-title">页面壁纸</div>
+          <div class="wallpaper-preview" :style="wallpaperStyle">
+            <span v-if="!wallpaper">未设置壁纸</span>
+          </div>
+          <div class="settings-row" style="gap:8px;margin-top:10px;">
+            <input class="settings-input" v-model="wallpaperUrl" placeholder="粘贴壁纸 URL..." />
+            <button class="settings-btn primary" @click="applyWallpaperUrl">确认</button>
+          </div>
+          <button class="settings-btn" style="margin-top:8px;" @click="triggerWallpaper">本地上传</button>
+          <button class="settings-btn danger" style="margin-top:8px;" @click="clearWallpaper">清除壁纸</button>
+          <input type="file" ref="wallpaperFile" accept="image/*" style="display:none" @change="uploadWallpaper" />
+        </div>
+
+        <div class="settings-card">
+          <div class="settings-card-title">App 图标</div>
+          <div class="icon-grid">
+            <div class="icon-item" v-for="item in appIcons" :key="item.key">
+              <div class="icon-preview" :style="item.icon ? `background-image:url(${item.icon})` : ''" @click="triggerIconUpload(item.key)">
+                <span v-if="!item.icon">{{ item.label }}</span>
+              </div>
+              <span class="icon-label">{{ item.label }}</span>
+            </div>
+          </div>
+          <input type="file" ref="iconFile" accept="image/*" style="display:none" @change="uploadIcon" />
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+</div>
+<script src="db.js"></script>
+<script src="like.js"></script>
+</body>
+</html>
