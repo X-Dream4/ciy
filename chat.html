@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>聊天</title>
+<script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+<script src="https://unpkg.com/lucide@latest"></script>
+<link rel="stylesheet" href="chat.css" />
+</head>
+<body>
+<div id="chat-app">
+
+  <!-- 顶部栏 -->
+  <div class="chat-topbar">
+    <div class="topbar-left">
+      <button class="circle-btn" @click="toggleMenu" ref="menuBtnRef">
+        <i data-lucide="plus"></i>
+      </button>
+      <div class="dropdown-menu" v-if="menuOpen">
+        <div class="dropdown-item" @click="openConnectChar">
+          <i data-lucide="link"></i>
+          <span>连接异次元</span>
+        </div>
+        <div class="dropdown-item" @click="openConnectRoom">
+          <i data-lucide="users"></i>
+          <span>连接聊天室</span>
+        </div>
+        <div class="dropdown-item" @click="goRandom">
+          <i data-lucide="shuffle"></i>
+          <span>异次元随机连接</span>
+        </div>
+        <div class="dropdown-item" @click="goBack">
+          <i data-lucide="arrow-left"></i>
+          <span>返回主页</span>
+        </div>
+      </div>
+    </div>
+    <div class="topbar-title">聊天</div>
+  </div>
+
+  <!-- 主内容区 -->
+  <div class="chat-main">
+
+    <!-- 聊天列表面板 -->
+    <div class="panel">
+      <div class="panel-label">角色聊天</div>
+      <div class="chat-list" v-if="charList.length">
+        <div class="chat-list-item" v-for="c in charList" :key="c.id" @click="enterChat(c)">
+          <div class="chat-avatar" :style="c.avatar ? `background-image:url(${c.avatar})` : ''">
+            <span v-if="!c.avatar">{{ c.name[0] }}</span>
+          </div>
+          <div class="chat-info">
+            <div class="chat-name">{{ c.name }}</div>
+            <div class="chat-preview">{{ c.lastMsg || '开始聊天吧...' }}</div>
+          </div>
+        </div>
+      </div>
+      <div class="list-empty" v-else>
+        <i data-lucide="link" style="width:32px;height:32px;color:#ccc;"></i>
+        <span>还没有连接的角色</span>
+      </div>
+    </div>
+
+    <!-- 聊天室面板 -->
+    <div class="panel">
+      <div class="panel-label">聊天室</div>
+      <div class="chat-list" v-if="roomList.length">
+        <div class="chat-list-item" v-for="r in roomList" :key="r.id" @click="enterRoom(r)">
+          <div class="chat-avatar room-avatar">
+            <i data-lucide="users" style="width:20px;height:20px;"></i>
+          </div>
+          <div class="chat-info">
+            <div class="chat-name">{{ r.name }}</div>
+            <div class="chat-preview">{{ r.members.map(m=>m.name).join('、') }}</div>
+          </div>
+        </div>
+      </div>
+      <div class="list-empty" v-else>
+        <i data-lucide="users" style="width:32px;height:32px;color:#ccc;"></i>
+        <span>还没有聊天室</span>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ===== 连接异次元弹窗 ===== -->
+  <transition name="modal">
+    <div class="modal-mask" v-if="connectCharShow" @click.self="connectCharShow=false">
+      <div class="modal-box">
+        <div class="modal-title">连接异次元</div>
+        <div class="modal-item">
+          <label>世界观</label>
+          <textarea class="modal-textarea" v-model="newChar.world" placeholder="描述这个角色所在的异次元世界观..."></textarea>
+        </div>
+        <div class="modal-item">
+          <label>备注名</label>
+          <input class="modal-input" v-model="newChar.name" placeholder="给这个角色起个备注名" />
+        </div>
+        <div class="modal-item">
+          <label>角色人设</label>
+          <textarea class="modal-textarea" v-model="newChar.persona" placeholder="描述角色的性格、背景、说话方式..."></textarea>
+        </div>
+        <div class="modal-btns">
+          <button class="modal-btn cancel" @click="connectCharShow=false">取消连接</button>
+          <button class="modal-btn confirm" @click="confirmConnectChar">确认连接</button>
+        </div>
+      </div>
+    </div>
+  </transition>
+
+  <!-- ===== 连接聊天室弹窗 ===== -->
+  <transition name="modal">
+    <div class="modal-mask" v-if="connectRoomShow" @click.self="connectRoomShow=false">
+      <div class="modal-box">
+        <div class="modal-title">连接聊天室</div>
+        <div class="modal-item">
+          <label>聊天室名称</label>
+          <input class="modal-input" v-model="newRoom.name" placeholder="输入聊天室名称" />
+        </div>
+        <div class="modal-item">
+          <label>选择角色</label>
+          <div class="member-list" v-if="charList.length">
+            <div class="member-item" v-for="c in charList" :key="c.id" :class="{selected: newRoom.members.find(m=>m.id===c.id)}" @click="toggleMember(c)">
+              <div class="member-avatar" :style="c.avatar ? `background-image:url(${c.avatar})` : ''">
+                <span v-if="!c.avatar">{{ c.name[0] }}</span>
+              </div>
+              <span>{{ c.name }}</span>
+              <i data-lucide="check" class="check-icon" v-if="newRoom.members.find(m=>m.id===c.id)"></i>
+            </div>
+          </div>
+          <div class="list-empty" v-else>
+            <span>请先连接角色</span>
+          </div>
+        </div>
+        <div class="modal-btns">
+          <button class="modal-btn cancel" @click="connectRoomShow=false">取消建立</button>
+          <button class="modal-btn confirm" @click="confirmConnectRoom">确认建立</button>
+        </div>
+      </div>
+    </div>
+  </transition>
+
+</div>
+<script src="db.js"></script>
+<script src="chat.js"></script>
+</body>
+</html>
