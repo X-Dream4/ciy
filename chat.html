@@ -44,7 +44,7 @@
 
     <!-- 聊天列表面板 -->
     <div class="panel">
-      <div class="panel-label">角色聊天</div>
+      <div class="panel-label">聊天</div>
       <div class="chat-list" v-if="charList.length">
         <div class="chat-list-item" v-for="c in charList" :key="c.id" @click="enterChat(c)">
           <div class="chat-avatar" :style="c.avatar ? `background-image:url(${c.avatar})` : ''">
