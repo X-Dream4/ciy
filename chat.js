@@ -26,20 +26,20 @@ createApp({
 
     const confirmConnectChar = async () => {
       if (!newChar.value.name.trim()) { alert('请输入备注名'); return; }
+      connectCharShow.value = false;
       const char = { id: Date.now(), name: newChar.value.name.trim(), world: newChar.value.world.trim(), persona: newChar.value.persona.trim(), avatar: '', lastMsg: '', messages: [] };
       charList.value.push(char);
-      await dbSet('charList', charList.value);
-      connectCharShow.value = false;
+      await dbSet('charList', JSON.parse(JSON.stringify(charList.value)));
       nextTick(() => lucide.createIcons());
     };
 
     const confirmConnectRoom = async () => {
       if (!newRoom.value.name.trim()) { alert('请输入聊天室名称'); return; }
       if (!newRoom.value.members.length) { alert('请至少选择一个角色'); return; }
-      const room = { id: Date.now(), name: newRoom.value.name.trim(), members: newRoom.value.members, lastMsg: '', messages: [] };
-      roomList.value.push(room);
-      await dbSet('roomList', roomList.value);
       connectRoomShow.value = false;
+      const room = { id: Date.now(), name: newRoom.value.name.trim(), members: JSON.parse(JSON.stringify(newRoom.value.members)), lastMsg: '', messages: [] };
+      roomList.value.push(room);
+      await dbSet('roomList', JSON.parse(JSON.stringify(roomList.value)));
       nextTick(() => lucide.createIcons());
     };
 
