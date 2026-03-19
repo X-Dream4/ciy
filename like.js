@@ -5,17 +5,15 @@ createApp({
     const tab = ref('like');
     const goBack = () => { window.location.href = 'index.html'; };
 
-
-    // ===== API、设置、美化等状态 =====
     const api = ref({ url: '', key: '', model: '' });
     const modelList = ref([]);
     const apiPresets = ref([]);
     const presetName = ref('');
     const showPresetPanel = ref(false);
-const showModelDrop = ref(false);
-const selectModel = (m) => { api.value.model = m; showModelDrop.value = false; };
+    const showModelDrop = ref(false);
+    const selectModel = (m) => { api.value.model = m; showModelDrop.value = false; };
     const consoleLogs = ref([]);
-    const storageInfo = ref({ charName: '', charBio: '', hasBg: false, hasAvatar: false, filmCount: 0, apiUrl: '' });
+    const storageInfo = ref({ charName: '', charBio: '', hasBg: false, hasAvatar: false, hasPolaroid: false, filmCount: 0, apiUrl: '', apiModel: '', charCount: 0, roomCount: 0, totalMsgs: 0 });
     const darkMode = ref(false);
     const wallpaper = ref('');
     const wallpaperUrl = ref('');
@@ -26,23 +24,36 @@ const selectModel = (m) => { api.value.model = m; showModelDrop.value = false; }
       { key: 'collect', label: '收藏',  icon: '' },
       { key: 'share',   label: '分享',  icon: '' }
     ]);
-
     const currentIconKey = ref('');
     const importFile = ref(null);
     const wallpaperFile = ref(null);
     const iconFile = ref(null);
 
-    const wallpaperStyle = computed(() => ({
-      backgroundImage: wallpaper.value ? `url(${wallpaper.value})` : 'none'
-    }));
+    let lucideTimer = null;
+    const refreshIcons = () => { clearTimeout(lucideTimer); lucideTimer = setTimeout(() => lucide.createIcons(), 50); };
+
+    const wallpaperStyle = computed(() => ({ backgroundImage: wallpaper.value ? `url(${wallpaper.value})` : 'none' }));
+
+    const saveGlobalLog = async (log) => {
+      const logs = JSON.parse(JSON.stringify((await dbGet('globalLogs')) || []));
+      logs.unshift(log);
+      if (logs.length > 200) logs.splice(200);
+      await dbSet('globalLogs', logs);
+    };
 
     const addLog = (msg, type = 'info') => {
       const now = new Date();
       const time = `${now.getHours().toString().padStart(2,'0')}:${now.getMinutes().toString().padStart(2,'0')}:${now.getSeconds().toString().padStart(2,'0')}`;
-      consoleLogs.value.unshift({ msg, type, time });
+      const newLog = { msg, type, time, page: '喜欢App' };
+      consoleLogs.value.unshift(newLog);
+      saveGlobalLog(newLog);
     };
 
-    // ===== API =====
+    const loadGlobalLogs = async () => {
+      const logs = (await dbGet('globalLogs')) || [];
+      consoleLogs.value = logs;
+    };
+
     const saveApi = async () => {
       await dbSet('apiConfig', { url: api.value.url, key: api.value.key, model: api.value.model });
       addLog('API 配置已保存');
@@ -70,20 +81,33 @@ const selectModel = (m) => { api.value.model = m; showModelDrop.value = false; }
     };
 
     const loadPreset = (p) => { api.value = { url: p.url, key: p.key, model: p.model }; addLog(`已加载预设: ${p.name}`); };
-
     const deletePreset = async (i) => { apiPresets.value.splice(i, 1); await dbSet('apiPresets', apiPresets.value); addLog('预设已删除'); };
 
-    // ===== 导入导出 =====
     const exportData = async () => {
-      const keys = ['charName', 'charBio', 'images', 'filmImages', 'apiConfig', 'apiPresets', 'wallpaper', 'appIcons'];
-      const result = {};
-      for (const k of keys) { result[k] = await dbGet(k); }
+      const charList = (await dbGet('charList')) || [];
+      const roomList = (await dbGet('roomList')) || [];
+      const charExtras = {};
+      for (const c of charList) {
+        charExtras[c.id] = {
+          mySettings: await dbGet(`mySettings_${c.id}`),
+          peekHistory: await dbGet(`peekHistory_${c.id}`),
+          mirrorHistory: await dbGet(`mirrorHistory_${c.id}`)
+        };
+      }
+      const result = {
+        charName: await dbGet('charName'), charBio: await dbGet('charBio'),
+        images: await dbGet('images'), filmImages: await dbGet('filmImages'),
+        apiConfig: await dbGet('apiConfig'), apiPresets: await dbGet('apiPresets'),
+        darkMode: await dbGet('darkMode'), wallpaper: await dbGet('wallpaper'),
+        appIcons: await dbGet('appIcons'), charList, roomList, charExtras,
+        globalLogs: await dbGet('globalLogs')
+      };
       const blob = new Blob([JSON.stringify(result, null, 2)], { type: 'application/json' });
       const a = document.createElement('a');
       a.href = URL.createObjectURL(blob);
-      a.download = 'rolecard-backup.json';
+      a.download = `rolecard-backup-${new Date().toLocaleDateString()}.json`;
       a.click();
-      addLog('数据已导出');
+      addLog('全量数据已导出');
     };
 
     const triggerImport = () => { importFile.value.click(); };
@@ -94,40 +118,47 @@ const selectModel = (m) => { api.value.model = m; showModelDrop.value = false; }
       try {
         const text = await file.text();
         const data = JSON.parse(text);
-        for (const [k, v] of Object.entries(data)) { if (v !== null) await dbSet(k, v); }
-        addLog('数据已导入，请刷新页面');
+        const basicKeys = ['charName','charBio','images','filmImages','apiConfig','apiPresets','darkMode','wallpaper','appIcons','charList','roomList','globalLogs'];
+        for (const k of basicKeys) { if (data[k] !== undefined && data[k] !== null) await dbSet(k, data[k]); }
+        if (data.charExtras) {
+          for (const [id, extras] of Object.entries(data.charExtras)) {
+            if (extras.mySettings) await dbSet(`mySettings_${id}`, extras.mySettings);
+            if (extras.peekHistory) await dbSet(`peekHistory_${id}`, extras.peekHistory);
+            if (extras.mirrorHistory) await dbSet(`mirrorHistory_${id}`, extras.mirrorHistory);
+          }
+        }
+        addLog('全量数据已导入，请刷新页面');
         e.target.value = '';
       } catch (err) {
         addLog(`导入失败: ${err.message}`, 'error');
       }
     };
 
-    // ===== 储存查看 =====
     const loadStorageInfo = async () => {
-      const name = await dbGet('charName');
-      const bio = await dbGet('charBio');
-      const imgs = await dbGet('images');
-      const films = await dbGet('filmImages');
-      const apiConf = await dbGet('apiConfig');
+      const [name, bio, imgs, films, apiConf, charList, roomList] = await Promise.all([
+        dbGet('charName'), dbGet('charBio'), dbGet('images'), dbGet('filmImages'),
+        dbGet('apiConfig'), dbGet('charList'), dbGet('roomList')
+      ]);
+      const cl = charList || [];
+      const rl = roomList || [];
       storageInfo.value = {
-        charName: name || '',
-        charBio: bio || '',
-        hasBg: !!(imgs && imgs.bg),
-        hasAvatar: !!(imgs && imgs.avatar),
+        charName: name || '', charBio: bio || '',
+        hasBg: !!(imgs && imgs.bg), hasAvatar: !!(imgs && imgs.avatar), hasPolaroid: !!(imgs && imgs.polaroid),
         filmCount: films ? films.filter(f => !!f).length : 0,
-        apiUrl: apiConf ? apiConf.url : ''
+        apiUrl: apiConf ? apiConf.url : '', apiModel: apiConf ? apiConf.model : '',
+        charCount: cl.length, roomCount: rl.length,
+        totalMsgs: cl.reduce((acc, c) => acc + (c.messages ? c.messages.length : 0), 0)
       };
     };
 
     const clearStorage = async () => {
       if (!confirm('确定要清空所有储存数据吗？')) return;
-      const keys = ['charName', 'charBio', 'images', 'filmImages', 'apiConfig', 'apiPresets', 'wallpaper', 'appIcons'];
+      const keys = ['charName','charBio','images','filmImages','apiConfig','apiPresets','darkMode','wallpaper','appIcons','charList','roomList','globalLogs'];
       for (const k of keys) await dbSet(k, null);
       addLog('所有储存已清空', 'warn');
       await loadStorageInfo();
     };
 
-    // ===== 美化 =====
     const toggleDark = async () => {
       darkMode.value = !darkMode.value;
       document.body.classList.toggle('dark', darkMode.value);
@@ -186,34 +217,28 @@ const selectModel = (m) => { api.value.model = m; showModelDrop.value = false; }
       reader.readAsDataURL(file);
     };
 
-    // ===== 初始化 =====
     onMounted(async () => {
-      const apiConf = await dbGet('apiConfig');
+      const [apiConf, presets, dark, wp, icons] = await Promise.all([
+        dbGet('apiConfig'), dbGet('apiPresets'), dbGet('darkMode'), dbGet('wallpaper'), dbGet('appIcons')
+      ]);
       if (apiConf) api.value = apiConf;
-      const presets = await dbGet('apiPresets');
       if (presets) apiPresets.value = presets;
-      const dark = await dbGet('darkMode');
       if (dark) { darkMode.value = true; document.body.classList.add('dark'); }
-        const wp = await dbGet('wallpaper');
       if (wp) { wallpaper.value = wp; }
-
-      const icons = await dbGet('appIcons');
       if (icons) appIcons.value = icons;
-      await loadStorageInfo();
-      lucide.createIcons();
-      addLog('页面已加载');
+      await Promise.all([loadStorageInfo(), loadGlobalLogs()]);
+      refreshIcons();
+      addLog('喜欢App已打开');
     });
 
     return {
-      tab, api, modelList, apiPresets, presetName, showPresetPanel,
+      tab, api, modelList, apiPresets, presetName, showPresetPanel, showModelDrop, selectModel,
       consoleLogs, storageInfo, darkMode, wallpaper, wallpaperUrl,
       wallpaperStyle, appIcons, importFile, wallpaperFile, iconFile,
       saveApi, fetchModels, savePreset, loadPreset, deletePreset,
       exportData, triggerImport, importData, clearStorage,
       toggleDark, applyWallpaperUrl, triggerWallpaper, uploadWallpaper, clearWallpaper,
-      triggerIconUpload, uploadIcon, goBack, showModelDrop, selectModel
-
+      triggerIconUpload, uploadIcon, goBack
     };
   }
 }).mount('#like-app');
-

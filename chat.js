@@ -4,24 +4,20 @@ createApp({
   setup() {
     const menuOpen = ref(false);
     const menuBtnRef = ref(null);
-
     const charList = ref([]);
     const roomList = ref([]);
-
     const connectCharShow = ref(false);
     const connectRoomShow = ref(false);
-
     const newChar = ref({ name: '', world: '', persona: '', avatar: '' });
     const newRoom = ref({ name: '', members: [] });
 
+    let lucideTimer = null;
+    const refreshIcons = () => { clearTimeout(lucideTimer); lucideTimer = setTimeout(() => lucide.createIcons(), 50); };
+
     const toggleMenu = () => { menuOpen.value = !menuOpen.value; };
-
-    const openConnectChar = () => { menuOpen.value = false; newChar.value = { name: '', world: '', persona: '', avatar: '' }; connectCharShow.value = true; nextTick(() => lucide.createIcons()); };
-
-    const openConnectRoom = () => { menuOpen.value = false; newRoom.value = { name: '', members: [] }; connectRoomShow.value = true; nextTick(() => lucide.createIcons()); };
-
+    const openConnectChar = () => { menuOpen.value = false; newChar.value = { name: '', world: '', persona: '', avatar: '' }; connectCharShow.value = true; nextTick(() => refreshIcons()); };
+    const openConnectRoom = () => { menuOpen.value = false; newRoom.value = { name: '', members: [] }; connectRoomShow.value = true; nextTick(() => refreshIcons()); };
     const goRandom = () => { menuOpen.value = false; window.location.href = 'random.html'; };
-
     const goBack = () => { window.location.href = 'index.html'; };
 
     const confirmConnectChar = async () => {
@@ -30,7 +26,7 @@ createApp({
       const char = { id: Date.now(), name: newChar.value.name.trim(), world: newChar.value.world.trim(), persona: newChar.value.persona.trim(), avatar: '', lastMsg: '', messages: [] };
       charList.value.push(char);
       await dbSet('charList', JSON.parse(JSON.stringify(charList.value)));
-      nextTick(() => lucide.createIcons());
+      nextTick(() => refreshIcons());
     };
 
     const confirmConnectRoom = async () => {
@@ -40,7 +36,7 @@ createApp({
       const room = { id: Date.now(), name: newRoom.value.name.trim(), members: JSON.parse(JSON.stringify(newRoom.value.members)), lastMsg: '', messages: [] };
       roomList.value.push(room);
       await dbSet('roomList', JSON.parse(JSON.stringify(roomList.value)));
-      nextTick(() => lucide.createIcons());
+      nextTick(() => refreshIcons());
     };
 
     const toggleMember = (c) => {
@@ -51,28 +47,30 @@ createApp({
     const enterChat = (c) => { window.location.href = `chatroom.html?id=${c.id}&type=char`; };
     const enterRoom = (r) => { window.location.href = `chatroom.html?id=${r.id}&type=room`; };
 
-    // 点击其他地方关闭菜单
     const handleOutsideClick = (e) => {
       if (menuOpen.value && menuBtnRef.value && !menuBtnRef.value.contains(e.target)) { menuOpen.value = false; }
     };
 
     onMounted(async () => {
-      const dark = await dbGet('darkMode');
+      const [dark, wp, chars, rooms] = await Promise.all([
+        dbGet('darkMode'), dbGet('wallpaper'), dbGet('charList'), dbGet('roomList')
+      ]);
       if (dark) document.body.classList.add('dark');
-      const wp = await dbGet('wallpaper');
       if (wp) { document.body.style.backgroundImage = `url(${wp})`; document.body.style.backgroundSize = 'cover'; document.body.style.backgroundPosition = 'center'; }
-      charList.value = (await dbGet('charList')) || [];
-      roomList.value = (await dbGet('roomList')) || [];
-      lucide.createIcons();
+      charList.value = chars || [];
+      roomList.value = rooms || [];
+      // 加载每个角色的头像
+      for (const c of charList.value) {
+        const beauty = await dbGet(`chatBeauty_${c.id}`);
+        if (beauty && beauty.charAvatar) { c.avatar = beauty.charAvatar; }
+      }
+      nextTick(() => refreshIcons());
       document.addEventListener('click', handleOutsideClick);
     });
 
-
     return {
-      menuOpen, menuBtnRef,
-      charList, roomList,
-      connectCharShow, connectRoomShow,
-      newChar, newRoom,
+      menuOpen, menuBtnRef, charList, roomList,
+      connectCharShow, connectRoomShow, newChar, newRoom,
       toggleMenu, openConnectChar, openConnectRoom, goRandom, goBack,
       confirmConnectChar, confirmConnectRoom, toggleMember,
       enterChat, enterRoom

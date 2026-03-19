@@ -9,71 +9,121 @@
 <link rel="stylesheet" href="chatroom.css" />
 </head>
 <body>
-<div id="chatroom-app">
+<div id="chatroom-app" v-cloak>
 
-  <!-- 聊天消息区 -->
   <div class="msg-area" ref="msgArea">
     <div class="msg-top-spacer"></div>
 
-    <!-- 工具栏（点击加号后出现） -->
+    <!-- 多选工具栏 -->
     <transition name="toolbar">
-      <div class="toolbar" v-if="toolbarOpen">
-        <button class="toolbar-btn" @click="callApi">
-          <i data-lucide="zap"></i>
-          <span>调用API</span>
-        </button>
-        <button class="toolbar-btn" @click="openChatSettings">
-          <i data-lucide="settings-2"></i>
-          <span>聊天设置</span>
-        </button>
-        <button class="toolbar-btn" @click="openDimensionLink">
-          <i data-lucide="link-2"></i>
-          <span>次元链接</span>
-        </button>
-        <button class="toolbar-btn" @click="openMySettings">
-          <i data-lucide="user"></i>
-          <span>我的设置</span>
-        </button>
-        <button class="toolbar-btn" @click="openEmoji">
-          <i data-lucide="smile"></i>
-          <span>表情包</span>
-        </button>
-        <button class="toolbar-btn" @click="goBack">
-          <i data-lucide="arrow-left"></i>
-          <span>返回</span>
-        </button>
+      <div class="multiselect-bar" v-if="multiSelectMode">
+        <span>已选 {{ selectedMsgs.length }} 条</span>
+        <button @click="deleteSelected">删除选中</button>
+        <button @click="cancelMultiSelect">取消</button>
       </div>
     </transition>
 
     <!-- 消息列表 -->
     <div class="msg-list">
-      <div v-for="(msg, i) in messages" :key="i" class="msg-row" :class="msg.role === 'user' ? 'row-right' : 'row-left'">
-        <div class="msg-wrap">
-          <div class="msg-sender">{{ msg.role === 'user' ? myName : charName }}</div>
-          <div class="msg-bubble" :class="msg.role === 'user' ? 'bubble-right' : 'bubble-left'">
-            <span v-if="msg.loading" class="msg-loading">
-              <span></span><span></span><span></span>
-            </span>
-            <span v-else>{{ msg.content }}</span>
+      <div v-for="(msg, i) in messages" :key="msg.id">
+
+        <!-- 撤回提示 -->
+        <div v-if="msg.recalled" class="recall-tip" @click="toggleRecallReveal(msg)">
+          {{ msg.role === 'user' ? myName : charName }} 撤回了一条消息
+          <span class="recall-reveal-hint">{{ msg.revealed ? '收起' : '查看' }}</span>
+        </div>
+        <div v-if="msg.recalled && msg.revealed" class="recall-revealed">{{ msg.content }}</div>
+
+        <!-- 正常消息 -->
+        <div v-if="!msg.recalled" class="msg-row" :class="[msg.role==='user'?'row-right':'row-left', multiSelectMode?'selectable':'', selectedMsgs.includes(msg.id)?'selected-row':'']" @click="multiSelectMode ? toggleSelect(msg.id) : null" @touchstart="onTouchStart(msg, i, $event)" @touchend="onTouchEnd" @touchmove="onTouchMove" @mousedown="onMouseDown(msg, i)" @mouseup="onMouseUp">
+
+          <!-- 多选框 -->
+          <div class="select-check" v-if="multiSelectMode">
+            <div class="check-circle" :class="{checked: selectedMsgs.includes(msg.id)}"></div>
+          </div>
+
+          <div class="msg-wrap" :class="msg.role==='user'?'wrap-right':'wrap-left'">
+            <div class="msg-sender">{{ msg.role==='user' ? myName : charName }}</div>
+
+            <!-- 引用区 -->
+            <div class="msg-quote" v-if="msg.quoteId">
+              <span class="quote-name">{{ getMsg(msg.quoteId)?.role==='user' ? myName : charName }}</span>
+              <span class="quote-content">{{ getMsg(msg.quoteId)?.content }}</span>
+            </div>
+
+          <div class="msg-bubble-row" :class="msg.role==='user'?'bubble-row-right':'bubble-row-left'">
+            <div class="chat-inline-avatar avatar-left" v-if="msg.role==='char' && showCharAvatar" :style="charAvatar?`background-image:url(${charAvatar})`:''">
+              <span v-if="!charAvatar">{{ charName[0] }}</span>
+            </div>
+            <!-- 气泡 -->
+              <div class="msg-bubble" :class="[msg.role==='user'?'bubble-right':'bubble-left', msg.type==='whisper'?'bubble-whisper':'', msg.editing?'bubble-editing':'']">
+                <span v-if="msg.loading" class="msg-loading"><span></span><span></span><span></span></span>
+                <div v-else-if="msg.editing">
+                  <textarea class="edit-textarea" v-model="msg.editContent" @keydown.enter.exact.prevent="confirmEdit(msg)"></textarea>
+                  <div class="edit-btns">
+                    <button @click="cancelEdit(msg)">取消</button>
+                    <button @click="confirmEdit(msg)">确认</button>
+                  </div>
+                </div>
+                <span v-else>{{ msg.content }}</span>
+                <span v-if="msg.type==='whisper'" class="whisper-tag">心声</span>
+              </div>
+            </div>
+                        <div class="chat-inline-avatar avatar-right" v-if="msg.role==='user' && showCharAvatar" :style="myAvatar?`background-image:url(${myAvatar})`:''">
+              <span v-if="!myAvatar">{{ myName[0] }}</span>
+            </div>
           </div>
         </div>
+
+        <!-- 长按气泡功能栏 -->
+        <transition name="popup">
+          <div class="bubble-menu" v-if="bubbleMenuMsgId===msg.id && !msg.recalled" :class="msg.role==='user'?'menu-right':'menu-left'">
+            <button class="bubble-menu-btn" @click="quoteMsg(msg)"><i data-lucide="corner-up-left"></i><span>引用</span></button>
+            <button class="bubble-menu-btn" @click="recallMsg(msg)"><i data-lucide="undo-2"></i><span>撤回</span></button>
+            <button class="bubble-menu-btn" @click="editMsg(msg)" v-if="msg.role==='user'"><i data-lucide="pencil"></i><span>编辑</span></button>
+            <button class="bubble-menu-btn" @click="deleteMsg(msg)"><i data-lucide="trash-2"></i><span>删除</span></button>
+            <button class="bubble-menu-btn" @click="startMultiSelect(msg.id)"><i data-lucide="check-square"></i><span>多选</span></button>
+            <button class="bubble-menu-btn" @click="bubbleMenuMsgId=null"><i data-lucide="x"></i><span>关闭</span></button>
+          </div>
+        </transition>
+
       </div>
     </div>
-
     <div class="msg-bottom-spacer"></div>
+  </div>
+
+  <!-- 工具栏 -->
+  <transition name="toolbar">
+    <div class="toolbar" v-if="toolbarOpen">
+      <button class="toolbar-btn" @click="callApi"><i data-lucide="zap"></i><span>调用API</span></button>
+      <button class="toolbar-btn" @click="openChatSettings"><i data-lucide="settings-2"></i><span>聊天设置</span></button>
+      <button class="toolbar-btn" @click="openDimensionLink"><i data-lucide="link-2"></i><span>次元链接</span></button>
+      <button class="toolbar-btn" @click="openMySettings"><i data-lucide="user"></i><span>我的设置</span></button>
+      <button class="toolbar-btn" @click="openPeekSoul"><i data-lucide="eye"></i><span>窥探心声</span></button>
+      <button class="toolbar-btn" @click="openDimensionMirror"><i data-lucide="monitor"></i><span>次元时境</span></button>
+      <button class="toolbar-btn" @click="openMyWhisper"><i data-lucide="message-circle"></i><span>我的心声</span></button>
+      <button class="toolbar-btn" @click="openBeauty"><i data-lucide="sparkles"></i><span>聊天美化</span></button>
+      <button class="toolbar-btn" @click="openEmoji"><i data-lucide="smile"></i><span>表情包</span></button>
+      <button class="toolbar-btn" @click="goBack"><i data-lucide="arrow-left"></i><span>返回</span></button>
+    </div>
+  </transition>
+
+  <!-- 引用预览 -->
+  <div class="quote-preview" v-if="quotingMsg">
+    <div class="quote-preview-inner">
+      <span class="quote-preview-name">引用：{{ quotingMsg.role==='user'?myName:charName }}</span>
+      <span class="quote-preview-content">{{ quotingMsg.content }}</span>
+    </div>
+    <button class="quote-cancel" @click="quotingMsg=null"><i data-lucide="x"></i></button>
   </div>
 
   <!-- 底部输入区 -->
   <div class="input-area">
-    <button class="round-btn plus-btn" @click="toggleToolbar">
-      <i data-lucide="plus"></i>
-    </button>
+    <button class="round-btn plus-btn" @click="toggleToolbar"><i data-lucide="plus"></i></button>
     <div class="input-wrap">
       <textarea class="chat-input" v-model="inputText" placeholder="输入消息..." rows="1" @keydown.enter.exact.prevent="sendMsg" @input="autoResize" ref="inputRef"></textarea>
     </div>
-    <button class="round-btn send-btn" @click="sendMsg">
-      <i data-lucide="send"></i>
-    </button>
+    <button class="round-btn send-btn" @click="sendMsg"><i data-lucide="send"></i></button>
   </div>
 
   <!-- ===== 我的设置弹窗 ===== -->
@@ -81,14 +131,8 @@
     <div class="modal-mask" v-if="mySettingsShow" @click.self="mySettingsShow=false">
       <div class="modal-box">
         <div class="modal-title">我的设置</div>
-        <div class="modal-item">
-          <label>我的聊天名</label>
-          <input class="modal-input" v-model="myNameInput" placeholder="输入你的名字..." />
-        </div>
-        <div class="modal-item">
-          <label>我的人设</label>
-          <textarea class="modal-textarea" v-model="myPersonaInput" placeholder="描述你自己的人设..."></textarea>
-        </div>
+        <div class="modal-item"><label>我的聊天名</label><input class="modal-input" v-model="myNameInput" placeholder="输入你的名字..." /></div>
+        <div class="modal-item"><label>我的人设</label><textarea class="modal-textarea" v-model="myPersonaInput" placeholder="描述你自己的人设..."></textarea></div>
         <div class="modal-btns">
           <button class="modal-btn cancel" @click="mySettingsShow=false">取消</button>
           <button class="modal-btn confirm" @click="saveMySettings">保存</button>
@@ -102,18 +146,9 @@
     <div class="modal-mask" v-if="chatSettingsShow" @click.self="chatSettingsShow=false">
       <div class="modal-box">
         <div class="modal-title">聊天设置</div>
-        <div class="modal-item">
-          <label>角色备注名</label>
-          <input class="modal-input" v-model="charNameInput" placeholder="角色的备注名..." />
-        </div>
-        <div class="modal-item">
-          <label>世界观</label>
-          <textarea class="modal-textarea" v-model="charWorldInput" placeholder="角色所在的世界观..."></textarea>
-        </div>
-        <div class="modal-item">
-          <label>角色人设</label>
-          <textarea class="modal-textarea" v-model="charPersonaInput" placeholder="角色的性格、背景..."></textarea>
-        </div>
+        <div class="modal-item"><label>角色备注名</label><input class="modal-input" v-model="charNameInput" placeholder="角色的备注名..." /></div>
+        <div class="modal-item"><label>世界观</label><textarea class="modal-textarea" v-model="charWorldInput" placeholder="角色所在的世界观..."></textarea></div>
+        <div class="modal-item"><label>角色人设</label><textarea class="modal-textarea" v-model="charPersonaInput" placeholder="角色的性格、背景..."></textarea></div>
         <div class="modal-btns">
           <button class="modal-btn cancel" @click="chatSettingsShow=false">取消</button>
           <button class="modal-btn confirm" @click="saveChatSettings">保存</button>
@@ -128,14 +163,72 @@
       <div class="modal-box">
         <div class="modal-title">次元链接</div>
         <div class="modal-item">
-          <label>当前连接的异次元</label>
           <div class="dimension-info">
             <div class="dimension-row"><span>角色名</span><span>{{ charName }}</span></div>
             <div class="dimension-row"><span>世界观</span><span>{{ charWorld || '未设置' }}</span></div>
           </div>
         </div>
+        <div class="modal-btns"><button class="modal-btn cancel" @click="dimensionShow=false">关闭</button></div>
+      </div>
+    </div>
+  </transition>
+
+  <!-- ===== 窥探心声弹窗 ===== -->
+  <transition name="modal">
+    <div class="modal-mask" v-if="peekSoulShow" @click.self="peekSoulShow=false">
+      <div class="modal-box">
+        <div class="modal-title">窥探心声</div>
+        <div class="peek-loading" v-if="peekLoading"><span></span><span></span><span></span></div>
+        <div v-else-if="peekResult">
+          <div class="peek-section">
+            <div class="peek-section-title">动作 / 情绪</div>
+            <div class="peek-content">{{ peekResult.action }}</div>
+          </div>
+          <div class="peek-section">
+            <div class="peek-section-title">内心独白</div>
+            <div class="peek-content">{{ peekResult.soul }}</div>
+          </div>
+        </div>
+        <div class="peek-empty" v-else>点击窥探获取角色当前状态</div>
         <div class="modal-btns">
-          <button class="modal-btn cancel" @click="dimensionShow=false">关闭</button>
+          <button class="modal-btn cancel" @click="peekSoulShow=false">关闭</button>
+          <button class="modal-btn cancel" @click="peekHistoryShow=true">历史</button>
+          <button class="modal-btn confirm" @click="doPeekSoul">窥探</button>
+        </div>
+      </div>
+    </div>
+  </transition>
+
+  <!-- ===== 次元时境弹窗 ===== -->
+  <transition name="modal">
+    <div class="modal-mask" v-if="dimensionMirrorShow" @click.self="dimensionMirrorShow=false">
+      <div class="modal-box">
+        <div class="modal-title">次元时境</div>
+        <div class="mirror-btns">
+          <button class="mirror-choice-btn" :class="{active: mirrorMode==='chat'}" @click="mirrorMode='chat'">聊时窥探</button>
+          <button class="mirror-choice-btn" :class="{active: mirrorMode==='idle'}" @click="mirrorMode='idle'">闲时窥镜</button>
+        </div>
+        <div class="peek-loading" v-if="mirrorLoading"><span></span><span></span><span></span></div>
+        <div class="peek-content" v-else-if="mirrorResult">{{ mirrorResult }}</div>
+        <div class="peek-empty" v-else>选择模式后点击窥镜</div>
+        <div class="modal-btns">
+          <button class="modal-btn cancel" @click="dimensionMirrorShow=false">关闭</button>
+          <button class="modal-btn cancel" @click="mirrorHistoryShow=true">历史</button>
+          <button class="modal-btn confirm" @click="doMirror">窥镜</button>
+        </div>
+      </div>
+    </div>
+  </transition>
+
+  <!-- ===== 我的心声弹窗 ===== -->
+  <transition name="modal">
+    <div class="modal-mask" v-if="myWhisperShow" @click.self="myWhisperShow=false">
+      <div class="modal-box">
+        <div class="modal-title">我的心声</div>
+        <div class="modal-item"><label>输入你的心声</label><textarea class="modal-textarea" v-model="whisperText" placeholder="你的心声只有角色能感受到..."></textarea></div>
+        <div class="modal-btns">
+          <button class="modal-btn cancel" @click="myWhisperShow=false">取消</button>
+          <button class="modal-btn confirm" @click="sendWhisper">发送心声</button>
         </div>
       </div>
     </div>
@@ -146,13 +239,189 @@
     <div class="modal-mask" v-if="emojiShow" @click.self="emojiShow=false">
       <div class="modal-box">
         <div class="modal-title">表情包</div>
-        <div class="emoji-tip">表情包面板开发中...</div>
+        <div class="peek-empty">表情包面板开发中...</div>
+        <div class="modal-btns"><button class="modal-btn cancel" @click="emojiShow=false">关闭</button></div>
+      </div>
+    </div>
+  </transition>
+  <!-- ===== 窥探心声历史 ===== -->
+  <transition name="modal">
+    <div class="modal-mask" v-if="peekHistoryShow" @click.self="peekHistoryShow=false">
+      <div class="modal-box">
+        <div class="modal-title">窥探心声历史</div>
+        <div class="history-list" v-if="peekHistory.length">
+          <div class="history-item" v-for="(h,i) in peekHistory" :key="i">
+            <div class="history-time">{{ h.time }}</div>
+            <div class="peek-section-title">动作 / 情绪</div>
+            <div class="peek-content">{{ h.action }}</div>
+            <div class="peek-section-title" style="margin-top:6px;">内心独白</div>
+            <div class="peek-content">{{ h.soul }}</div>
+          </div>
+        </div>
+        <div class="peek-empty" v-else>暂无历史记录</div>
+        <div class="modal-btns"><button class="modal-btn cancel" @click="peekHistoryShow=false">关闭</button></div>
+      </div>
+    </div>
+  </transition>
+
+  <!-- ===== 次元时境历史 ===== -->
+  <transition name="modal">
+    <div class="modal-mask" v-if="mirrorHistoryShow" @click.self="mirrorHistoryShow=false">
+      <div class="modal-box">
+        <div class="modal-title">次元时境历史</div>
+        <div class="history-list" v-if="mirrorHistory.length">
+          <div class="history-item" v-for="(h,i) in mirrorHistory" :key="i">
+            <div class="history-time">{{ h.time }} · {{ h.mode==='chat'?'聊时窥探':'闲时窥镜' }}</div>
+            <div class="peek-content">{{ h.content }}</div>
+          </div>
+        </div>
+        <div class="peek-empty" v-else>暂无历史记录</div>
+        <div class="modal-btns"><button class="modal-btn cancel" @click="mirrorHistoryShow=false">关闭</button></div>
+      </div>
+    </div>
+  </transition>
+  <!-- ===== 聊天美化弹窗 ===== -->
+  <transition name="modal">
+    <div class="modal-mask" v-if="beautyShow" @click.self="beautyShow=false">
+      <div class="modal-box">
+        <div class="modal-title">聊天美化</div>
+
+        <!-- 聊天壁纸 -->
+        <div class="beauty-section">
+          <div class="beauty-section-title">聊天壁纸</div>
+          <div class="wallpaper-preview" :style="chatWallpaper ? `background-image:url(${chatWallpaper})` : ''">
+            <span v-if="!chatWallpaper">未设置</span>
+          </div>
+          <div class="settings-row" style="gap:8px;margin-top:8px;">
+            <input class="modal-input" v-model="chatWallpaperUrl" placeholder="粘贴壁纸URL..." style="flex:1;" />
+            <button class="modal-btn confirm" style="flex:none;padding:0 12px;" @click="applyBeautyWallpaperUrl">确认</button>
+          </div>
+          <div class="beauty-btn-row">
+            <button class="beauty-btn" @click="triggerBeautyWallpaper">本地上传</button>
+            <button class="beauty-btn danger" @click="resetChatWallpaper">重置壁纸</button>
+          </div>
+          <input type="file" ref="beautyWallpaperFile" accept="image/*" style="display:none" @change="uploadBeautyWallpaper" />
+        </div>
+
+        <!-- 头像设置 -->
+        <div class="beauty-section">
+          <div class="beauty-section-title">头像设置</div>
+          <div class="avatar-row">
+            <div class="avatar-upload-item">
+              <div class="avatar-upload-box" :style="charAvatar?`background-image:url(${charAvatar})`:''">
+                <span v-if="!charAvatar">角色</span>
+              </div>
+              <button class="beauty-btn" @click="triggerCharAvatar">上传角色头像</button>
+              <input type="file" ref="charAvatarFile" accept="image/*" style="display:none" @change="uploadCharAvatar" />
+            </div>
+            <div class="avatar-upload-item">
+              <div class="avatar-upload-box" :style="myAvatar?`background-image:url(${myAvatar})`:''">
+                <span v-if="!myAvatar">我</span>
+              </div>
+              <button class="beauty-btn" @click="triggerMyAvatar">上传我的头像</button>
+              <input type="file" ref="myAvatarFile" accept="image/*" style="display:none" @change="uploadMyAvatar" />
+            </div>
+          </div>
+          <div class="beauty-toggle-row">
+            <span>情侣/配套头像</span>
+            <div class="toggle" :class="{on: coupleAvatarOn}" @click="coupleAvatarOn=!coupleAvatarOn; saveBeauty()"></div>
+          </div>
+          <div v-if="coupleAvatarOn">
+            <input class="modal-input" v-model="coupleAvatarDesc" @change="saveBeauty" placeholder="描述情侣/配套头像样式..." style="margin-top:6px;" />
+          </div>
+        </div>
+
+        <!-- 是否显示头像 -->
+        <div class="beauty-section">
+          <div class="beauty-section-title">聊天界面头像</div>
+          <div class="beauty-toggle-row">
+            <span>显示角色和我的头像</span>
+            <div class="toggle" :class="{on: showCharAvatar}" @click="showCharAvatar=!showCharAvatar; saveBeauty()"></div>
+          </div>
+          <div style="font-size:11px;color:#aaa;margin-top:2px;">开启后角色头像显示在气泡左侧，我的头像显示在气泡右侧</div>
+        </div>
+
+
+        <!-- 气泡自定义 -->
+        <div class="beauty-section">
+          <div class="beauty-section-title">气泡样式</div>
+          <div class="beauty-toggle-row">
+            <span>自定义气泡</span>
+            <div class="toggle" :class="{on: bubbleCustomOn}" @click="bubbleCustomOn=!bubbleCustomOn; saveBeauty()"></div>
+          </div>
+          <div v-if="bubbleCustomOn" class="bubble-custom-panel">
+            <div class="beauty-field">
+              <label>气泡字体大小 (px)</label>
+              <input class="modal-input" type="number" v-model="bubbleSize" min="10" max="24" @change="saveBeauty" />
+            </div>
+            <div class="beauty-field">
+              <label>角色气泡背景色</label>
+              <div class="color-row">
+                <input type="color" v-model="charBubbleColor" @change="saveBeauty" />
+                <span>{{ charBubbleColor }}</span>
+              </div>
+            </div>
+            <div class="beauty-field">
+              <label>角色气泡文字色</label>
+              <div class="color-row">
+                <input type="color" v-model="charBubbleTextColor" @change="saveBeauty" />
+                <span>{{ charBubbleTextColor }}</span>
+              </div>
+            </div>
+            <div class="beauty-field">
+              <label>我的气泡背景色</label>
+              <div class="color-row">
+                <input type="color" v-model="myBubbleColor" @change="saveBeauty" />
+                <span>{{ myBubbleColor }}</span>
+              </div>
+            </div>
+            <div class="beauty-field">
+              <label>我的气泡文字色</label>
+              <div class="color-row">
+                <input type="color" v-model="myBubbleTextColor" @change="saveBeauty" />
+                <span>{{ myBubbleTextColor }}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- CSS自定义 -->
+        <div class="beauty-section">
+          <div class="beauty-section-title">CSS 自定义</div>
+          <div class="beauty-toggle-row">
+            <span>开启自定义 CSS</span>
+            <div class="toggle" :class="{on: cssCustomOn}" @click="cssCustomOn=!cssCustomOn; saveBeauty()"></div>
+          </div>
+          <div v-if="cssCustomOn">
+            <textarea class="modal-textarea css-input" v-model="cssCustomInput" @change="saveBeauty" placeholder="在此输入自定义CSS，例如：&#10;body { background: #fff; }&#10;.msg-bubble { border-radius: 8px; }"></textarea>
+            <div class="css-tip">
+              <div class="css-tip-title">常用选择器参考</div>
+              <div class="css-tip-item"><code>#chatroom-app</code> 整体聊天页面</div>
+              <div class="css-tip-item"><code>.msg-area</code> 消息滚动区域</div>
+              <div class="css-tip-item"><code>.msg-bubble</code> 所有气泡</div>
+              <div class="css-tip-item"><code>.bubble-left</code> 角色气泡</div>
+              <div class="css-tip-item"><code>.bubble-right</code> 我的气泡</div>
+              <div class="css-tip-item"><code>.bubble-whisper</code> 心声气泡</div>
+              <div class="css-tip-item"><code>.msg-sender</code> 发送者名字</div>
+              <div class="css-tip-item"><code>.input-area</code> 底部输入栏</div>
+              <div class="css-tip-item"><code>.input-wrap</code> 输入框背景</div>
+              <div class="css-tip-item"><code>.toolbar</code> 工具栏</div>
+              <div class="css-tip-item"><code>.toolbar-btn</code> 工具栏按钮</div>
+              <div class="css-tip-item"><code>.msg-quote</code> 引用条</div>
+              <div class="css-tip-item"><code>.recall-tip</code> 撤回提示</div>
+            </div>
+          </div>
+        </div>
+
         <div class="modal-btns">
-          <button class="modal-btn cancel" @click="emojiShow=false">关闭</button>
+          <button class="modal-btn cancel" @click="beautyShow=false">关闭</button>
         </div>
       </div>
     </div>
   </transition>
+
+  <!-- 头像显示（角色气泡左侧） -->
+  <!-- 注意：头像通过 showCharAvatar 和 charAvatar 控制，已在气泡row里用 v-if 判断 -->
 
 </div>
 <script src="db.js"></script>

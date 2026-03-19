@@ -78,7 +78,7 @@ body { background: #f2f2f7; min-height: 100vh; font-family: -apple-system, 'Ping
 
 .polaroid-label { position: absolute; bottom: 7px; left: 0; right: 0; text-align: center; font-size: 9px; color: #aaa; font-style: italic; }
 
-.modal-mask { position: fixed; inset: 0; background: rgba(0,0,0,0.35); z-index: 200; display: flex; align-items: flex-end; justify-content: center; }
+.modal-mask { position: fixed; inset: 0; background: rgba(0,0,0,0); z-index: 200; display: flex; align-items: flex-end; justify-content: center; }
 
 .modal-sheet { background: #fff; border-radius: 20px 20px 0 0; padding: 20px 20px 36px; width: 390px; max-width: 100%; }
 
@@ -112,3 +112,4 @@ body.dark { background: #1a1a1a; color: #eee; }
 body.dark .app-btn-label { color: #ccc; }
 body.dark .info-input { color: #fff; }
 
+[v-cloak] { display: none; }

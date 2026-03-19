@@ -9,7 +9,7 @@
 <link rel="stylesheet" href="like.css" />
 </head>
 <body>
-<div id="like-app">
+<div id="like-app" v-cloak>
 
   <div class="page-wrap">
 
@@ -103,6 +103,11 @@
             <div class="storage-row"><span>头像</span><span>{{ storageInfo.hasAvatar ? '已设置' : '未设置' }}</span></div>
             <div class="storage-row"><span>胶片图片</span><span>{{ storageInfo.filmCount }} / 3</span></div>
             <div class="storage-row"><span>API网址</span><span>{{ storageInfo.apiUrl || '未设置' }}</span></div>
+            <div class="storage-row"><span>API模型</span><span>{{ storageInfo.apiModel || '未设置' }}</span></div>
+            <div class="storage-row"><span>拍立得</span><span>{{ storageInfo.hasPolaroid ? '已设置' : '未设置' }}</span></div>
+            <div class="storage-row"><span>已连接角色</span><span>{{ storageInfo.charCount }} 个</span></div>
+            <div class="storage-row"><span>聊天室</span><span>{{ storageInfo.roomCount }} 个</span></div>
+            <div class="storage-row"><span>总消息数</span><span>{{ storageInfo.totalMsgs }} 条</span></div>
           </div>
           <button class="settings-btn danger" style="margin-top:10px;" @click="clearStorage">清空所有储存</button>
         </div>

@@ -170,3 +170,5 @@ body.dark .back-btn:hover { color: #ccc; }
 .model-dropdown { position: absolute; top: 100%; left: 0; right: 0; background: #fff; border: 1.5px solid #e5e5ea; border-radius: 10px; overflow-y: auto; max-height: 200px; z-index: 50; box-shadow: 0 4px 16px rgba(0,0,0,0.10); margin-top: 4px; }
 
 body.dark .model-dropdown { background: #2a2a2a; border-color: #444; }
+
+[v-cloak] { display: none; }

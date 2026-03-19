@@ -1,4 +1,4 @@
-const { ref, computed, onMounted } = Vue;
+const { ref, computed, onMounted, watch } = Vue;
 
 const app = Vue.createApp({
   setup() {
@@ -31,10 +31,10 @@ const app = Vue.createApp({
       if (!url) return;
       if (picker.value.target === 'film') {
         filmImages.value[picker.value.filmIndex] = url;
-        await dbSet('filmImages', filmImages.value);
+        await dbSet('filmImages', JSON.parse(JSON.stringify(filmImages.value)));
       } else {
         images.value[picker.value.target] = url;
-        await dbSet('images', images.value);
+        await dbSet('images', JSON.parse(JSON.stringify(images.value)));
       }
       closePicker();
     };
@@ -54,22 +54,25 @@ const app = Vue.createApp({
       await dbSet('charBio', charBio.value);
     };
 
+    watch(() => charName.value, async (val) => { await dbSet('charName', val); });
+    watch(() => charBio.value, async (val) => { await dbSet('charBio', val); });
+
     const onApp = (key) => {
       const routes = { like: 'like.html', chat: 'chat.html', world: 'world.html', collect: 'collect.html', share: 'share.html' };
       if (routes[key]) window.location.href = routes[key];
     };
 
     onMounted(async () => {
-  charName.value   = (await dbGet('charName'))   || '';
-  charBio.value    = (await dbGet('charBio'))    || '';
-  images.value     = (await dbGet('images'))     || { bg: '', avatar: '', polaroid: '' };
-  filmImages.value = (await dbGet('filmImages')) || ['', '', ''];
-  const dark = await dbGet('darkMode');
-  if (dark) document.body.classList.add('dark');
-  const wp = await dbGet('wallpaper');
-  if (wp) { document.body.style.backgroundImage = `url(${wp})`; document.body.style.backgroundSize = 'cover'; document.body.style.backgroundPosition = 'center'; }
-});
-
+      const [name, bio, imgs, films, dark, wp] = await Promise.all([
+        dbGet('charName'), dbGet('charBio'), dbGet('images'), dbGet('filmImages'), dbGet('darkMode'), dbGet('wallpaper')
+      ]);
+      charName.value   = name  || '';
+      charBio.value    = bio   || '';
+      images.value     = imgs  || { bg: '', avatar: '', polaroid: '' };
+      filmImages.value = films || ['', '', ''];
+      if (dark) document.body.classList.add('dark');
+      if (wp) { document.body.style.backgroundImage = `url(${wp})`; document.body.style.backgroundSize = 'cover'; document.body.style.backgroundPosition = 'center'; }
+    });
 
     return {
       charName, charBio, images, filmImages,

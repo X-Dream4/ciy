@@ -92,7 +92,7 @@ body.dark .chat-name { color: #eee; }
 .list-empty { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 30px 0; color: #bbb; font-size: 13px; }
 
 /* ===== 弹窗 ===== */
-.modal-mask { position: fixed; inset: 0; background: rgba(0,0,0,0.35); z-index: 300; display: flex; align-items: center; justify-content: center; padding: 20px; }
+.modal-mask { position: fixed; inset: 0; background: rgba(0,0,0,0); z-index: 300; display: flex; align-items: center; justify-content: center; padding: 20px; }
 
 .modal-box { background: #fff; border-radius: 20px; padding: 24px; width: 100%; max-width: 380px; display: flex; flex-direction: column; gap: 14px; box-shadow: 0 8px 32px rgba(0,0,0,0.15); max-height: 85vh; overflow-y: auto; }
 
@@ -161,3 +161,5 @@ body.dark .check-icon { color: #eee; }
 .modal-enter-active, .modal-leave-active { transition: opacity 0.2s, transform 0.2s; }
 
 .modal-enter-from, .modal-leave-to { opacity: 0; transform: scale(0.95); }
+
+[v-cloak] { display: none; }
