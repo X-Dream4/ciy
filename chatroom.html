@@ -64,6 +64,7 @@
               <div class="chat-inline-avatar avatar-left" v-if="msg.role==='char' && showCharAvatar" :style="charAvatar?`background-image:url(${charAvatar})`:''">
                 <span v-if="!charAvatar">{{ charName[0] }}</span>
               </div>
+              <div class="block-badge user-blocked-badge" v-if="msg.role==='user' && msg.blockedByCharWhenSent">!</div>
               <div v-if="msg.type==='sticker'" class="msg-sticker">
                 <img :src="getStickerUrl(msg.content)" :alt="msg.content" />
               </div>
@@ -79,8 +80,7 @@
                 <span v-else>{{ msg.content }}</span>
                 <span v-if="msg.type==='whisper'" class="whisper-tag">心声</span>
               </div>
-              <div class="block-badge" v-if="msg.role==='char' && msg.blockedWhenSent">!</div>
-              <div class="block-badge user-blocked-badge" v-if="msg.role==='user' && msg.blockedByCharWhenSent">!</div>
+              <div class="block-badge char-blocked-badge" v-if="msg.role==='char' && msg.blockedWhenSent">!</div>
               <!-- v-else 结束，sticker 和 bubble 共用同一层 -->
               <div class="chat-inline-avatar avatar-right" v-if="msg.role==='user' && showCharAvatar" :style="myAvatar?`background-image:url(${myAvatar})`:''">
                 <span v-if="!myAvatar">{{ myName[0] }}</span>
