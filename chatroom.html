@@ -94,6 +94,8 @@
             <button class="bubble-menu-btn" @click="quoteMsg(msg)"><i data-lucide="corner-up-left"></i><span>引用</span></button>
             <button class="bubble-menu-btn" @click="recallMsg(msg)"><i data-lucide="undo-2"></i><span>撤回</span></button>
             <button class="bubble-menu-btn" @click="editMsg(msg)"><i data-lucide="pencil"></i><span>编辑</span></button>
+            <button class="bubble-menu-btn" @click="openSplit(msg)"><i data-lucide="scissors"></i><span>拆分</span></button>
+            <button class="bubble-menu-btn" v-if="msg.role==='char'" @click="openInsertAfter(msg)"><i data-lucide="plus-circle"></i><span>插入</span></button>
             <button class="bubble-menu-btn" @click="deleteMsg(msg)"><i data-lucide="trash-2"></i><span>删除</span></button>
             <button class="bubble-menu-btn" @click="startMultiSelect(msg.id)"><i data-lucide="check-square"></i><span>多选</span></button>
             <button class="bubble-menu-btn" @click="bubbleMenuMsgId=null"><i data-lucide="x"></i><span>关闭</span></button>
@@ -616,6 +618,37 @@
           你已被「{{ charName }}」拉黑<br/><span style="font-size:11px;color:#aaa;">角色可以自行解除对你的拉黑</span>
         </div>
 
+      </div>
+    </div>
+  </transition>
+  <!-- 拆分消息弹窗 -->
+  <transition name="modal">
+    <div class="modal-mask" v-if="splitShow && appReady" @click.self="splitShow=false">
+      <div class="modal-box">
+        <div class="modal-title">拆分消息</div>
+        <div style="font-size:12px;color:#aaa;margin-bottom:4px;">每行将变成一条单独的消息，空行会被忽略</div>
+        <textarea class="modal-textarea" v-model="splitContent" style="min-height:140px;font-family:inherit;" placeholder="每行一条消息..."></textarea>
+        <div style="font-size:11px;color:#aaa;">将拆分为 {{ splitPreviewCount }} 条消息</div>
+        <div class="modal-btns">
+          <button class="modal-btn cancel" @click="splitShow=false">取消</button>
+          <button class="modal-btn confirm" @click="confirmSplit">确认拆分</button>
+        </div>
+      </div>
+    </div>
+  </transition>
+
+  <!-- 插入角色消息弹窗 -->
+  <transition name="modal">
+    <div class="modal-mask" v-if="insertShow && appReady" @click.self="insertShow=false">
+      <div class="modal-box">
+        <div class="modal-title">在此后插入角色消息</div>
+        <div style="font-size:12px;color:#aaa;margin-bottom:4px;">每行将插入为一条单独的角色消息</div>
+        <textarea class="modal-textarea" v-model="insertContent" style="min-height:140px;font-family:inherit;" placeholder="每行一条消息..."></textarea>
+        <div style="font-size:11px;color:#aaa;">将插入 {{ insertPreviewCount }} 条消息</div>
+        <div class="modal-btns">
+          <button class="modal-btn cancel" @click="insertShow=false">取消</button>
+          <button class="modal-btn confirm" @click="confirmInsert">确认插入</button>
+        </div>
       </div>
     </div>
   </transition>
