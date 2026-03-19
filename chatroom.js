@@ -115,6 +115,16 @@ createApp({
     const summaryLoading = ref(false);
     const summaryPos = ref('before_history');
     const summaries = ref([]);
+    const splitShow = ref(false);
+    const splitTargetMsg = ref(null);
+    const splitContent = ref('');
+    const splitPreviewCount = computed(() => splitContent.value.split('\n').filter(l => l.trim()).length);
+
+    const insertShow = ref(false);
+    const insertAfterMsg = ref(null);
+    const insertContent = ref('');
+    const insertPreviewCount = computed(() => insertContent.value.split('\n').filter(l => l.trim()).length);
+
     const isBlocked = ref(false);
     const blockShow = ref(false);
     const iBlockedByChar = ref(false);
@@ -595,6 +605,65 @@ ${myPersona.value ? '与你对话的人叫' + myName.value + '，ta的人设：'
       charConsoleLogs.value.unshift({ msg, type, time });
       if (charConsoleLogs.value.length > 100) charConsoleLogs.value.splice(100);
     };
+    const openSplit = (msg) => {
+      splitTargetMsg.value = msg;
+      splitContent.value = msg.content;
+      splitShow.value = true;
+      bubbleMenuMsgId.value = null;
+      nextTick(() => refreshIcons());
+    };
+
+    const confirmSplit = async () => {
+      if (!splitTargetMsg.value) return;
+      const lines = splitContent.value.split('\n').map(l => l.trim()).filter(l => l);
+      if (!lines.length) return;
+      splitShow.value = false;
+      const idx = allMessages.value.findIndex(m => m.id === splitTargetMsg.value.id);
+      if (idx === -1) return;
+      const role = splitTargetMsg.value.role;
+      const type = splitTargetMsg.value.type || 'normal';
+      const newMsgs = lines.map((line, i) => ({
+        id: Date.now() + i,
+        role,
+        content: line,
+        type,
+        quoteId: i === 0 ? splitTargetMsg.value.quoteId : null,
+        recalled: false,
+        revealed: false
+      }));
+      allMessages.value.splice(idx, 1, ...newMsgs);
+      await saveMessages();
+      nextTick(() => { refreshIcons(); });
+    };
+
+    const openInsertAfter = (msg) => {
+      insertAfterMsg.value = msg;
+      insertContent.value = '';
+      insertShow.value = true;
+      bubbleMenuMsgId.value = null;
+      nextTick(() => refreshIcons());
+    };
+
+    const confirmInsert = async () => {
+      if (!insertAfterMsg.value) return;
+      const lines = insertContent.value.split('\n').map(l => l.trim()).filter(l => l);
+      if (!lines.length) return;
+      insertShow.value = false;
+      const idx = allMessages.value.findIndex(m => m.id === insertAfterMsg.value.id);
+      if (idx === -1) return;
+      const newMsgs = lines.map((line, i) => ({
+        id: Date.now() + i,
+        role: 'char',
+        content: line,
+        type: 'normal',
+        quoteId: null,
+        recalled: false,
+        revealed: false
+      }));
+      allMessages.value.splice(idx + 1, 0, ...newMsgs);
+      await saveMessages();
+      nextTick(() => { refreshIcons(); });
+    };
     const openBlock = () => { toolbarOpen.value = false; blockShow.value = true; nextTick(() => refreshIcons()); };
 
     const confirmBlock = async () => {
@@ -772,7 +841,8 @@ ${myPersona.value ? '与你对话的人叫' + myName.value + '，ta的人设：'
       triggerMyAvatar, uploadMyAvatar, applyMyAvatarUrl,
       allWorldBooks, selectedWorldBooks, toggleWorldBook, wbTypeLabel,
       summaryShow, summaryFrom, summaryTo, summaryResult, summaryLoading, summaryPos, summaryPreviewMsgs,
-      openSummary, doSummary, applySummary,      isBlocked, blockShow, openBlock, confirmBlock, confirmUnblock, iBlockedByChar,
+      openSummary, doSummary, applySummary,      splitShow, splitContent, splitPreviewCount, openSplit, confirmSplit,
+      insertShow, insertContent, insertPreviewCount, openInsertAfter, confirmInsert,
       autoSummaryOn, autoSummaryCount, autoSummaryDefaultPos, autoSummaryAskPos,
       autoSummaryPosShow, saveAutoSummarySettings, confirmAutoSummaryPos,
       pendingAutoSummaryFrom, pendingAutoSummaryTo,

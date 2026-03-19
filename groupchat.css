@@ -213,7 +213,7 @@ body.dark .sticker-char-cat.selected { background: #eee; color: #111; }
 .summary-info-row { font-size: 13px; color: #888; text-align: center; }
 .summary-range-row { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
 .summary-range-row .modal-input { padding: 8px 6px; }
-.summary-preview-box { background: #f9f9f9; border-radius: 10px; padding: 10px; max-height: 150px; overflow-y: auto; display: flex; flex-direction: column; gap: 4px; }
+.summary-preview-box { background: #f9f9f9; border-radius: 10px; padding: 10px; max-height: 150px; overflow-y: scroll; display: flex; flex-direction: column; gap: 4px; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; }
 body.dark .summary-preview-box { background: #222; }
 .summary-preview-item { font-size: 11px; color: #666; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 body.dark .summary-preview-item { color: #aaa; }

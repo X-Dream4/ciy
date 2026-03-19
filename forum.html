@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>次元论坛</title>
+<script src="vue.global.js"></script>
+<script src="lucide.min.js"></script>
+<link rel="stylesheet" href="world.css" />
+</head>
+<body>
+<div id="forum-app" v-cloak>
+
+  <div class="world-topbar">
+    <button class="world-back-btn" @click="goBack"><i data-lucide="arrow-left"></i></button>
+    <div class="world-title">次元论坛</div>
+    <button class="forum-post-btn" @click="openPost"><i data-lucide="edit-3"></i></button>
+  </div>
+
+  <!-- 分区标签 -->
+  <div class="forum-tabs">
+    <div class="forum-tab" :class="{active: currentTab==='all'}" @click="currentTab='all'">全部</div>
+    <div class="forum-tab" v-for="cat in categories" :key="cat" :class="{active: currentTab===cat}" @click="currentTab=cat">{{ cat }}</div>
+    <div class="forum-tab forum-tab-add" @click="addCatShow=true">+</div>
+  </div>
+
+  <!-- 帖子列表 -->
+  <div class="forum-list">
+    <div class="forum-empty" v-if="!filteredPosts.length">
+      <i data-lucide="inbox" style="width:40px;height:40px;color:#ccc;"></i>
+      <span>还没有帖子，来发第一帖吧</span>
+    </div>
+    <div class="forum-post-card" v-for="post in filteredPosts" :key="post.id" @click="openDetail(post)">
+      <div class="forum-post-header">
+        <div class="forum-post-avatar" :style="post.avatar?`background-image:url(${post.avatar})`:''">
+          <span v-if="!post.avatar">{{ post.author?.[0] }}</span>
+        </div>
+        <div class="forum-post-meta">
+          <div class="forum-post-author">{{ post.author }}</div>
+          <div class="forum-post-time">{{ post.time }}</div>
+        </div>
+        <div class="forum-post-cat" v-if="post.category">{{ post.category }}</div>
+      </div>
+      <div class="forum-post-title">{{ post.title }}</div>
+      <div class="forum-post-preview">{{ post.content.slice(0, 60) }}{{ post.content.length > 60 ? '...' : '' }}</div>
+      <div class="forum-post-footer">
+        <span class="forum-post-stat"><i data-lucide="message-circle" style="width:13px;height:13px;"></i> {{ post.replies?.length || 0 }}</span>
+        <span class="forum-post-stat"><i data-lucide="heart" style="width:13px;height:13px;"></i> {{ post.likes || 0 }}</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- 发帖弹窗 -->
+  <transition name="modal">
+    <div class="modal-mask" v-if="postShow" @click.self="postShow=false">
+      <div class="modal-box">
+        <div class="modal-title">发布帖子</div>
+        <div class="modal-item">
+          <label>作者名字</label>
+          <input class="modal-input" v-model="newPost.author" placeholder="你的名字..." />
+        </div>
+        <div class="modal-item">
+          <label>头像URL（可选）</label>
+          <input class="modal-input" v-model="newPost.avatar" placeholder="头像图片URL..." />
+        </div>
+        <div class="modal-item">
+          <label>分区</label>
+          <select class="modal-input" v-model="newPost.category" style="padding:10px 12px;">
+            <option value="">无分区</option>
+            <option v-for="cat in categories" :key="cat" :value="cat">{{ cat }}</option>
+          </select>
+        </div>
+        <div class="modal-item">
+          <label>标题</label>
+          <input class="modal-input" v-model="newPost.title" placeholder="帖子标题..." />
+        </div>
+        <div class="modal-item">
+          <label>内容</label>
+          <textarea class="modal-textarea" v-model="newPost.content" placeholder="帖子内容..." style="min-height:120px;"></textarea>
+        </div>
+        <div class="modal-btns">
+          <button class="modal-btn cancel" @click="postShow=false">取消</button>
+          <button class="modal-btn confirm" @click="submitPost">发布</button>
+        </div>
+      </div>
+    </div>
+  </transition>
+
+  <!-- 帖子详情弹窗 -->
+  <transition name="modal">
+    <div class="modal-mask" v-if="detailShow" @click.self="detailShow=false">
+      <div class="modal-box" style="max-width:420px;">
+        <div class="forum-detail-header">
+          <div class="forum-post-avatar" :style="currentPost?.avatar?`background-image:url(${currentPost.avatar})`:''">
+            <span v-if="!currentPost?.avatar">{{ currentPost?.author?.[0] }}</span>
+          </div>
+          <div class="forum-post-meta">
+            <div class="forum-post-author">{{ currentPost?.author }}</div>
+            <div class="forum-post-time">{{ currentPost?.time }}</div>
+          </div>
+          <button class="forum-like-btn" @click="likePost(currentPost)">
+            <i data-lucide="heart" style="width:16px;height:16px;"></i>
+            {{ currentPost?.likes || 0 }}
+          </button>
+        </div>
+        <div class="forum-detail-title">{{ currentPost?.title }}</div>
+        <div class="forum-detail-content">{{ currentPost?.content }}</div>
+
+        <!-- 回复列表 -->
+        <div class="forum-replies">
+          <div class="forum-replies-title">回复 {{ currentPost?.replies?.length || 0 }}</div>
+          <div class="forum-reply-empty" v-if="!currentPost?.replies?.length">暂无回复</div>
+          <div class="forum-reply-item" v-for="(r, i) in currentPost?.replies" :key="i">
+            <div class="forum-post-avatar small" :style="r.avatar?`background-image:url(${r.avatar})`:''">
+              <span v-if="!r.avatar">{{ r.author?.[0] }}</span>
+            </div>
+            <div class="forum-reply-body">
+              <div class="forum-reply-author">{{ r.author }} <span class="forum-reply-time">{{ r.time }}</span></div>
+              <div class="forum-reply-content">{{ r.content }}</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 发回复 -->
+        <div class="forum-reply-input-area">
+          <input class="modal-input" v-model="replyAuthor" placeholder="你的名字..." style="margin-bottom:6px;" />
+          <input class="modal-input" v-model="replyAvatarUrl" placeholder="头像URL（可选）..." style="margin-bottom:6px;" />
+          <div style="display:flex;gap:8px;">
+            <textarea class="modal-textarea" v-model="replyContent" placeholder="写下回复..." style="flex:1;min-height:60px;"></textarea>
+            <button class="forum-send-reply-btn" @click="submitReply"><i data-lucide="send"></i></button>
+          </div>
+        </div>
+
+        <div class="modal-btns">
+          <button class="modal-btn cancel" @click="detailShow=false">关闭</button>
+          <button class="modal-btn" style="background:#e53e3e;color:#fff;flex:none;padding:0 14px;" @click="deletePost(currentPost)" v-if="currentPost">删除帖子</button>
+        </div>
+      </div>
+    </div>
+  </transition>
+
+  <!-- 新建分区弹窗 -->
+  <transition name="modal">
+    <div class="modal-mask" v-if="addCatShow" @click.self="addCatShow=false">
+      <div class="modal-box" style="max-width:300px;">
+        <div class="modal-title">新建分区</div>
+        <div class="modal-item">
+          <input class="modal-input" v-model="newCatName" placeholder="分区名称..." @keyup.enter="addCategory" />
+        </div>
+        <div class="modal-btns">
+          <button class="modal-btn cancel" @click="addCatShow=false">取消</button>
+          <button class="modal-btn confirm" @click="addCategory">创建</button>
+        </div>
+      </div>
+    </div>
+  </transition>
+
+</div>
+<script src="db.js"></script>
+<script src="forum.js"></script>
+</body>
+</html>

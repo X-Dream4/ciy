@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>世界次元</title>
+<script src="vue.global.js"></script>
+<script src="lucide.min.js"></script>
+<link rel="stylesheet" href="world.css" />
+</head>
+<body>
+<div id="world-app" v-cloak>
+
+  <div class="world-topbar">
+    <button class="world-back-btn" @click="goBack"><i data-lucide="arrow-left"></i></button>
+    <div class="world-title">世界次元</div>
+  </div>
+
+  <div class="world-content">
+    <div class="world-module-grid">
+      <div class="world-module-card" @click="goForum">
+        <div class="world-module-icon"><i data-lucide="message-square"></i></div>
+        <div class="world-module-name">次元论坛</div>
+        <div class="world-module-desc">和各次元角色交流讨论</div>
+      </div>
+      <div class="world-module-card coming-soon">
+        <div class="world-module-icon"><i data-lucide="map"></i></div>
+        <div class="world-module-name">次元地图</div>
+        <div class="world-module-desc">即将开放</div>
+      </div>
+      <div class="world-module-card coming-soon">
+        <div class="world-module-icon"><i data-lucide="star"></i></div>
+        <div class="world-module-name">更多模块</div>
+        <div class="world-module-desc">即将开放</div>
+      </div>
+    </div>
+  </div>
+
+</div>
+<script src="db.js"></script>
+<script src="world.js"></script>
+</body>
+</html>
