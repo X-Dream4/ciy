@@ -9,7 +9,6 @@
 <link rel="stylesheet" href="chatroom.css" />
 </head>
 <body>
-</div>
 <div class="page-loading-mask" id="loadingMask">
   <div class="loading-tangle">
     <svg viewBox="0 0 80 80">
@@ -54,7 +53,7 @@
           </div>
 
           <div class="msg-wrap" :class="msg.role==='user'?'wrap-right':'wrap-left'">
-            <div class="msg-sender">{{ msg.role==='user' ? myName : charName }}</div>
+            <div class="msg-sender" v-if="!hideNames">{{ msg.role==='user' ? myName : charName }}</div>
 
             <div class="msg-quote" v-if="msg.quoteId">
               <span class="quote-name">{{ getMsg(msg.quoteId)?.role==='user' ? myName : charName }}</span>
@@ -65,7 +64,10 @@
               <div class="chat-inline-avatar avatar-left" v-if="msg.role==='char' && showCharAvatar" :style="charAvatar?`background-image:url(${charAvatar})`:''">
                 <span v-if="!charAvatar">{{ charName[0] }}</span>
               </div>
-              <div class="msg-bubble" :class="[msg.role==='user'?'bubble-right':'bubble-left', msg.type==='whisper'?'bubble-whisper':'', msg.editing?'bubble-editing':'']">
+              <div v-if="msg.type==='sticker'" class="msg-sticker">
+                <img :src="getStickerUrl(msg.content)" :alt="msg.content" />
+              </div>
+              <div v-else class="msg-bubble" :class="[msg.role==='user'?'bubble-right':'bubble-left', msg.type==='whisper'?'bubble-whisper':'', msg.editing?'bubble-editing':'']">
                 <span v-if="msg.loading" class="msg-loading"><span></span><span></span><span></span></span>
                 <div v-else-if="msg.editing">
                   <textarea class="edit-textarea" v-model="msg.editContent" @keydown.enter.exact.prevent="confirmEdit(msg)"></textarea>
@@ -77,6 +79,7 @@
                 <span v-else>{{ msg.content }}</span>
                 <span v-if="msg.type==='whisper'" class="whisper-tag">心声</span>
               </div>
+              <!-- v-else 结束，sticker 和 bubble 共用同一层 -->
               <div class="chat-inline-avatar avatar-right" v-if="msg.role==='user' && showCharAvatar" :style="myAvatar?`background-image:url(${myAvatar})`:''">
                 <span v-if="!myAvatar">{{ myName[0] }}</span>
               </div>
@@ -114,6 +117,12 @@
       <button class="toolbar-btn" @click="goBack"><i data-lucide="arrow-left"></i><span>返回</span></button>
     </div>
   </transition>
+  <div class="sticker-suggest" v-if="stickerSuggestOn && stickerSuggests.length && inputText.trim()">
+    <div class="sticker-suggest-item" v-for="s in stickerSuggests" :key="s.name" @click="sendSticker(s)">
+      <img :src="s.url" :alt="s.name" />
+      <span>{{ s.name }}</span>
+    </div>
+  </div>
 
   <div class="quote-preview" v-if="quotingMsg && appReady">
     <div class="quote-preview-inner">
@@ -230,9 +239,73 @@
 
   <transition name="modal">
     <div class="modal-mask" v-if="emojiShow && appReady" @click.self="emojiShow=false">
-      <div class="modal-box">
+      <div class="modal-box" style="max-width:420px;">
         <div class="modal-title">表情包</div>
-        <div class="peek-empty">表情包面板开发中...</div>
+        <div class="sticker-topbar">
+          <div class="sticker-tabs">
+            <button class="sticker-tab" :class="{active: stickerTab==='browse'}" @click="stickerTab='browse'">浏览</button>
+            <button class="sticker-tab" :class="{active: stickerTab==='import'}" @click="stickerTab='import'">导入</button>
+            <button class="sticker-tab" :class="{active: stickerTab==='char'}" @click="stickerTab='char'">角色表情包</button>
+            <div class="sticker-suggest-toggle" @click="stickerSuggestOn=!stickerSuggestOn; saveBeauty()">联想 <div class="toggle" :class="{on: stickerSuggestOn}" style="display:inline-block;vertical-align:middle;margin-left:4px;"></div></div>
+          </div>
+        </div>
+        <div v-if="stickerTab==='browse'">
+          <div class="sticker-cat-row">
+            <button class="sticker-cat-btn" v-for="cat in stickerData.categories" :key="cat.name" :class="{active: stickerCurrentCat===cat.name}" @click="stickerCurrentCat=cat.name">{{ cat.name }}</button>
+            <span v-if="!stickerData.categories.length" style="font-size:12px;color:#aaa;">暂无分类</span>
+          </div>
+          <div class="sticker-grid" v-if="currentCatStickers.length">
+            <div class="sticker-item" v-for="s in currentCatStickers" :key="s.name" @click="sendStickerFromPanel(s)">
+              <img :src="s.url" :alt="s.name" />
+              <div class="sticker-name">{{ s.name }}</div>
+            </div>
+          </div>
+          <div class="peek-empty" v-else>这个分类还没有表情包</div>
+          <div class="sticker-edit-row">
+            <button class="beauty-btn" @click="stickerEditMode=!stickerEditMode">{{ stickerEditMode?'退出编辑':'编辑' }}</button>
+          </div>
+          <div v-if="stickerEditMode" class="sticker-edit-panel">
+            <div class="sticker-edit-grid">
+              <div class="sticker-edit-item" v-for="s in currentCatStickers" :key="s.name">
+                <input type="checkbox" v-model="stickerSelected" :value="s.name" />
+                <img :src="s.url" :alt="s.name" style="width:40px;height:40px;object-fit:cover;" />
+                <span style="font-size:10px;">{{ s.name }}</span>
+              </div>
+            </div>
+            <div class="sticker-edit-btns">
+              <button class="beauty-btn danger" @click="deleteSelectedStickers" :disabled="!stickerSelected.length">删除选中</button>
+              <select class="modal-input" v-model="stickerMoveTarget" style="flex:1;padding:6px;"><option value="">移动到...</option><option v-for="cat in stickerData.categories" :key="cat.name" :value="cat.name">{{ cat.name }}</option></select>
+              <button class="beauty-btn" @click="moveSelectedStickers" :disabled="!stickerSelected.length||!stickerMoveTarget">移动</button>
+              <button class="beauty-btn" @click="exportSelectedStickers" :disabled="!stickerSelected.length">导出</button>
+            </div>
+          </div>
+        </div>
+        <div v-if="stickerTab==='import'">
+          <div class="modal-item"><label>选择或新建分类</label>
+            <div style="display:flex;gap:6px;"><select class="modal-input" v-model="stickerImportCat" style="flex:1;padding:8px;"><option value="">-- 选择分类 --</option><option v-for="cat in stickerData.categories" :key="cat.name" :value="cat.name">{{ cat.name }}</option></select><button class="beauty-btn" @click="stickerNewCatShow=!stickerNewCatShow">新建</button></div>
+            <div v-if="stickerNewCatShow" style="display:flex;gap:6px;margin-top:6px;"><input class="modal-input" v-model="stickerNewCatName" placeholder="新分类名称..." style="flex:1;" /><button class="beauty-btn" @click="createStickerCat">创建</button></div>
+          </div>
+          <div class="modal-item"><label>单个导入（本地）</label>
+            <div style="display:flex;gap:6px;align-items:center;"><input class="modal-input" v-model="stickerSingleName" placeholder="表情包名字..." style="flex:1;" /><button class="beauty-btn" @click="triggerStickerFile">选图</button></div>
+            <input type="file" ref="stickerFile" accept="image/*" style="display:none" @change="importStickerFile" />
+          </div>
+          <div class="modal-item"><label>单个导入（URL）</label>
+            <div style="display:flex;gap:6px;"><input class="modal-input" v-model="stickerSingleName2" placeholder="名字..." style="flex:1;" /><input class="modal-input" v-model="stickerSingleUrl" placeholder="图片URL..." style="flex:1;" /><button class="beauty-btn" @click="importStickerUrl">导入</button></div>
+          </div>
+          <div class="modal-item"><label>批量导入</label>
+            <div style="font-size:11px;color:#aaa;margin-bottom:4px;">每行格式：名字:URL 或 名字：URL</div>
+            <textarea class="modal-textarea" v-model="stickerBatchText" placeholder="开心:https://...&#10;难过：https://..."></textarea>
+            <button class="beauty-btn" style="margin-top:6px;" @click="importStickerBatch">批量导入</button>
+          </div>
+        </div>
+        <div v-if="stickerTab==='char'">
+          <div style="font-size:13px;color:#666;margin-bottom:8px;">选择允许角色使用的表情包分类。</div>
+          <div class="sticker-cat-row" style="flex-wrap:wrap;gap:8px;">
+            <div v-for="cat in stickerData.categories" :key="cat.name" class="sticker-char-cat" :class="{selected: charStickerCats.includes(cat.name)}" @click="toggleCharStickerCat(cat.name)">{{ cat.name }}<span v-if="charStickerCats.includes(cat.name)" style="margin-left:4px;">✓</span></div>
+          </div>
+          <div class="peek-empty" v-if="!stickerData.categories.length">请先导入表情包</div>
+          <button class="beauty-btn" style="margin-top:10px;" @click="saveCharStickerCats">保存设置</button>
+        </div>
         <div class="modal-btns"><button class="modal-btn cancel" @click="emojiShow=false">关闭</button></div>
       </div>
     </div>
@@ -333,6 +406,14 @@
         </div>
 
         <div class="beauty-section">
+          <div class="beauty-section-title">聊天名字</div>
+          <div class="beauty-toggle-row">
+            <span>隐藏角色和我的聊天名</span>
+            <div class="toggle" :class="{on: hideNames}" @click="hideNames=!hideNames; saveBeauty()"></div>
+          </div>
+        </div>
+
+        <div class="beauty-section">
           <div class="beauty-section-title">气泡样式</div>
           <div class="beauty-toggle-row">
             <span>自定义气泡</span>
@@ -383,6 +464,7 @@
 
 </div>
 <script src="db.js"></script>
+<script src="emoji.js"></script>
 <script src="chatroom.js"></script>
 </body>
 </html>

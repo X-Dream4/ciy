@@ -59,6 +59,7 @@ createApp({
     const coupleAvatarOn = ref(false);
     const coupleAvatarDesc = ref('');
     const showCharAvatar = ref(false);
+    const hideNames = ref(false);
     const bubbleCustomOn = ref(false);
     const bubbleSize = ref('15');
     const charBubbleColor = ref('#ffffff');
@@ -67,6 +68,37 @@ createApp({
     const myBubbleTextColor = ref('#ffffff');
     const cssCustomOn = ref(false);
     const cssCustomInput = ref('');
+        // 表情包相关
+    const stickerData = ref({ categories: [] });
+    const stickerTab = ref('browse');
+    const stickerCurrentCat = ref('');
+    const stickerEditMode = ref(false);
+    const stickerSelected = ref([]);
+    const stickerMoveTarget = ref('');
+    const stickerImportCat = ref('');
+    const stickerNewCatShow = ref(false);
+    const stickerNewCatName = ref('');
+    const stickerSingleName = ref('');
+    const stickerSingleName2 = ref('');
+    const stickerSingleUrl = ref('');
+    const stickerBatchText = ref('');
+    const stickerSuggestOn = ref(false);
+    const charStickerCats = ref([]);
+    const stickerFile = ref(null);
+    const currentCatStickers = computed(() => {
+      const cat = stickerData.value.categories.find(c => c.name === stickerCurrentCat.value);
+      return cat ? cat.emojis : [];
+    });
+    const stickerSuggests = computed(() => {
+      if (!inputText.value.trim()) return [];
+      const kw = inputText.value.trim();
+      const all = stickerData.value.categories.flatMap(c => c.emojis);
+      return all.filter(s => s.name.includes(kw)).slice(0, 8);
+    });
+    const getStickerUrl = (name) => {
+      const all = stickerData.value.categories.flatMap(c => c.emojis);
+      return all.find(s => s.name === name)?.url || '';
+    };
     const beautyWallpaperFile = ref(null);
     const charAvatarFile = ref(null);
     const myAvatarFile = ref(null);
@@ -119,7 +151,7 @@ createApp({
 
       let coupleInfo = '';
       if (coupleAvatarOn.value && coupleAvatarDesc.value) { coupleInfo = `我们使用的是情侣/配套头像，头像描述：${coupleAvatarDesc.value}。你只需知晓，在我提起时自然回应，或偶尔主动提及即可。`; }
-      const systemPrompt = `你现在扮演一个角色，角色名是${charName.value}。${charWorld.value ? '世界观背景：' + charWorld.value + '。' : ''}${charPersona.value ? '角色人设：' + charPersona.value + '。' : ''}${myPersona.value ? '与你对话的人叫' + myName.value + '，ta的人设：' + myPersona.value + '。' : ''}${coupleInfo}请严格保持角色扮演，用${charName.value}的口吻和性格回复，不要暴露自己是AI，不要跳出角色。【重要格式要求】你的每一句话必须单独成一条消息，用换行符分隔，每行只说一句话。【特殊消息格式】如果你想发送心声请用格式：【心声：你的心声内容】；如果你想引用某句话来回复，请用格式：【引用：被引用消息的原文】你的回复内容，被引用原文必须完整复制原句；如果你想撤回你刚才说的话，请单独发一行：【撤回】。`;
+      const systemPrompt = `你现在扮演一个角色，角色名是${charName.value}。${charWorld.value ? '世界观背景：' + charWorld.value + '。' : ''}${charPersona.value ? '角色人设：' + charPersona.value + '。' : ''}${myPersona.value ? '与你对话的人叫' + myName.value + '，ta的人设：' + myPersona.value + '。' : ''}${coupleInfo}请严格保持角色扮演，用${charName.value}的口吻和性格回复，不要暴露自己是AI，不要跳出角色。【重要格式要求】你的每一句话必须单独成一条消息，用换行符分隔，每行只说一句话。【特殊消息格式】如果你想发送心声请用格式：【心声：你的心声内容】；如果你想引用某句话来回复，请用格式：【引用：被引用消息的原文】你的回复内容，被引用原文必须完整复制原句；如果你想撤回你刚才说的话，请单独发一行：【撤回】。${charStickerCats.value.length ? '你可以发送表情包，格式：【表情包：表情包名字】，可用的表情包名字：' + charStickerCats.value.flatMap(catName => { const cat = stickerData.value.categories.find(c => c.name === catName); return cat ? cat.emojis.map(e => e.name) : []; }).join('、') + '。注意只发表情包名字不发URL。' : ''}`;
 
       const readCount = parseInt(aiReadCountInput.value) || 20;
       const historyMsgs = allMessages.value.filter(m => !m.recalled && !m.loading).slice(-readCount).map(m => {
@@ -149,6 +181,13 @@ createApp({
             const quotedMsg = allMessages.value.slice().reverse().find(m => m.content && !m.recalled && !m.loading && m.content.includes(quotedContent));
             if (quotedMsg) { msgQuoteId = quotedMsg.id; }
             line = actualContent || quotedContent;
+          }
+                    // 解析表情包
+          const stickerMatch = line.match(/^【表情包[：:](.+)】$/) || line.match(/^\[表情包[：:](.+)\]$/);
+          if (stickerMatch) {
+            const sName = stickerMatch[1].trim();
+            allMessages.value.push({ id: Date.now() + i, role: 'char', content: sName, type: 'sticker', quoteId: null, recalled: false, revealed: false });
+            await nextTick(); scrollToBottom(); refreshIcons(); continue;
           }
           const recallMatch = line.match(/^【撤回】$/) || line.match(/^\[撤回\]$/);
           if (recallMatch) {
@@ -225,7 +264,80 @@ createApp({
     };
 
     const openDimensionLink = () => { toolbarOpen.value = false; dimensionShow.value = true; nextTick(() => refreshIcons()); };
-    const openEmoji = () => { toolbarOpen.value = false; emojiShow.value = true; nextTick(() => refreshIcons()); };
+    const openEmoji = () => { toolbarOpen.value = false; emojiShow.value = true; nextTick(() => refreshIcons()); };    const sendStickerFromPanel = async (s) => {
+      emojiShow.value = false;
+      const msg = { id: Date.now(), role: 'user', content: s.name, type: 'sticker', quoteId: null, recalled: false, revealed: false };
+      allMessages.value.push(msg);
+      await saveMessages();
+      nextTick(() => { scrollToBottom(); refreshIcons(); });
+    };
+    const sendSticker = async (s) => {
+      const msg = { id: Date.now(), role: 'user', content: s.name, type: 'sticker', quoteId: null, recalled: false, revealed: false };
+      allMessages.value.push(msg);
+      await saveMessages();
+      nextTick(() => { scrollToBottom(); refreshIcons(); });
+    };
+    const triggerStickerFile = () => { stickerFile.value.click(); };
+    const importStickerFile = (e) => {
+      const file = e.target.files[0]; if (!file) return;
+      if (!stickerImportCat.value) { alert('请先选择分类'); return; }
+      if (!stickerSingleName.value.trim()) { alert('请填写名字'); return; }
+      const reader = new FileReader();
+      reader.onload = async (evt) => {
+        const cat = stickerData.value.categories.find(c => c.name === stickerImportCat.value);
+        if (cat) { cat.emojis.push({ name: stickerSingleName.value.trim(), url: evt.target.result }); await emojiSave(stickerData.value); stickerSingleName.value = ''; }
+        e.target.value = '';
+      };
+      reader.readAsDataURL(file);
+    };
+    const importStickerUrl = async () => {
+      if (!stickerImportCat.value) { alert('请先选择分类'); return; }
+      if (!stickerSingleName2.value.trim() || !stickerSingleUrl.value.trim()) { alert('请填写名字和URL'); return; }
+      const cat = stickerData.value.categories.find(c => c.name === stickerImportCat.value);
+      if (cat) { cat.emojis.push({ name: stickerSingleName2.value.trim(), url: stickerSingleUrl.value.trim() }); await emojiSave(stickerData.value); stickerSingleName2.value = ''; stickerSingleUrl.value = ''; }
+    };
+    const importStickerBatch = async () => {
+      if (!stickerImportCat.value) { alert('请先选择分类'); return; }
+      const lines = stickerBatchText.value.split('\n').map(l => l.trim()).filter(l => l);
+      const cat = stickerData.value.categories.find(c => c.name === stickerImportCat.value);
+      if (!cat) return;
+      for (const line of lines) {
+        const sep = line.includes('：') ? '：' : ':';
+        const idx = line.indexOf(sep);
+        if (idx > 0) { const name = line.slice(0, idx).trim(); const url = line.slice(idx + sep.length).trim(); if (name && url) cat.emojis.push({ name, url }); }
+      }
+      await emojiSave(stickerData.value);
+      stickerBatchText.value = '';
+      alert('批量导入完成');
+    };
+    const createStickerCat = async () => {
+      if (!stickerNewCatName.value.trim()) return;
+      stickerData.value.categories.push({ name: stickerNewCatName.value.trim(), emojis: [] });
+      stickerImportCat.value = stickerNewCatName.value.trim();
+      stickerCurrentCat.value = stickerNewCatName.value.trim();
+      stickerNewCatName.value = '';
+      stickerNewCatShow.value = false;
+      await emojiSave(stickerData.value);
+    };
+    const deleteSelectedStickers = async () => {
+      const cat = stickerData.value.categories.find(c => c.name === stickerCurrentCat.value);
+      if (cat) { cat.emojis = cat.emojis.filter(s => !stickerSelected.value.includes(s.name)); stickerSelected.value = []; await emojiSave(stickerData.value); }
+    };
+    const moveSelectedStickers = async () => {
+      const from = stickerData.value.categories.find(c => c.name === stickerCurrentCat.value);
+      const to = stickerData.value.categories.find(c => c.name === stickerMoveTarget.value);
+      if (from && to) { const moved = from.emojis.filter(s => stickerSelected.value.includes(s.name)); from.emojis = from.emojis.filter(s => !stickerSelected.value.includes(s.name)); to.emojis.push(...moved); stickerSelected.value = []; stickerMoveTarget.value = ''; await emojiSave(stickerData.value); }
+    };
+    const exportSelectedStickers = () => {
+      const cat = stickerData.value.categories.find(c => c.name === stickerCurrentCat.value);
+      if (!cat) return;
+      const data = cat.emojis.filter(s => stickerSelected.value.includes(s.name)).map(s => `${s.name}:${s.url}`).join('\n');
+      const blob = new Blob([data], { type: 'text/plain' });
+      const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `stickers-${stickerCurrentCat.value}.txt`; a.click();
+    };
+    const toggleCharStickerCat = (name) => { const idx = charStickerCats.value.indexOf(name); if (idx === -1) charStickerCats.value.push(name); else charStickerCats.value.splice(idx, 1); };
+    const saveCharStickerCats = async () => { await dbSet(`charStickerCats_${charId}`, JSON.parse(JSON.stringify(charStickerCats.value))); alert('保存成功'); };
+
     const openMyWhisper = () => { toolbarOpen.value = false; whisperText.value = ''; myWhisperShow.value = true; nextTick(() => refreshIcons()); };
     const openBeauty = () => { toolbarOpen.value = false; beautyShow.value = true; nextTick(() => refreshIcons()); };
 
@@ -280,7 +392,7 @@ createApp({
       await dbSet(`chatBeauty_${charId}`, JSON.parse(JSON.stringify({
         chatWallpaper: chatWallpaper.value, charAvatar: charAvatar.value, myAvatar: myAvatar.value,
         coupleAvatarOn: coupleAvatarOn.value, coupleAvatarDesc: coupleAvatarDesc.value,
-        showCharAvatar: showCharAvatar.value, bubbleCustomOn: bubbleCustomOn.value,
+        showCharAvatar: showCharAvatar.value, hideNames: hideNames.value, bubbleCustomOn: bubbleCustomOn.value,
         bubbleSize: bubbleSize.value, charBubbleColor: charBubbleColor.value,
         charBubbleTextColor: charBubbleTextColor.value, myBubbleColor: myBubbleColor.value,
         myBubbleTextColor: myBubbleTextColor.value, cssCustomOn: cssCustomOn.value,
@@ -293,7 +405,7 @@ createApp({
       if (!b) return;
       chatWallpaper.value = b.chatWallpaper || ''; charAvatar.value = b.charAvatar || ''; myAvatar.value = b.myAvatar || '';
       coupleAvatarOn.value = b.coupleAvatarOn || false; coupleAvatarDesc.value = b.coupleAvatarDesc || '';
-      showCharAvatar.value = b.showCharAvatar || false; bubbleCustomOn.value = b.bubbleCustomOn || false;
+      showCharAvatar.value = b.showCharAvatar || false; hideNames.value = b.hideNames || false; bubbleCustomOn.value = b.bubbleCustomOn || false;
       bubbleSize.value = b.bubbleSize || '15'; charBubbleColor.value = b.charBubbleColor || '#ffffff';
       charBubbleTextColor.value = b.charBubbleTextColor || '#111111'; myBubbleColor.value = b.myBubbleColor || '#111111';
       myBubbleTextColor.value = b.myBubbleTextColor || '#ffffff'; cssCustomOn.value = b.cssCustomOn || false;
@@ -364,6 +476,11 @@ createApp({
       if (api) apiConfig.value = api;
       if (ph) peekHistory.value = ph;
       if (mh) mirrorHistory.value = mh;
+            const emojiRaw = await emojiLoad();
+      stickerData.value = emojiRaw;
+      if (stickerData.value.categories.length) stickerCurrentCat.value = stickerData.value.categories[0].name;
+      const charCats = await dbGet(`charStickerCats_${charId}`);
+      if (charCats) charStickerCats.value = charCats;
       try { await loadBeauty(); } catch(e) { console.warn('loadBeauty error:', e); }
       setTimeout(() => {
         try { refreshIcons(); } catch(e) {}
@@ -384,7 +501,7 @@ createApp({
       whisperText, peekResult, peekLoading, mirrorResult, mirrorLoading, mirrorMode,
       bubbleMenuMsgId, quotingMsg, multiSelectMode, selectedMsgs,
       chatWallpaper, chatWallpaperUrl, charAvatar, myAvatar,
-      coupleAvatarOn, coupleAvatarDesc, showCharAvatar,
+      coupleAvatarOn, coupleAvatarDesc, showCharAvatar, hideNames,
       bubbleCustomOn, bubbleSize, charBubbleColor, charBubbleTextColor,
       myBubbleColor, myBubbleTextColor, cssCustomOn, cssCustomInput,
       beautyWallpaperFile, charAvatarFile, myAvatarFile, charAvatarUrl, myAvatarUrl,
@@ -398,6 +515,13 @@ createApp({
       applyBeautyWallpaperUrl, resetChatWallpaper, triggerBeautyWallpaper, uploadBeautyWallpaper,
       triggerCharAvatar, uploadCharAvatar, applyCharAvatarUrl,
       triggerMyAvatar, uploadMyAvatar, applyMyAvatarUrl,
+      stickerData, stickerTab, stickerCurrentCat, stickerEditMode, stickerSelected, stickerMoveTarget,
+      stickerImportCat, stickerNewCatShow, stickerNewCatName, stickerSingleName, stickerSingleName2,
+      stickerSingleUrl, stickerBatchText, stickerSuggestOn, charStickerCats, stickerFile,
+      currentCatStickers, stickerSuggests, getStickerUrl,
+      sendStickerFromPanel, sendSticker, triggerStickerFile, importStickerFile, importStickerUrl,
+      importStickerBatch, createStickerCat, deleteSelectedStickers, moveSelectedStickers,
+      exportSelectedStickers, toggleCharStickerCat, saveCharStickerCats,
       saveBeauty, applyBubbleStyle,
       onTouchStart, onTouchEnd, onTouchMove, onMouseDown, onMouseUp,
       quoteMsg, recallMsg, toggleRecallReveal, deleteMsg, editMsg, confirmEdit, cancelEdit,

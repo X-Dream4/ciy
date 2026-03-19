@@ -398,4 +398,72 @@ body.dark .loading-tangle-ring:nth-child(4) { stroke: rgba(255,255,255,0.18); }
 
 body.dark .loading-text { color: rgba(255,255,255,0.35); }
 
+.msg-sticker { max-width: 120px; }
+.msg-sticker img { width: 100%; border-radius: 8px; display: block; }
+.sticker-suggest { position: fixed; bottom: 80px; left: 12px; right: 12px; display: flex; gap: 8px; overflow-x: auto; background: rgba(255,255,255,0.75); backdrop-filter: blur(12px); border-radius: 12px; padding: 8px 10px; z-index: 58; scrollbar-width: none; }
+.sticker-suggest::-webkit-scrollbar { display: none; }
+.sticker-suggest-item { display: flex; flex-direction: column; align-items: center; gap: 3px; cursor: pointer; flex-shrink: 0; }
+.sticker-suggest-item img { width: 44px; height: 44px; object-fit: cover; border-radius: 6px; }
+.sticker-suggest-item { font-size: 10px; color: #666; text-align: center; }
+
+body.dark .sticker-suggest { background: rgba(40,40,40,0.75); }
+
+.sticker-topbar { display: flex; flex-direction: column; gap: 8px; }
+
+.sticker-tabs { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+
+.sticker-tab { padding: 6px 12px; border-radius: 8px; border: 1.5px solid #e5e5ea; background: #f2f2f7; font-size: 12px; color: #333; cursor: pointer; }
+
+.sticker-tab.active { background: #111; color: #fff; border-color: #111; }
+
+body.dark .sticker-tab { background: #333; border-color: #444; color: #eee; }
+
+body.dark .sticker-tab.active { background: #eee; color: #111; }
+
+.sticker-suggest-toggle { margin-left: auto; font-size: 11px; color: #888; cursor: pointer; display: flex; align-items: center; gap: 4px; }
+
+.sticker-cat-row { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 8px; }
+
+.sticker-cat-btn { padding: 4px 10px; border-radius: 8px; border: 1.5px solid #e5e5ea; background: #f2f2f7; font-size: 12px; color: #333; cursor: pointer; }
+
+.sticker-cat-btn.active { background: #111; color: #fff; border-color: #111; }
+
+body.dark .sticker-cat-btn { background: #333; border-color: #444; color: #eee; }
+
+.sticker-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; max-height: 260px; overflow-y: auto; margin-bottom: 8px; }
+
+.sticker-item { display: flex; flex-direction: column; align-items: center; gap: 4px; cursor: pointer; padding: 4px; border-radius: 8px; transition: background 0.15s; }
+
+.sticker-item:hover { background: #f0f0f5; }
+
+.sticker-item img { width: 60px; height: 60px; object-fit: cover; border-radius: 6px; }
+
+.sticker-name { font-size: 10px; color: #666; text-align: center; word-break: break-all; line-height: 1.2; }
+
+body.dark .sticker-item:hover { background: #333; }
+
+body.dark .sticker-name { color: #aaa; }
+
+.sticker-edit-row { display: flex; justify-content: flex-end; margin-top: 4px; }
+
+.sticker-edit-panel { background: #f9f9f9; border-radius: 10px; padding: 10px; margin-top: 8px; }
+
+body.dark .sticker-edit-panel { background: #222; }
+
+.sticker-edit-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; max-height: 180px; overflow-y: auto; margin-bottom: 8px; }
+
+.sticker-edit-item { display: flex; flex-direction: column; align-items: center; gap: 3px; font-size: 10px; color: #555; }
+
+body.dark .sticker-edit-item { color: #aaa; }
+
+.sticker-edit-btns { display: flex; gap: 6px; flex-wrap: wrap; }
+
+.sticker-char-cat { padding: 6px 12px; border-radius: 10px; border: 1.5px solid #e5e5ea; background: #f2f2f7; font-size: 13px; color: #333; cursor: pointer; transition: all 0.15s; }
+
+.sticker-char-cat.selected { background: #111; color: #fff; border-color: #111; }
+
+body.dark .sticker-char-cat { background: #333; border-color: #444; color: #eee; }
+
+body.dark .sticker-char-cat.selected { background: #eee; color: #111; }
+
 [v-cloak] { display: none; }
