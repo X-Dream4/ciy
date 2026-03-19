@@ -364,8 +364,14 @@ createApp({
       if (api) apiConfig.value = api;
       if (ph) peekHistory.value = ph;
       if (mh) mirrorHistory.value = mh;
-      await loadBeauty();
-      setTimeout(() => { refreshIcons(); scrollToBottom(); appReady.value = true; }, 100);
+      try { await loadBeauty(); } catch(e) { console.warn('loadBeauty error:', e); }
+      setTimeout(() => {
+        try { refreshIcons(); } catch(e) {}
+        try { scrollToBottom(); } catch(e) {}
+        appReady.value = true;
+        const mask = document.getElementById('loadingMask');
+        if (mask) { mask.classList.add('hide'); setTimeout(() => mask.remove(), 400); }
+      }, 100);
     });
 
     return {

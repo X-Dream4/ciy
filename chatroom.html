@@ -9,10 +9,21 @@
 <link rel="stylesheet" href="chatroom.css" />
 </head>
 <body>
-<div id="chatroom-app" v-cloak :class="{ready: appReady}">
+</div>
+<div class="page-loading-mask" id="loadingMask">
+  <div class="loading-tangle">
+    <svg viewBox="0 0 80 80">
+      <ellipse class="loading-tangle-ring" cx="40" cy="40" rx="30" ry="18"/>
+      <ellipse class="loading-tangle-ring" cx="40" cy="40" rx="18" ry="30"/>
+      <ellipse class="loading-tangle-ring" cx="40" cy="40" rx="35" ry="10"/>
+      <ellipse class="loading-tangle-ring" cx="40" cy="40" rx="10" ry="35"/>
+    </svg>
+  </div>
+  <div class="loading-text">正在连接中…</div>
+</div>
 
+<div id="chatroom-app" v-cloak :class="{ready: appReady}">
   <div class="msg-area" ref="msgArea">
-    <div class="msg-top-spacer"></div>
 
     <transition name="toolbar">
       <div class="multiselect-bar" v-if="multiSelectMode && appReady">

@@ -364,4 +364,38 @@ body.dark .chat-inline-avatar { background-color: #444; color: #aaa; }
 
 body.dark .history-load-btn { background: rgba(50,50,50,0.7); border-color: #444; color: #aaa; }
 
+.page-loading-mask { position: fixed; inset: 0; background: #f2f2f7; z-index: 9999; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 20px; transition: opacity 0.35s; }
+
+body.dark .page-loading-mask { background: #1a1a1a; }
+
+.page-loading-mask.hide { opacity: 0; pointer-events: none; }
+
+.loading-tangle { width: 80px; height: 80px; position: relative; }
+
+.loading-tangle svg { width: 100%; height: 100%; animation: tangle-spin 3s linear infinite; }
+
+.loading-tangle-ring { fill: none; stroke-width: 2.5; stroke-linecap: round; }
+
+.loading-tangle-ring:nth-child(1) { stroke: rgba(0,0,0,0.12); animation: tangle-dash1 2s ease-in-out infinite; }
+.loading-tangle-ring:nth-child(2) { stroke: rgba(0,0,0,0.18); animation: tangle-dash2 2.4s ease-in-out infinite 0.3s; }
+.loading-tangle-ring:nth-child(3) { stroke: rgba(0,0,0,0.10); animation: tangle-dash3 1.8s ease-in-out infinite 0.6s; }
+.loading-tangle-ring:nth-child(4) { stroke: rgba(0,0,0,0.15); animation: tangle-dash1 2.2s ease-in-out infinite 0.9s; }
+
+body.dark .loading-tangle-ring:nth-child(1) { stroke: rgba(255,255,255,0.15); }
+body.dark .loading-tangle-ring:nth-child(2) { stroke: rgba(255,255,255,0.22); }
+body.dark .loading-tangle-ring:nth-child(3) { stroke: rgba(255,255,255,0.12); }
+body.dark .loading-tangle-ring:nth-child(4) { stroke: rgba(255,255,255,0.18); }
+
+@keyframes tangle-spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+
+@keyframes tangle-dash1 { 0%,100% { stroke-dasharray: 20 60; stroke-dashoffset: 0; } 50% { stroke-dasharray: 50 30; stroke-dashoffset: -30; } }
+
+@keyframes tangle-dash2 { 0%,100% { stroke-dasharray: 10 70; stroke-dashoffset: -10; } 50% { stroke-dasharray: 40 40; stroke-dashoffset: -50; } }
+
+@keyframes tangle-dash3 { 0%,100% { stroke-dasharray: 30 50; stroke-dashoffset: -20; } 50% { stroke-dasharray: 15 65; stroke-dashoffset: -10; } }
+
+.loading-text { font-size: 12px; color: rgba(0,0,0,0.35); letter-spacing: 1px; font-family: -apple-system, 'PingFang SC', sans-serif; }
+
+body.dark .loading-text { color: rgba(255,255,255,0.35); }
+
 [v-cloak] { display: none; }
