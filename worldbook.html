@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>世界书馆</title>
+<script src="vue.global.js"></script>
+<script src="lucide.min.js"></script>
+<link rel="stylesheet" href="worldbook.css" />
+</head>
+<body>
+<div id="worldbook-app" v-cloak>
+
+  <div class="wb-topbar">
+    <button class="wb-back-btn" @click="goBack"><i data-lucide="arrow-left"></i></button>
+    <div class="wb-title">世界书馆</div>
+    <button class="wb-add-btn" @click="openAdd"><i data-lucide="plus"></i></button>
+  </div>
+
+  <!-- 分类栏 -->
+  <div class="wb-cat-bar">
+    <div class="wb-cat-item" :class="{active: currentCat==='全部'}" @click="currentCat='全部'">全部</div>
+    <div class="wb-cat-item" v-for="cat in categories" :key="cat" :class="{active: currentCat===cat}" @click="currentCat=cat">
+      {{ cat }}
+      <span class="wb-cat-del" @click.stop="deleteCategory(cat)"><i data-lucide="x" style="width:10px;height:10px;"></i></span>
+    </div>
+    <div class="wb-cat-item wb-cat-add" @click="catFormShow=true"><i data-lucide="plus" style="width:14px;height:14px;"></i></div>
+  </div>
+
+  <div class="wb-list">
+    <div class="wb-empty" v-if="!filteredBooks.length">
+      <i data-lucide="book-open" style="width:40px;height:40px;color:#ccc;"></i>
+      <span>{{ currentCat==='全部' ? '还没有世界书，点击右上角添加' : '这个分类还没有世界书' }}</span>
+    </div>
+    <div class="wb-item" v-for="book in filteredBooks" :key="book.id" @click="openEdit(book)">
+      <div class="wb-item-left">
+        <div class="wb-item-type" :class="'type-'+book.type">{{ typeLabel(book.type) }}</div>
+        <div class="wb-item-info">
+          <div class="wb-item-name">{{ book.name }}</div>
+          <div class="wb-item-cat" v-if="book.category">{{ book.category }}</div>
+          <div class="wb-item-keywords" v-if="book.keywords">触发词：{{ book.keywords }}</div>
+          <div class="wb-item-keywords" v-else style="color:#ccc;">无触发词（始终生效）</div>
+        </div>
+      </div>
+      <div class="wb-item-right">
+        <button class="wb-del-btn" @click.stop="deleteBook(book)"><i data-lucide="trash-2"></i></button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 添加/编辑弹窗 -->
+  <transition name="modal">
+    <div class="modal-mask" v-if="formShow" @click.self="formShow=false">
+      <div class="modal-box">
+        <div class="modal-title">{{ editIndex === -1 ? '添加世界书' : '编辑世界书' }}</div>
+        <div class="modal-item">
+          <label>名称</label>
+          <input class="modal-input" v-model="form.name" placeholder="世界书名称..." />
+        </div>
+        <div class="modal-item">
+          <label>分类</label>
+          <select class="modal-input" v-model="form.category" style="padding:10px 12px;">
+            <option value="">无分类</option>
+            <option v-for="cat in categories" :key="cat" :value="cat">{{ cat }}</option>
+          </select>
+        </div>
+        <div class="modal-item">
+          <label>类型</label>
+          <div class="wb-type-row">
+            <div class="wb-type-btn" :class="{active: form.type==='jailbreak'}" @click="form.type='jailbreak'">破限</div>
+            <div class="wb-type-btn" :class="{active: form.type==='worldview'}" @click="form.type='worldview'">世界观</div>
+            <div class="wb-type-btn" :class="{active: form.type==='persona'}" @click="form.type='persona'">人设补充</div>
+            <div class="wb-type-btn" :class="{active: form.type==='prompt'}" @click="form.type='prompt'">提示词</div>
+          </div>
+          <div class="wb-type-desc">
+            <span v-if="form.type==='jailbreak'">插入位置：系统提示词最前面，优先级最高</span>
+            <span v-if="form.type==='worldview'">插入位置：系统提示词世界观部分</span>
+            <span v-if="form.type==='persona'">插入位置：系统提示词角色人设部分</span>
+            <span v-if="form.type==='prompt'">插入位置：系统提示词末尾</span>
+          </div>
+        </div>
+        <div class="modal-item">
+          <label>关键词触发（多个用逗号分隔，不填则始终生效）</label>
+          <input class="modal-input" v-model="form.keywords" placeholder="例：魔法,龙,王国..." />
+        </div>
+        <div class="modal-item">
+          <label>内容</label>
+          <textarea class="modal-textarea" v-model="form.content" placeholder="世界书内容..."></textarea>
+        </div>
+        <div class="modal-btns">
+          <button class="modal-btn cancel" @click="formShow=false">取消</button>
+          <button class="modal-btn confirm" @click="saveBook">保存</button>
+        </div>
+      </div>
+    </div>
+  </transition>
+
+  <!-- 新建分类弹窗 -->
+  <transition name="modal">
+    <div class="modal-mask" v-if="catFormShow" @click.self="catFormShow=false">
+      <div class="modal-box" style="max-width:300px;">
+        <div class="modal-title">新建分类</div>
+        <div class="modal-item">
+          <input class="modal-input" v-model="newCatName" placeholder="分类名称..." @keyup.enter="addCategory" />
+        </div>
+        <div class="modal-btns">
+          <button class="modal-btn cancel" @click="catFormShow=false">取消</button>
+          <button class="modal-btn confirm" @click="addCategory">创建</button>
+        </div>
+      </div>
+    </div>
+  </transition>
+
+</div>
+<script src="db.js"></script>
+<script src="worldbook.js"></script>
+</body>
+</html>

@@ -162,6 +162,31 @@
         <div class="modal-item"><label>世界观</label><textarea class="modal-textarea" v-model="charWorldInput" placeholder="角色所在的世界观..."></textarea></div>
         <div class="modal-item"><label>角色人设</label><textarea class="modal-textarea" v-model="charPersonaInput" placeholder="角色的性格、背景..."></textarea></div>
         <div class="modal-item"><label>AI可读取消息条数</label><input class="modal-input" type="number" v-model="aiReadCountInput" min="5" max="200" placeholder="默认20条" /></div>
+        <div class="modal-item">
+          <label>启用的世界书</label>
+          <div v-if="allWorldBooks.length">
+            <!-- 分类选择 -->
+            <div v-for="cat in wbCategoriesInChat" :key="cat" class="wb-chat-cat">
+              <div class="wb-chat-cat-header" @click="toggleCatExpand(cat)">
+                <span style="font-size:13px;font-weight:600;color:#333;">{{ cat || '无分类' }}</span>
+                <div style="display:flex;gap:6px;align-items:center;">
+                  <span style="font-size:11px;color:#aaa;">{{ wbBooksByCat(cat).filter(b=>selectedWorldBooks.includes(b.id)).length }}/{{ wbBooksByCat(cat).length }}</span>
+                  <button class="wb-cat-sel-btn" @click.stop="selectAllCat(cat)">全选</button>
+                  <i :data-lucide="expandedCats.includes(cat)?'chevron-up':'chevron-down'" style="width:14px;height:14px;"></i>
+                </div>
+              </div>
+              <div v-if="expandedCats.includes(cat)" class="wb-chat-cat-books">
+                <div class="wb-select-item" v-for="book in wbBooksByCat(cat)" :key="book.id" :class="{selected: selectedWorldBooks.includes(book.id)}" @click="toggleWorldBook(book.id)">
+                  <div class="wb-item-type" :class="'type-'+book.type" style="font-size:9px;padding:2px 6px;">{{ wbTypeLabel(book.type) }}</div>
+                  <span style="font-size:13px;flex:1;">{{ book.name }}</span>
+                  <span style="font-size:10px;color:#aaa;" v-if="book.keywords">{{ book.keywords }}</span>
+                  <span style="font-size:10px;color:#ccc;" v-else>始终生效</span>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div style="font-size:12px;color:#aaa;padding:8px 0;" v-else>世界书馆暂无世界书</div>
+        </div>
         <div class="modal-btns">
           <button class="modal-btn cancel" @click="chatSettingsShow=false">取消</button>
           <button class="modal-btn confirm" @click="saveChatSettings">保存</button>
@@ -174,11 +199,23 @@
     <div class="modal-mask" v-if="dimensionShow && appReady" @click.self="dimensionShow=false">
       <div class="modal-box">
         <div class="modal-title">次元链接</div>
-        <div class="modal-item">
-          <div class="dimension-info">
-            <div class="dimension-row"><span>角色名</span><span>{{ charName }}</span></div>
-            <div class="dimension-row"><span>世界观</span><span>{{ charWorld || '未设置' }}</span></div>
+        <div class="dimension-info">
+          <div class="dimension-row"><span>角色名</span><span>{{ charName }}</span></div>
+          <div class="dimension-row"><span>世界观</span><span>{{ charWorld || '未设置' }}</span></div>
+          <div class="dimension-row"><span>已启用世界书</span><span>{{ selectedWorldBooks.length }} 本</span></div>
+          <div class="dimension-row"><span>Token预估</span><span>{{ tokenEstimate }} tokens</span></div>
+          <div class="dimension-row"><span>消息储存</span><span>{{ allMessages.length }} 条 / 约 {{ msgMemoryKB }} KB</span></div>
+        </div>
+        <div class="modal-item" style="margin-top:4px;">
+          <label style="font-size:11px;font-weight:700;color:#aaa;text-transform:uppercase;letter-spacing:0.5px;">控制台日志</label>
+          <div class="console-box">
+            <div class="console-line" v-for="(log,i) in charConsoleLogs" :key="i" :class="log.type">
+              <span class="console-time">{{ log.time }}</span>
+              <span>{{ log.msg }}</span>
+            </div>
+            <div v-if="!charConsoleLogs.length" class="console-empty">暂无日志</div>
           </div>
+          <button class="modal-btn cancel" style="margin-top:6px;font-size:12px;padding:8px;" @click="charConsoleLogs=[]">清空日志</button>
         </div>
         <div class="modal-btns"><button class="modal-btn cancel" @click="dimensionShow=false">关闭</button></div>
       </div>
@@ -421,6 +458,7 @@
           </div>
           <div v-if="bubbleCustomOn" class="bubble-custom-panel">
             <div class="beauty-field"><label>气泡字体大小 (px)</label><input class="modal-input" type="number" v-model="bubbleSize" min="10" max="24" @change="saveBeauty" /></div>
+            <div class="beauty-field"><label>气泡最大宽度 (%)</label><input class="modal-input" type="number" v-model="bubbleMaxWidth" min="40" max="95" @change="saveBeauty" /><span style="font-size:11px;color:#aaa;">控制每行显示字数，数值越小气泡越窄</span></div>
             <div class="beauty-field"><label>角色气泡背景色</label><div class="color-row"><input type="color" v-model="charBubbleColor" @change="saveBeauty" /><span>{{ charBubbleColor }}</span></div></div>
             <div class="beauty-field"><label>角色气泡文字色</label><div class="color-row"><input type="color" v-model="charBubbleTextColor" @change="saveBeauty" /><span>{{ charBubbleTextColor }}</span></div></div>
             <div class="beauty-field"><label>我的气泡背景色</label><div class="color-row"><input type="color" v-model="myBubbleColor" @change="saveBeauty" /><span>{{ myBubbleColor }}</span></div></div>

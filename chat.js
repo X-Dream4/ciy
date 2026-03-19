@@ -18,6 +18,7 @@ createApp({
     const openConnectChar = () => { menuOpen.value = false; newChar.value = { name: '', world: '', persona: '', avatar: '' }; connectCharShow.value = true; nextTick(() => refreshIcons()); };
     const openConnectRoom = () => { menuOpen.value = false; newRoom.value = { name: '', members: [] }; connectRoomShow.value = true; nextTick(() => refreshIcons()); };
     const goRandom = () => { menuOpen.value = false; window.location.href = 'random.html'; };
+    const goToWorldbook = () => { menuOpen.value = false; window.location.href = 'worldbook.html'; };
     const goBack = () => { window.location.href = 'index.html'; };
 
     const confirmConnectChar = async () => {
@@ -71,7 +72,7 @@ createApp({
     return {
       menuOpen, menuBtnRef, charList, roomList,
       connectCharShow, connectRoomShow, newChar, newRoom,
-      toggleMenu, openConnectChar, openConnectRoom, goRandom, goBack,
+      toggleMenu, openConnectChar, openConnectRoom, goRandom, goBack, goToWorldbook,
       confirmConnectChar, confirmConnectRoom, toggleMember,
       enterChat, enterRoom
     };
