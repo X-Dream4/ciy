@@ -1,0 +1,545 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>聊天室</title>
+<script src="vue.global.js"></script>
+<script src="lucide.min.js"></script>
+<link rel="stylesheet" href="groupchat.css" />
+</head>
+<body>
+<div class="page-loading-mask" id="loadingMask">
+  <div class="loading-tangle">
+    <svg viewBox="0 0 80 80">
+      <ellipse class="loading-tangle-ring" cx="40" cy="40" rx="30" ry="18"/>
+      <ellipse class="loading-tangle-ring" cx="40" cy="40" rx="18" ry="30"/>
+      <ellipse class="loading-tangle-ring" cx="40" cy="40" rx="35" ry="10"/>
+      <ellipse class="loading-tangle-ring" cx="40" cy="40" rx="10" ry="35"/>
+    </svg>
+  </div>
+  <div class="loading-text">正在连接中…</div>
+</div>
+
+<div id="groupchat-app" v-cloak :class="{ready: appReady}">
+
+  <div class="msg-area" ref="msgArea">
+    <div class="msg-top-spacer"></div>
+    <transition name="toolbar">
+      <div class="multiselect-bar" v-if="multiSelectMode && appReady">
+        <span>已选 {{ selectedMsgs.length }} 条</span>
+        <button @click="deleteSelected">删除选中</button>
+        <button @click="cancelMultiSelect">取消</button>
+      </div>
+    </transition>
+    <div class="history-btn-wrap" v-if="!showHistory && allMessages.length > MSG_LIMIT">
+      <button class="history-load-btn" @click="showHistory=true">查看过往消息</button>
+    </div>
+    <div class="msg-list">
+      <div v-for="(msg, i) in messages" :key="msg.id">
+        <div v-if="msg.recalled" class="recall-tip" @click="toggleRecallReveal(msg)">
+          {{ msg.senderName || myName }} 撤回了一条消息
+          <span class="recall-reveal-hint">{{ msg.revealed ? '收起' : '查看' }}</span>
+        </div>
+        <div v-if="msg.recalled && msg.revealed" class="recall-revealed">{{ msg.content }}</div>
+        <div v-if="!msg.recalled" class="msg-row" :class="[msg.role==='user'?'row-right':'row-left', multiSelectMode?'selectable':'', selectedMsgs.includes(msg.id)?'selected-row':'']" @click="multiSelectMode?toggleSelect(msg.id):null" @touchstart="onTouchStart(msg,i,$event)" @touchend="onTouchEnd" @touchmove="onTouchMove" @mousedown="onMouseDown(msg,i)" @mouseup="onMouseUp">
+          <div class="select-check" v-if="multiSelectMode"><div class="check-circle" :class="{checked:selectedMsgs.includes(msg.id)}"></div></div>
+          <div class="msg-wrap" :class="msg.role==='user'?'wrap-right':'wrap-left'">
+            <div class="msg-sender" v-if="!hideNames">{{ msg.role==='user' ? myName : msg.senderName }}</div>
+            <div class="msg-quote" v-if="msg.quoteId">
+              <span class="quote-name">{{ getMsg(msg.quoteId)?.senderName || (getMsg(msg.quoteId)?.role==='user'?myName:'') }}</span>
+              <span class="quote-content">{{ getMsg(msg.quoteId)?.content }}</span>
+            </div>
+            <div class="msg-bubble-row" :class="msg.role==='user'?'bubble-row-right':'bubble-row-left'">
+              <div class="chat-inline-avatar avatar-left" v-if="msg.role==='char' && showMemberAvatars" :style="getMemberAvatar(msg.memberId)">
+                <span v-if="!getMemberAvatarUrl(msg.memberId)">{{ msg.senderName?.[0] }}</span>
+              </div>
+              <div v-if="msg.type==='sticker'" class="msg-sticker"><img :src="getStickerUrl(msg.content)" :alt="msg.content" /></div>
+              <div v-else class="msg-bubble" :class="[msg.role==='user'?'bubble-right':'bubble-left', msg.type==='whisper'?'bubble-whisper':'', msg.editing?'bubble-editing':'']" :style="getMemberBubbleStyle(msg)">
+                <span v-if="msg.loading" class="msg-loading"><span></span><span></span><span></span></span>
+                <div v-else-if="msg.editing">
+                  <textarea class="edit-textarea" v-model="msg.editContent" @keydown.enter.exact.prevent="confirmEdit(msg)"></textarea>
+                  <div class="edit-btns"><button @click="cancelEdit(msg)">取消</button><button @click="confirmEdit(msg)">确认</button></div>
+                </div>
+                <span v-else>{{ msg.content }}</span>
+                <span v-if="msg.type==='whisper'" class="whisper-tag">心声</span>
+              </div>
+              <div class="chat-inline-avatar avatar-right" v-if="msg.role==='user' && showMemberAvatars" :style="myAvatarStyle">
+                <span v-if="!myAvatar">{{ myName?.[0] }}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <transition name="popup">
+          <div class="bubble-menu" v-if="bubbleMenuMsgId===msg.id && !msg.recalled && appReady" :class="msg.role==='user'?'menu-right':'menu-left'">
+            <button class="bubble-menu-btn" @click="quoteMsg(msg)"><i data-lucide="corner-up-left"></i><span>引用</span></button>
+            <button class="bubble-menu-btn" @click="recallMsg(msg)"><i data-lucide="undo-2"></i><span>撤回</span></button>
+            <button class="bubble-menu-btn" @click="editMsg(msg)"><i data-lucide="pencil"></i><span>编辑</span></button>
+            <button class="bubble-menu-btn" @click="deleteMsg(msg)"><i data-lucide="trash-2"></i><span>删除</span></button>
+            <button class="bubble-menu-btn" @click="startMultiSelect(msg.id)"><i data-lucide="check-square"></i><span>多选</span></button>
+            <button class="bubble-menu-btn" @click="bubbleMenuMsgId=null"><i data-lucide="x"></i><span>关闭</span></button>
+          </div>
+        </transition>
+      </div>
+    </div>
+    <div class="msg-bottom-spacer"></div>
+  </div>
+
+  <transition name="toolbar">
+    <div class="toolbar" v-if="toolbarOpen && appReady">
+      <button class="toolbar-btn" @click="callApi"><i data-lucide="zap"></i><span>调用API</span></button>
+      <button class="toolbar-btn" @click="openChatSettings"><i data-lucide="settings-2"></i><span>聊天设置</span></button>
+      <button class="toolbar-btn" @click="openMemberSettings"><i data-lucide="users"></i><span>成员设置</span></button>
+      <button class="toolbar-btn" @click="openDimensionLink"><i data-lucide="link-2"></i><span>次元链接</span></button>
+      <button class="toolbar-btn" @click="openMySettings"><i data-lucide="user"></i><span>我的设置</span></button>
+      <button class="toolbar-btn" @click="openPeekSoul"><i data-lucide="eye"></i><span>窥探心声</span></button>
+      <button class="toolbar-btn" @click="openDimensionMirror"><i data-lucide="monitor"></i><span>次元时境</span></button>
+      <button class="toolbar-btn" @click="openMyWhisper"><i data-lucide="message-circle"></i><span>我的心声</span></button>
+      <button class="toolbar-btn" @click="openBeauty"><i data-lucide="sparkles"></i><span>聊天美化</span></button>
+      <button class="toolbar-btn" @click="openSummary"><i data-lucide="file-text"></i><span>聊天总结</span></button>
+      <button class="toolbar-btn" @click="openEmoji"><i data-lucide="smile"></i><span>表情包</span></button>
+      <button class="toolbar-btn" @click="goBack"><i data-lucide="arrow-left"></i><span>返回</span></button>
+    </div>
+  </transition>
+
+  <div class="sticker-suggest" v-if="stickerSuggestOn && stickerSuggests.length && inputText.trim()">
+    <div class="sticker-suggest-item" v-for="s in stickerSuggests" :key="s.name" @click="sendSticker(s)">
+      <img :src="s.url" :alt="s.name" /><span>{{ s.name }}</span>
+    </div>
+  </div>
+
+  <div class="quote-preview" v-if="quotingMsg && appReady">
+    <div class="quote-preview-inner">
+      <span class="quote-preview-name">引用：{{ quotingMsg.senderName || myName }}</span>
+      <span class="quote-preview-content">{{ quotingMsg.content }}</span>
+    </div>
+    <button class="quote-cancel" @click="quotingMsg=null"><i data-lucide="x"></i></button>
+  </div>
+
+  <div class="input-area">
+    <button class="round-btn plus-btn" @click="toggleToolbar"><i data-lucide="plus"></i></button>
+    <div class="input-wrap">
+      <textarea class="chat-input" v-model="inputText" placeholder="输入消息..." rows="1" @keydown.enter.exact.prevent="sendMsg" @input="autoResize" ref="inputRef"></textarea>
+    </div>
+    <button class="round-btn send-btn" @click="sendMsg"><i data-lucide="send"></i></button>
+  </div>
+
+  <!-- 聊天设置 -->
+  <transition name="modal">
+    <div class="modal-mask" v-if="chatSettingsShow && appReady" @click.self="chatSettingsShow=false">
+      <div class="modal-box">
+        <div class="modal-title">聊天设置</div>
+        <div class="modal-item"><label>AI可读取消息条数</label><input class="modal-input" type="number" v-model="aiReadCountInput" min="5" max="200" placeholder="默认20条" /></div>
+        <div class="modal-item">
+          <label>启用的世界书</label>
+          <div v-if="allWorldBooks.length">
+            <div v-for="cat in wbCategoriesInChat" :key="cat" class="wb-chat-cat">
+              <div class="wb-chat-cat-header" @click="toggleCatExpand(cat)">
+                <span style="font-size:13px;font-weight:600;color:#333;">{{ cat||'无分类' }}</span>
+                <div style="display:flex;gap:6px;align-items:center;">
+                  <span style="font-size:11px;color:#aaa;">{{ wbBooksByCat(cat).filter(b=>selectedWorldBooks.includes(b.id)).length }}/{{ wbBooksByCat(cat).length }}</span>
+                  <button class="wb-cat-sel-btn" @click.stop="selectAllCat(cat)">全选</button>
+                  <i :data-lucide="expandedCats.includes(cat)?'chevron-up':'chevron-down'" style="width:14px;height:14px;"></i>
+                </div>
+              </div>
+              <div v-if="expandedCats.includes(cat)" class="wb-chat-cat-books">
+                <div class="wb-select-item" v-for="book in wbBooksByCat(cat)" :key="book.id" :class="{selected:selectedWorldBooks.includes(book.id)}" @click="toggleWorldBook(book.id)">
+                  <div class="wb-item-type" :class="'type-'+book.type" style="font-size:9px;padding:2px 6px;">{{ wbTypeLabel(book.type) }}</div>
+                  <span style="font-size:13px;flex:1;">{{ book.name }}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div style="font-size:12px;color:#aaa;padding:8px 0;" v-else>世界书馆暂无世界书</div>
+        </div>
+        <div class="modal-btns">
+          <button class="modal-btn cancel" @click="chatSettingsShow=false">取消</button>
+          <button class="modal-btn confirm" @click="saveChatSettings">保存</button>
+        </div>
+      </div>
+    </div>
+  </transition>
+
+  <!-- 成员设置 -->
+  <transition name="modal">
+    <div class="modal-mask" v-if="memberSettingsShow && appReady" @click.self="memberSettingsShow=false">
+      <div class="modal-box">
+        <div class="modal-title">成员设置</div>
+        <div v-if="!selectedMember">
+          <div class="member-select-list">
+            <div class="member-select-item" v-for="m in members" :key="m.id" @click="selectMemberToEdit(m)">
+              <div class="chat-inline-avatar" :style="getMemberAvatar(m.id)" style="width:40px;height:40px;font-size:14px;">
+                <span v-if="!getMemberAvatarUrl(m.id)">{{ m.name?.[0] }}</span>
+              </div>
+              <span style="font-size:14px;flex:1;">{{ m.name }}</span>
+              <i data-lucide="chevron-right" style="width:16px;height:16px;color:#aaa;"></i>
+            </div>
+          </div>
+        </div>
+        <div v-else>
+          <div class="modal-item"><label>备注名</label><input class="modal-input" v-model="editMember.name" /></div>
+          <div class="modal-item"><label>世界观</label><textarea class="modal-textarea" v-model="editMember.world" placeholder="角色世界观..."></textarea></div>
+          <div class="modal-item"><label>角色人设</label><textarea class="modal-textarea" v-model="editMember.persona" placeholder="角色人设..."></textarea></div>
+          <div class="modal-btns">
+            <button class="modal-btn cancel" @click="selectedMember=null">返回</button>
+            <button class="modal-btn confirm" @click="saveMemberEdit">保存</button>
+          </div>
+        </div>
+        <div class="modal-btns" v-if="!selectedMember">
+          <button class="modal-btn cancel" @click="memberSettingsShow=false">关闭</button>
+        </div>
+      </div>
+    </div>
+  </transition>
+
+  <!-- 我的设置 -->
+  <transition name="modal">
+    <div class="modal-mask" v-if="mySettingsShow && appReady" @click.self="mySettingsShow=false">
+      <div class="modal-box">
+        <div class="modal-title">我的设置</div>
+        <div class="modal-item"><label>我的聊天名</label><input class="modal-input" v-model="myNameInput" placeholder="输入你的名字..." /></div>
+        <div class="modal-item"><label>我的人设</label><textarea class="modal-textarea" v-model="myPersonaInput" placeholder="描述你自己的人设..."></textarea></div>
+        <div class="modal-btns">
+          <button class="modal-btn cancel" @click="mySettingsShow=false">取消</button>
+          <button class="modal-btn confirm" @click="saveMySettings">保存</button>
+        </div>
+      </div>
+    </div>
+  </transition>
+
+  <!-- 次元链接 -->
+  <transition name="modal">
+    <div class="modal-mask" v-if="dimensionShow && appReady" @click.self="dimensionShow=false">
+      <div class="modal-box">
+        <div class="modal-title">次元链接</div>
+        <div class="dimension-info">
+          <div class="dimension-row"><span>聊天室名</span><span>{{ roomName }}</span></div>
+          <div class="dimension-row"><span>成员数</span><span>{{ members.length }} 位</span></div>
+          <div class="dimension-row"><span>已启用世界书</span><span>{{ selectedWorldBooks.length }} 本</span></div>
+          <div class="dimension-row"><span>Token预估</span><span>{{ tokenEstimate }} tokens</span></div>
+          <div class="dimension-row"><span>消息储存</span><span>{{ allMessages.length }} 条 / 约 {{ msgMemoryKB }} KB</span></div>
+        </div>
+        <div class="modal-item" style="margin-top:4px;">
+          <label style="font-size:11px;font-weight:700;color:#aaa;text-transform:uppercase;letter-spacing:0.5px;">控制台日志</label>
+          <div class="console-box">
+            <div class="console-line" v-for="(log,i) in roomConsoleLogs" :key="i" :class="log.type">
+              <span class="console-time">{{ log.time }}</span><span>{{ log.msg }}</span>
+            </div>
+            <div v-if="!roomConsoleLogs.length" class="console-empty">暂无日志</div>
+          </div>
+          <button class="modal-btn cancel" style="margin-top:6px;font-size:12px;padding:8px;" @click="roomConsoleLogs=[]">清空日志</button>
+        </div>
+        <div class="modal-btns"><button class="modal-btn cancel" @click="dimensionShow=false">关闭</button></div>
+      </div>
+    </div>
+  </transition>
+
+  <!-- 窥探心声 -->
+  <transition name="modal">
+    <div class="modal-mask" v-if="peekSoulShow && appReady" @click.self="peekSoulShow=false">
+      <div class="modal-box">
+        <div class="modal-title">窥探心声</div>
+        <div class="modal-item">
+          <label>选择成员</label>
+          <div class="peek-member-row">
+            <div class="peek-member-btn" :class="{active: peekTarget==='all'}" @click="peekTarget='all'">全体成员</div>
+            <div class="peek-member-btn" v-for="m in members" :key="m.id" :class="{active: peekTarget===m.id}" @click="peekTarget=m.id">{{ m.name }}</div>
+          </div>
+        </div>
+        <div class="peek-loading" v-if="peekLoading"><span></span><span></span><span></span></div>
+        <div v-else-if="peekResults.length">
+          <div v-for="r in peekResults" :key="r.name" style="margin-bottom:12px;">
+            <div style="font-size:12px;font-weight:700;color:#888;margin-bottom:4px;">{{ r.name }}</div>
+            <div class="peek-section"><div class="peek-section-title">动作 / 情绪</div><div class="peek-content">{{ r.action }}</div></div>
+            <div class="peek-section"><div class="peek-section-title">内心独白</div><div class="peek-content">{{ r.soul }}</div></div>
+          </div>
+        </div>
+        <div class="peek-empty" v-else>选择成员后点击窥探</div>
+        <div class="modal-btns">
+          <button class="modal-btn cancel" @click="peekSoulShow=false">关闭</button>
+          <button class="modal-btn cancel" @click="peekHistoryShow=true">历史</button>
+          <button class="modal-btn confirm" @click="doPeekSoul">窥探</button>
+        </div>
+      </div>
+    </div>
+  </transition>
+
+  <!-- 次元时境 -->
+  <transition name="modal">
+    <div class="modal-mask" v-if="dimensionMirrorShow && appReady" @click.self="dimensionMirrorShow=false">
+      <div class="modal-box">
+        <div class="modal-title">次元时境</div>
+        <div class="modal-item">
+          <label>选择成员</label>
+          <div class="peek-member-row">
+            <div class="peek-member-btn" :class="{active: mirrorTarget==='all'}" @click="mirrorTarget='all'">全体成员</div>
+            <div class="peek-member-btn" v-for="m in members" :key="m.id" :class="{active: mirrorTarget===m.id}" @click="mirrorTarget=m.id">{{ m.name }}</div>
+          </div>
+        </div>
+        <div class="mirror-btns">
+          <button class="mirror-choice-btn" :class="{active: mirrorMode==='chat'}" @click="mirrorMode='chat'">聊时窥探</button>
+          <button class="mirror-choice-btn" :class="{active: mirrorMode==='idle'}" @click="mirrorMode='idle'">闲时窥镜</button>
+        </div>
+        <div class="peek-loading" v-if="mirrorLoading"><span></span><span></span><span></span></div>
+        <div v-else-if="mirrorResults.length">
+          <div v-for="r in mirrorResults" :key="r.name" style="margin-bottom:10px;">
+            <div style="font-size:12px;font-weight:700;color:#888;margin-bottom:4px;">{{ r.name }}</div>
+            <div class="peek-content">{{ r.content }}</div>
+          </div>
+        </div>
+        <div class="peek-empty" v-else>选择成员和模式后点击窥镜</div>
+        <div class="modal-btns">
+          <button class="modal-btn cancel" @click="dimensionMirrorShow=false">关闭</button>
+          <button class="modal-btn cancel" @click="mirrorHistoryShow=true">历史</button>
+          <button class="modal-btn confirm" @click="doMirror">窥镜</button>
+        </div>
+      </div>
+    </div>
+  </transition>
+
+  <!-- 我的心声 -->
+  <transition name="modal">
+    <div class="modal-mask" v-if="myWhisperShow && appReady" @click.self="myWhisperShow=false">
+      <div class="modal-box">
+        <div class="modal-title">我的心声</div>
+        <div class="modal-item"><label>输入你的心声</label><textarea class="modal-textarea" v-model="whisperText" placeholder="你的心声只有群成员能感受到..."></textarea></div>
+        <div class="modal-btns">
+          <button class="modal-btn cancel" @click="myWhisperShow=false">取消</button>
+          <button class="modal-btn confirm" @click="sendWhisper">发送心声</button>
+        </div>
+      </div>
+    </div>
+  </transition>
+
+  <!-- 聊天美化 -->
+  <transition name="modal">
+    <div class="modal-mask" v-if="beautyShow && appReady" @click.self="beautyShow=false">
+      <div class="modal-box">
+        <div class="modal-title">聊天美化</div>
+        <div class="beauty-section">
+          <div class="beauty-section-title">聊天壁纸</div>
+          <div class="wallpaper-preview" :style="chatWallpaper?`background-image:url(${chatWallpaper})`:''" ><span v-if="!chatWallpaper">未设置</span></div>
+          <div class="avatar-url-row" style="margin-top:8px;">
+            <input class="modal-input" v-model="chatWallpaperUrl" placeholder="粘贴壁纸URL..." />
+            <button class="modal-btn confirm" style="flex:none;padding:0 12px;min-width:52px;" @click="applyBeautyWallpaperUrl">确认</button>
+          </div>
+          <div class="beauty-btn-row">
+            <button class="beauty-btn" @click="triggerBeautyWallpaper">本地上传</button>
+            <button class="beauty-btn danger" @click="resetChatWallpaper">重置壁纸</button>
+          </div>
+          <input type="file" ref="beautyWallpaperFile" accept="image/*" style="display:none" @change="uploadBeautyWallpaper" />
+        </div>
+        <div class="beauty-section">
+          <div class="beauty-section-title">成员头像设置</div>
+          <div class="beauty-toggle-row">
+            <span>显示成员和我的头像</span>
+            <div class="toggle" :class="{on:showMemberAvatars}" @click="showMemberAvatars=!showMemberAvatars;saveBeauty()"></div>
+          </div>
+          <div style="margin-top:10px;display:flex;flex-direction:column;gap:10px;">
+            <div v-for="m in members" :key="m.id" class="avatar-upload-item" style="flex-direction:row;gap:10px;align-items:center;">
+              <div class="avatar-upload-box" :style="getMemberAvatar(m.id)"><span v-if="!getMemberAvatarUrl(m.id)">{{ m.name?.[0] }}</span></div>
+              <div style="flex:1;display:flex;flex-direction:column;gap:4px;">
+                <span style="font-size:13px;color:#333;">{{ m.name }}</span>
+                <div class="avatar-url-row">
+                  <input class="modal-input" v-model="memberAvatarUrls[m.id]" placeholder="头像URL..." />
+                  <button class="modal-btn confirm" style="flex:none;padding:0 8px;min-width:44px;font-size:12px;" @click="applyMemberAvatarUrl(m.id)">确认</button>
+                </div>
+              </div>
+            </div>
+            <div class="avatar-upload-item" style="flex-direction:row;gap:10px;align-items:center;">
+              <div class="avatar-upload-box" :style="myAvatarStyle"><span v-if="!myAvatar">{{ myName?.[0] }}</span></div>
+              <div style="flex:1;display:flex;flex-direction:column;gap:4px;">
+                <span style="font-size:13px;color:#333;">我（{{ myName }}）</span>
+                <div class="avatar-url-row">
+                  <input class="modal-input" v-model="myAvatarUrl" placeholder="我的头像URL..." />
+                  <button class="modal-btn confirm" style="flex:none;padding:0 8px;min-width:44px;font-size:12px;" @click="applyMyAvatarUrl">确认</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="beauty-section">
+          <div class="beauty-section-title">聊天名字</div>
+          <div class="beauty-toggle-row">
+            <span>隐藏聊天名</span>
+            <div class="toggle" :class="{on:hideNames}" @click="hideNames=!hideNames;saveBeauty()"></div>
+          </div>
+        </div>
+        <div class="beauty-section">
+          <div class="beauty-section-title">气泡样式</div>
+          <div class="beauty-toggle-row">
+            <span>自定义气泡</span>
+            <div class="toggle" :class="{on:bubbleCustomOn}" @click="bubbleCustomOn=!bubbleCustomOn;saveBeauty()"></div>
+          </div>
+          <div v-if="bubbleCustomOn" class="bubble-custom-panel">
+            <div class="beauty-field"><label>气泡字体大小 (px)</label><input class="modal-input" type="number" v-model="bubbleSize" min="10" max="24" @change="saveBeauty" /></div>
+            <div class="beauty-field"><label>气泡最大宽度 (%)</label><input class="modal-input" type="number" v-model="bubbleMaxWidth" min="40" max="95" @change="saveBeauty" /></div>
+            <div class="beauty-field"><label>我的气泡背景色</label><div class="color-row"><input type="color" v-model="myBubbleColor" @change="saveBeauty" /><span>{{ myBubbleColor }}</span></div></div>
+            <div class="beauty-field"><label>我的气泡文字色</label><div class="color-row"><input type="color" v-model="myBubbleTextColor" @change="saveBeauty" /><span>{{ myBubbleTextColor }}</span></div></div>
+            <div v-for="m in members" :key="m.id">
+              <div class="beauty-field"><label>{{ m.name }} 气泡背景色</label><div class="color-row"><input type="color" :value="getMemberBubbleColor(m.id,'bg')" @change="e=>setMemberBubbleColor(m.id,'bg',e.target.value)" /><span>{{ getMemberBubbleColor(m.id,'bg') }}</span></div></div>
+              <div class="beauty-field"><label>{{ m.name }} 气泡文字色</label><div class="color-row"><input type="color" :value="getMemberBubbleColor(m.id,'text')" @change="e=>setMemberBubbleColor(m.id,'text',e.target.value)" /><span>{{ getMemberBubbleColor(m.id,'text') }}</span></div></div>
+            </div>
+          </div>
+        </div>
+        <div class="beauty-section">
+          <div class="beauty-section-title">CSS 自定义</div>
+          <div class="beauty-toggle-row"><span>开启自定义 CSS</span><div class="toggle" :class="{on:cssCustomOn}" @click="cssCustomOn=!cssCustomOn;saveBeauty()"></div></div>
+          <div v-if="cssCustomOn"><textarea class="modal-textarea css-input" v-model="cssCustomInput" @change="saveBeauty" placeholder="在此输入自定义CSS..."></textarea></div>
+        </div>
+        <div class="modal-btns"><button class="modal-btn cancel" @click="beautyShow=false">关闭</button></div>
+      </div>
+    </div>
+  </transition>
+
+  <!-- 表情包 -->
+  <transition name="modal">
+    <div class="modal-mask" v-if="emojiShow && appReady" @click.self="emojiShow=false">
+      <div class="modal-box" style="max-width:420px;">
+        <div class="modal-title">表情包</div>
+        <div class="sticker-topbar">
+          <div class="sticker-tabs">
+            <button class="sticker-tab" :class="{active:stickerTab==='browse'}" @click="stickerTab='browse'">浏览</button>
+            <button class="sticker-tab" :class="{active:stickerTab==='import'}" @click="stickerTab='import'">导入</button>
+            <button class="sticker-tab" :class="{active:stickerTab==='member'}" @click="stickerTab='member'">成员表情包</button>
+            <div class="sticker-suggest-toggle" @click="stickerSuggestOn=!stickerSuggestOn;saveBeauty()">联想 <div class="toggle" :class="{on:stickerSuggestOn}" style="display:inline-block;vertical-align:middle;margin-left:4px;"></div></div>
+          </div>
+        </div>
+        <div v-if="stickerTab==='browse'">
+          <div class="sticker-cat-row">
+            <button class="sticker-cat-btn" v-for="cat in stickerData.categories" :key="cat.name" :class="{active:stickerCurrentCat===cat.name}" @click="stickerCurrentCat=cat.name">{{ cat.name }}</button>
+            <span v-if="!stickerData.categories.length" style="font-size:12px;color:#aaa;">暂无分类</span>
+          </div>
+          <div class="sticker-grid" v-if="currentCatStickers.length">
+            <div class="sticker-item" v-for="s in currentCatStickers" :key="s.name" @click="sendStickerFromPanel(s)">
+              <img :src="s.url" :alt="s.name" /><div class="sticker-name">{{ s.name }}</div>
+            </div>
+          </div>
+          <div class="peek-empty" v-else>这个分类还没有表情包</div>
+        </div>
+        <div v-if="stickerTab==='import'">
+          <div class="modal-item"><label>选择或新建分类</label>
+            <div style="display:flex;gap:6px;"><select class="modal-input" v-model="stickerImportCat" style="flex:1;padding:8px;"><option value="">-- 选择分类 --</option><option v-for="cat in stickerData.categories" :key="cat.name" :value="cat.name">{{ cat.name }}</option></select><button class="beauty-btn" @click="stickerNewCatShow=!stickerNewCatShow">新建</button></div>
+            <div v-if="stickerNewCatShow" style="display:flex;gap:6px;margin-top:6px;"><input class="modal-input" v-model="stickerNewCatName" placeholder="新分类名称..." style="flex:1;" /><button class="beauty-btn" @click="createStickerCat">创建</button></div>
+          </div>
+          <div class="modal-item"><label>单个导入（本地）</label>
+            <div style="display:flex;gap:6px;align-items:center;"><input class="modal-input" v-model="stickerSingleName" placeholder="表情包名字..." style="flex:1;" /><button class="beauty-btn" @click="triggerStickerFile">选图</button></div>
+            <input type="file" ref="stickerFile" accept="image/*" style="display:none" @change="importStickerFile" />
+          </div>
+          <div class="modal-item"><label>单个导入（URL）</label>
+            <div style="display:flex;gap:6px;"><input class="modal-input" v-model="stickerSingleName2" placeholder="名字..." style="flex:1;" /><input class="modal-input" v-model="stickerSingleUrl" placeholder="图片URL..." style="flex:1;" /><button class="beauty-btn" @click="importStickerUrl">导入</button></div>
+          </div>
+          <div class="modal-item"><label>批量导入</label>
+            <div style="font-size:11px;color:#aaa;margin-bottom:4px;">每行格式：名字:URL 或 名字：URL</div>
+            <textarea class="modal-textarea" v-model="stickerBatchText" placeholder="开心:https://...&#10;难过：https://..."></textarea>
+            <button class="beauty-btn" style="margin-top:6px;" @click="importStickerBatch">批量导入</button>
+          </div>
+        </div>
+        <div v-if="stickerTab==='member'">
+          <div style="font-size:13px;color:#666;margin-bottom:8px;">选择每位成员可使用的表情包分类，或设置全体成员可用分类。</div>
+          <div class="beauty-field" style="margin-bottom:8px;">
+            <label>全体成员可用分类</label>
+            <div class="sticker-cat-row" style="flex-wrap:wrap;gap:8px;">
+              <div v-for="cat in stickerData.categories" :key="cat.name" class="sticker-char-cat" :class="{selected:allMemberStickerCats.includes(cat.name)}" @click="toggleAllMemberStickerCat(cat.name)">{{ cat.name }}</div>
+            </div>
+          </div>
+          <div v-for="m in members" :key="m.id" class="beauty-field" style="margin-bottom:8px;">
+            <label>{{ m.name }} 专属分类</label>
+            <div class="sticker-cat-row" style="flex-wrap:wrap;gap:8px;">
+              <div v-for="cat in stickerData.categories" :key="cat.name" class="sticker-char-cat" :class="{selected:(memberStickerCats[m.id]||[]).includes(cat.name)}" @click="toggleMemberStickerCat(m.id,cat.name)">{{ cat.name }}</div>
+            </div>
+          </div>
+          <button class="beauty-btn" style="margin-top:8px;" @click="saveMemberStickerCats">保存设置</button>
+        </div>
+        <div class="modal-btns"><button class="modal-btn cancel" @click="emojiShow=false">关闭</button></div>
+      </div>
+    </div>
+  </transition>
+
+  <!-- 聊天总结 -->
+  <transition name="modal">
+    <div class="modal-mask" v-if="summaryShow && appReady" @click.self="summaryShow=false">
+      <div class="modal-box" style="max-width:420px;">
+        <div class="modal-title">聊天总结</div>
+        <div class="summary-info-row"><span>共 {{ allMessages.filter(m=>!m.recalled&&!m.loading).length }} 条消息</span></div>
+        <div class="modal-item">
+          <label>选择消息范围</label>
+          <div class="summary-range-row">
+            <span style="font-size:13px;color:#555;">第</span>
+            <input class="modal-input" type="number" v-model="summaryFrom" style="width:70px;text-align:center;" />
+            <span style="font-size:13px;color:#555;">条 到 第</span>
+            <input class="modal-input" type="number" v-model="summaryTo" style="width:70px;text-align:center;" />
+            <span style="font-size:13px;color:#555;">条</span>
+          </div>
+        </div>
+        <div class="summary-preview-box" v-if="summaryPreviewMsgs.length">
+          <div class="summary-preview-item" v-for="(m,i) in summaryPreviewMsgs" :key="i">
+            <span class="summary-preview-role">{{ m.role==='user'?myName:m.senderName }}：</span>
+            <span class="summary-preview-content">{{ m.content.slice(0,30) }}{{ m.content.length>30?'...':'' }}</span>
+          </div>
+        </div>
+        <div class="modal-item" v-if="summaryResult!==null">
+          <label>总结回忆（可编辑）</label>
+          <textarea class="modal-textarea" v-model="summaryResult" style="min-height:100px;"></textarea>
+        </div>
+        <div class="peek-loading" v-if="summaryLoading"><span></span><span></span><span></span></div>
+        <div class="modal-item" v-if="summaryResult!==null && !summaryLoading">
+          <label>插入位置</label>
+          <div class="summary-pos-row">
+            <div class="summary-pos-btn" :class="{active:summaryPos==='before_history'}" @click="summaryPos='before_history'">消息历史前</div>
+            <div class="summary-pos-btn" :class="{active:summaryPos==='after_system'}" @click="summaryPos='after_system'">系统提示词后</div>
+          </div>
+        </div>
+        <div class="modal-btns">
+          <button class="modal-btn cancel" @click="summaryShow=false">关闭</button>
+          <button class="modal-btn cancel" @click="doSummary" :disabled="summaryLoading">总结</button>
+          <button class="modal-btn confirm" v-if="summaryResult!==null && !summaryLoading" @click="applySummary">插入</button>
+        </div>
+      </div>
+    </div>
+  </transition>
+  <transition name="modal">
+    <div class="modal-mask" v-if="peekHistoryShow && appReady" @click.self="peekHistoryShow=false">
+      <div class="modal-box">
+        <div class="modal-title">窥探心声历史</div>
+        <div class="history-list" v-if="peekHistory.length">
+          <div class="history-item" v-for="(h,i) in peekHistory" :key="i">
+            <div class="history-time">{{ h.time }}</div>
+            <div v-for="r in h.results" :key="r.name" style="margin-bottom:8px;">
+              <div style="font-size:12px;font-weight:700;color:#888;margin-bottom:3px;">{{ r.name }}</div>
+              <div class="peek-section"><div class="peek-section-title">动作 / 情绪</div><div class="peek-content">{{ r.action }}</div></div>
+              <div class="peek-section"><div class="peek-section-title">内心独白</div><div class="peek-content">{{ r.soul }}</div></div>
+            </div>
+          </div>
+        </div>
+        <div class="peek-empty" v-else>暂无历史记录</div>
+        <div class="modal-btns"><button class="modal-btn cancel" @click="peekHistoryShow=false">关闭</button></div>
+      </div>
+    </div>
+  </transition>
+
+  <transition name="modal">
+    <div class="modal-mask" v-if="mirrorHistoryShow && appReady" @click.self="mirrorHistoryShow=false">
+      <div class="modal-box">
+        <div class="modal-title">次元时境历史</div>
+        <div class="history-list" v-if="mirrorHistory.length">
+          <div class="history-item" v-for="(h,i) in mirrorHistory" :key="i">
+            <div class="history-time">{{ h.time }} · {{ h.mode==='chat'?'聊时窥探':'闲时窥镜' }}</div>
+            <div v-for="r in h.results" :key="r.name" style="margin-bottom:8px;">
+              <div style="font-size:12px;font-weight:700;color:#888;margin-bottom:3px;">{{ r.name }}</div>
+              <div class="peek-content">{{ r.content }}</div>
+            </div>
+          </div>
+        </div>
+        <div class="peek-empty" v-else>暂无历史记录</div>
+        <div class="modal-btns"><button class="modal-btn cancel" @click="mirrorHistoryShow=false">关闭</button></div>
+      </div>
+    </div>
+  </transition>
+
+</div>
+<script src="db.js"></script>
+<script src="emoji.js"></script>
+<script src="groupchat.js"></script>
+</body>
+</html>

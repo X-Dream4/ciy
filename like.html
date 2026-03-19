@@ -68,12 +68,42 @@
     <button class="settings-btn" @click="fetchModels">获取</button>
   </div>
 </div>
+          <div class="settings-item" style="margin-top:6px;">
+            <label>总结专用 API 网址（不填则使用主API）</label>
+            <input class="settings-input" v-model="api.summaryUrl" placeholder="https://api.example.com/v1" />
+          </div>
+          <div class="settings-item">
+            <label>总结专用 API 密钥</label>
+            <input class="settings-input" type="password" v-model="api.summaryKey" placeholder="sk-..." />
+          </div>
+          <div class="settings-item">
+            <label>总结专用模型</label>
+            <div class="settings-row" style="gap:8px;">
+              <div class="model-input-wrap">
+                <input class="settings-input" v-model="api.summaryModel" placeholder="点击获取或手动输入" @click="showSummaryModelDrop=true" />
+                <div class="model-dropdown" v-if="showSummaryModelDrop && summaryModelList.length">
+                  <div class="model-item" v-for="m in summaryModelList" :key="m" @click="selectSummaryModel(m)">{{ m }}</div>
+                </div>
+              </div>
+              <button class="settings-btn" @click="fetchSummaryModels">获取</button>
+            </div>
+          </div>
+          <div class="settings-row" style="gap:8px;margin-top:6px;">
+            <button class="settings-btn" @click="showSummaryPresetPanel=!showSummaryPresetPanel">总结API预设</button>
+          </div>
+          <div v-if="showSummaryPresetPanel" class="preset-panel">
+            <div class="settings-card-title">总结API预设</div>
+            <div class="preset-item" v-for="(p,i) in apiPresets" :key="i">
+              <span @click="loadSummaryPreset(p)">{{ p.name }}</span>
+            </div>
+            <div style="font-size:11px;color:#aaa;margin-top:4px;">点击预设名称即可将该预设填入总结专用API</div>
+          </div>
           <div class="settings-row" style="margin-top:10px;gap:8px;">
             <button class="settings-btn primary" @click="saveApi">保存</button>
-            <button class="settings-btn" @click="showPresetPanel=!showPresetPanel">API 预设</button>
+            <button class="settings-btn" @click="showPresetPanel=!showPresetPanel">主API预设</button>
           </div>
           <div v-if="showPresetPanel" class="preset-panel">
-            <div class="settings-card-title">保存的预设</div>
+            <div class="settings-card-title">主API预设</div>
             <div class="preset-item" v-for="(p,i) in apiPresets" :key="i">
               <span @click="loadPreset(p)">{{ p.name }}</span>
               <button class="preset-del" @click="deletePreset(i)">删除</button>

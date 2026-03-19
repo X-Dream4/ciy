@@ -46,7 +46,7 @@ createApp({
     };
 
     const enterChat = (c) => { window.location.href = `chatroom.html?id=${c.id}&type=char`; };
-    const enterRoom = (r) => { window.location.href = `chatroom.html?id=${r.id}&type=room`; };
+    const enterRoom = (r) => { window.location.href = `groupchat.html?id=${r.id}`; };
 
     const handleOutsideClick = (e) => {
       if (menuOpen.value && menuBtnRef.value && !menuBtnRef.value.contains(e.target)) { menuOpen.value = false; }

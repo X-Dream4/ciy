@@ -79,6 +79,8 @@
                 <span v-else>{{ msg.content }}</span>
                 <span v-if="msg.type==='whisper'" class="whisper-tag">心声</span>
               </div>
+              <div class="block-badge" v-if="msg.role==='char' && msg.blockedWhenSent">!</div>
+              <div class="block-badge user-blocked-badge" v-if="msg.role==='user' && msg.blockedByCharWhenSent">!</div>
               <!-- v-else 结束，sticker 和 bubble 共用同一层 -->
               <div class="chat-inline-avatar avatar-right" v-if="msg.role==='user' && showCharAvatar" :style="myAvatar?`background-image:url(${myAvatar})`:''">
                 <span v-if="!myAvatar">{{ myName[0] }}</span>
@@ -113,7 +115,9 @@
       <button class="toolbar-btn" @click="openDimensionMirror"><i data-lucide="monitor"></i><span>次元时境</span></button>
       <button class="toolbar-btn" @click="openMyWhisper"><i data-lucide="message-circle"></i><span>我的心声</span></button>
       <button class="toolbar-btn" @click="openBeauty"><i data-lucide="sparkles"></i><span>聊天美化</span></button>
+      <button class="toolbar-btn" @click="openSummary"><i data-lucide="file-text"></i><span>聊天总结</span></button>
       <button class="toolbar-btn" @click="openEmoji"><i data-lucide="smile"></i><span>表情包</span></button>
+      <button class="toolbar-btn" @click="openBlock" :style="isBlocked?'color:#e53e3e;':''"><i data-lucide="user-x"></i><span>{{ isBlocked?'已拉黑':'拉黑' }}</span></button>
       <button class="toolbar-btn" @click="goBack"><i data-lucide="arrow-left"></i><span>返回</span></button>
     </div>
   </transition>
@@ -496,6 +500,122 @@
         <div class="modal-btns">
           <button class="modal-btn cancel" @click="beautyShow=false">关闭</button>
         </div>
+      </div>
+    </div>
+  </transition>
+  <!-- 聊天总结弹窗 -->
+  <transition name="modal">
+    <div class="modal-mask" v-if="summaryShow && appReady" @click.self="summaryShow=false">
+      <div class="modal-box" style="max-width:420px;">
+        <div class="modal-title">聊天总结</div>
+
+        <div class="summary-info-row">
+          <span>共 {{ allMessages.filter(m=>!m.recalled&&!m.loading).length }} 条消息</span>
+        </div>
+
+        <div class="modal-item">
+          <label>选择消息范围</label>
+          <div class="summary-range-row">
+            <span style="font-size:13px;color:#555;">第</span>
+            <input class="modal-input" type="number" v-model="summaryFrom" :min="1" :max="allMessages.filter(m=>!m.recalled&&!m.loading).length" style="width:70px;text-align:center;" />
+            <span style="font-size:13px;color:#555;">条 到 第</span>
+            <input class="modal-input" type="number" v-model="summaryTo" :min="summaryFrom" :max="allMessages.filter(m=>!m.recalled&&!m.loading).length" style="width:70px;text-align:center;" />
+            <span style="font-size:13px;color:#555;">条</span>
+          </div>
+        </div>
+
+        <!-- 预览选中消息 -->
+        <div class="summary-preview-box" v-if="summaryPreviewMsgs.length">
+          <div class="summary-preview-item" v-for="(m,i) in summaryPreviewMsgs" :key="i">
+            <span class="summary-preview-role">{{ m.role==='user'?myName:charName }}：</span>
+            <span class="summary-preview-content">{{ m.content.slice(0,30) }}{{ m.content.length>30?'...':'' }}</span>
+          </div>
+        </div>
+
+        <!-- 总结结果 -->
+        <div class="modal-item" v-if="summaryResult!==null">
+          <label>总结回忆（可编辑）</label>
+          <textarea class="modal-textarea" v-model="summaryResult" style="min-height:100px;"></textarea>
+        </div>
+
+        <div class="peek-loading" v-if="summaryLoading"><span></span><span></span><span></span></div>
+
+        <!-- 插入位置 -->
+        <div class="modal-item" v-if="summaryResult!==null && !summaryLoading">
+          <label>插入位置</label>
+          <div class="summary-pos-row">
+            <div class="summary-pos-btn" :class="{active: summaryPos==='before_history'}" @click="summaryPos='before_history'">消息历史前</div>
+            <div class="summary-pos-btn" :class="{active: summaryPos==='after_system'}" @click="summaryPos='after_system'">系统提示词后</div>
+          </div>
+        </div>
+        <div class="beauty-section" style="margin-top:4px;">
+          <div class="beauty-section-title">自动总结</div>
+          <div class="beauty-toggle-row">
+            <span>开启自动总结</span>
+            <div class="toggle" :class="{on: autoSummaryOn}" @click="autoSummaryOn=!autoSummaryOn"></div>
+          </div>
+          <div v-if="autoSummaryOn" style="display:flex;flex-direction:column;gap:8px;margin-top:6px;">
+            <div class="beauty-field">
+              <label>每达到多少条消息自动总结</label>
+              <input class="modal-input" type="number" v-model="autoSummaryCount" min="5" max="200" placeholder="默认20条" />
+            </div>
+            <div class="beauty-toggle-row">
+              <span>每次询问插入位置</span>
+              <div class="toggle" :class="{on: autoSummaryAskPos}" @click="autoSummaryAskPos=!autoSummaryAskPos"></div>
+            </div>
+            <div v-if="!autoSummaryAskPos">
+              <label style="font-size:12px;color:#777;">默认插入位置</label>
+              <div class="summary-pos-row" style="margin-top:4px;">
+                <div class="summary-pos-btn" :class="{active: autoSummaryDefaultPos==='before_history'}" @click="autoSummaryDefaultPos='before_history'">消息历史前</div>
+                <div class="summary-pos-btn" :class="{active: autoSummaryDefaultPos==='after_system'}" @click="autoSummaryDefaultPos='after_system'">系统提示词后</div>
+              </div>
+            </div>
+            <button class="modal-btn confirm" @click="saveAutoSummarySettings">保存自动总结设置</button>
+          </div>
+        </div>
+
+        <div class="modal-btns">
+          <button class="modal-btn cancel" @click="summaryShow=false">关闭</button>
+          <button class="modal-btn cancel" @click="doSummary" :disabled="summaryLoading">总结</button>
+          <button class="modal-btn confirm" v-if="summaryResult!==null && !summaryLoading" @click="applySummary">插入</button>
+        </div>
+      </div>
+    </div>
+  </transition>
+  <transition name="modal">
+    <div class="modal-mask" v-if="autoSummaryPosShow && appReady">
+      <div class="modal-box" style="max-width:320px;">
+        <div class="modal-title">自动总结完成</div>
+        <div style="font-size:13px;color:#666;text-align:center;margin-bottom:8px;">第 {{ pendingAutoSummaryFrom }} - {{ pendingAutoSummaryTo }} 条消息已总结，请选择插入位置</div>
+        <div class="summary-pos-row">
+          <div class="summary-pos-btn active" @click="confirmAutoSummaryPos('before_history')">消息历史前</div>
+          <div class="summary-pos-btn active" @click="confirmAutoSummaryPos('after_system')">系统提示词后</div>
+        </div>
+      </div>
+    </div>
+  </transition>
+  <transition name="modal">
+    <div class="modal-mask" v-if="blockShow && appReady" @click.self="blockShow=false">
+      <div class="modal-box" style="max-width:300px;">
+        <div class="modal-title">{{ isBlocked ? '已拉黑' : '拉黑' }}</div>
+        <div v-if="!isBlocked">
+          <div style="font-size:14px;color:#555;text-align:center;padding:8px 0;">是否要拉黑「{{ charName }}」？<br/><span style="font-size:12px;color:#aaa;">拉黑后对方会知道被拉黑</span></div>
+          <div class="modal-btns">
+            <button class="modal-btn cancel" @click="blockShow=false">否，取消</button>
+            <button class="modal-btn" style="background:#e53e3e;color:#fff;" @click="confirmBlock">是，拉黑</button>
+          </div>
+        </div>
+        <div v-else>
+          <div style="font-size:14px;color:#555;text-align:center;padding:8px 0;">「{{ charName }}」已被拉黑<br/><span style="font-size:12px;color:#aaa;">解除后对方会知道被重新添加</span></div>
+          <div class="modal-btns">
+            <button class="modal-btn cancel" @click="blockShow=false">取消</button>
+            <button class="modal-btn confirm" @click="confirmUnblock">解除拉黑</button>
+          </div>
+        </div>
+        <div v-if="iBlockedByChar" style="margin-top:8px;padding:10px 12px;background:#fff0f0;border-radius:10px;font-size:13px;color:#e53e3e;text-align:center;">
+          你已被「{{ charName }}」拉黑<br/><span style="font-size:11px;color:#aaa;">角色可以自行解除对你的拉黑</span>
+        </div>
+
       </div>
     </div>
   </transition>

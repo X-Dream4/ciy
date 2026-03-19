@@ -41,7 +41,7 @@ body.dark .wb-type-btn { background: #333; border-color: #444; color: #eee; }
 body.dark .wb-type-btn.active { background: #eee; color: #111; }
 .wb-type-desc { font-size: 11px; color: #aaa; margin-top: 4px; }
 
-.modal-mask { position: fixed; inset: 0; background: rgba(0,0,0,0.35); z-index: 300; display: flex; align-items: center; justify-content: center; padding: 20px; }
+.modal-mask { position: fixed; inset: 0; background: transparent; z-index: 300; display: flex; align-items: center; justify-content: center; padding: 20px; }
 .modal-box { background: #fff; border-radius: 20px; padding: 24px; width: 100%; max-width: 380px; display: flex; flex-direction: column; gap: 14px; box-shadow: 0 8px 32px rgba(0,0,0,0.15); max-height: 85vh; overflow-y: auto; }
 body.dark .modal-box { background: #2a2a2a; }
 .modal-title { font-size: 17px; font-weight: 700; color: #111; text-align: center; }

@@ -5,13 +5,17 @@ createApp({
     const tab = ref('like');
     const goBack = () => { window.location.href = 'index.html'; };
 
-    const api = ref({ url: '', key: '', model: '' });
+    const api = ref({ url: '', key: '', model: '', summaryUrl: '', summaryKey: '', summaryModel: '' });
     const modelList = ref([]);
     const apiPresets = ref([]);
     const presetName = ref('');
     const showPresetPanel = ref(false);
     const showModelDrop = ref(false);
     const selectModel = (m) => { api.value.model = m; showModelDrop.value = false; };
+    const showSummaryModelDrop = ref(false);
+    const summaryModelList = ref([]);
+    const showSummaryPresetPanel = ref(false);
+    const selectSummaryModel = (m) => { api.value.summaryModel = m; showSummaryModelDrop.value = false; };
     const consoleLogs = ref([]);
     const storageInfo = ref({ charName: '', charBio: '', hasBg: false, hasAvatar: false, hasPolaroid: false, filmCount: 0, apiUrl: '', apiModel: '', charCount: 0, roomCount: 0, totalMsgs: 0 });
     const darkMode = ref(false);
@@ -55,7 +59,7 @@ createApp({
     };
 
     const saveApi = async () => {
-      await dbSet('apiConfig', { url: api.value.url, key: api.value.key, model: api.value.model });
+      await dbSet('apiConfig', { url: api.value.url, key: api.value.key, model: api.value.model, summaryUrl: api.value.summaryUrl, summaryKey: api.value.summaryKey, summaryModel: api.value.summaryModel });
       addLog('API 配置已保存');
     };
 
@@ -71,17 +75,40 @@ createApp({
         addLog(`获取模型失败: ${e.message}`, 'error');
       }
     };
+    const fetchSummaryModels = async () => {
+      const url = api.value.summaryUrl && api.value.summaryUrl.trim() ? api.value.summaryUrl.trim() : api.value.url;
+      const key = api.value.summaryKey && api.value.summaryKey.trim() ? api.value.summaryKey.trim() : api.value.key;
+      if (!url || !key) { addLog('请先填写总结API网址和密钥', 'warn'); return; }
+      try {
+        addLog('正在获取总结API模型列表...');
+        const res = await fetch(`${url.replace(/\/$/, '')}/models`, { headers: { Authorization: `Bearer ${key}` } });
+        const data = await res.json();
+        summaryModelList.value = (data.data || []).map(m => m.id);
+        showSummaryModelDrop.value = true;
+        addLog(`获取到 ${summaryModelList.value.length} 个总结模型`);
+      } catch (e) {
+        addLog(`获取总结模型失败: ${e.message}`, 'error');
+      }
+    };
+
+    const loadSummaryPreset = (p) => {
+      api.value.summaryUrl = p.url;
+      api.value.summaryKey = p.key;
+      api.value.summaryModel = p.model;
+      showSummaryPresetPanel.value = false;
+      addLog(`总结API已加载预设: ${p.name}`);
+    };
 
     const savePreset = async () => {
       if (!presetName.value.trim()) { addLog('请输入预设名称', 'warn'); return; }
       apiPresets.value.push({ name: presetName.value.trim(), url: api.value.url, key: api.value.key, model: api.value.model });
-      await dbSet('apiPresets', apiPresets.value);
+      await dbSet('apiPresets', JSON.parse(JSON.stringify(apiPresets.value)));
       presetName.value = '';
       addLog('预设已保存');
     };
 
     const loadPreset = (p) => { api.value = { url: p.url, key: p.key, model: p.model }; addLog(`已加载预设: ${p.name}`); };
-    const deletePreset = async (i) => { apiPresets.value.splice(i, 1); await dbSet('apiPresets', apiPresets.value); addLog('预设已删除'); };
+    const deletePreset = async (i) => { apiPresets.value.splice(i, 1); await dbSet('apiPresets', JSON.parse(JSON.stringify(apiPresets.value))); addLog('预设已删除'); };
 
     const exportData = async () => {
       const charList = (await dbGet('charList')) || [];
@@ -221,7 +248,7 @@ createApp({
       const [apiConf, presets, dark, wp, icons] = await Promise.all([
         dbGet('apiConfig'), dbGet('apiPresets'), dbGet('darkMode'), dbGet('wallpaper'), dbGet('appIcons')
       ]);
-      if (apiConf) api.value = apiConf;
+      if (apiConf) api.value = { url: '', key: '', model: '', summaryUrl: '', summaryKey: '', summaryModel: '', ...apiConf };
       if (presets) apiPresets.value = presets;
       if (dark) { darkMode.value = true; document.body.classList.add('dark'); }
       if (wp) { wallpaper.value = wp; }
@@ -236,6 +263,8 @@ createApp({
       consoleLogs, storageInfo, darkMode, wallpaper, wallpaperUrl,
       wallpaperStyle, appIcons, importFile, wallpaperFile, iconFile,
       saveApi, fetchModels, savePreset, loadPreset, deletePreset,
+      showSummaryModelDrop, summaryModelList, showSummaryPresetPanel,
+      selectSummaryModel, fetchSummaryModels, loadSummaryPreset,
       exportData, triggerImport, importData, clearStorage,
       toggleDark, applyWallpaperUrl, triggerWallpaper, uploadWallpaper, clearWallpaper,
       triggerIconUpload, uploadIcon, goBack
