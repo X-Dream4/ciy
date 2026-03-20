@@ -10,22 +10,22 @@ createApp({
     const refreshIcons = () => { clearTimeout(lucideTimer); lucideTimer = setTimeout(() => lucide.createIcons(), 50); };
 
     const DEFAULT_CATEGORIES = [
-      { name: '时政', prompt: '生成关于政治、社会时事、民生话题的论坛帖子，语气犀利或关切，有不同立场的讨论', npcIds: [] },
-      { name: '闲谈', prompt: '生成日常闲聊帖子，轻松随意，话题包括生活琐事、心情感悟、随想随写', npcIds: [] },
-      { name: '求助', prompt: '生成求助类帖子，发帖人遇到各种困难或问题，语气困惑或焦急，需要帮助', npcIds: [] },
-      { name: '水聊', prompt: '生成水帖，内容简短无厘头，可以是表情包文字、无意义的感叹、随机话题', npcIds: [] },
-      { name: '教学', prompt: '生成教程类帖子，分享某种技能、知识或经验，语气耐心细致', npcIds: [] },
-      { name: '警示', prompt: '生成警示类帖子，揭露骗局、分享亲身遭遇的危险或教训，语气严肃', npcIds: [] },
-      { name: '吃瓜', prompt: '生成八卦吃瓜帖子，爆料某些八卦事件，语气神秘或兴奋，不透露真实人名', npcIds: [] },
-      { name: '娱乐', prompt: '生成娱乐圈相关帖子，讨论虚构的明星、综艺、影视，语气粉丝或路人视角', npcIds: [] },
-      { name: '美食', prompt: '生成美食分享帖子，描述某种食物的美味或烹饪方法，语气垂涎欲滴', npcIds: [] },
-      { name: '音乐', prompt: '生成音乐分享或讨论帖子，可以是歌词感悟、歌手讨论或乐器经验', npcIds: [] },
-      { name: '读书', prompt: '生成读书笔记或书评帖子，分享某本书的感悟或推荐', npcIds: [] },
-      { name: '彩妆', prompt: '生成美妆护肤相关帖子，分享彩妆心得、产品测评、变美技巧', npcIds: [] },
-      { name: '健身', prompt: '生成健身运动相关帖子，分享训练方法、身材管理、运动感悟', npcIds: [] },
-      { name: '影视', prompt: '生成影视讨论帖子，讨论虚构的电影电视剧，可以是推荐、解析或吐槽', npcIds: [] },
-      { name: '动漫', prompt: '生成动漫相关帖子，讨论动画、漫画、轻小说，语气二次元风格', npcIds: [] },
-      { name: 'nsfw', prompt: '生成成人向的论坛帖子，内容可以涉及擦边话题、情感纠葛、成人生活感悟，语气大胆直接', npcIds: [] },
+      { name: '时政', prompt: '生成关于政治、社会时事、民生话题的论坛帖子，语气犀利或关切，有不同立场的讨论', replyPrompt: '生成时政帖子下的回复，观点多元，有支持有反对，语气理性或激烈', npcIds: [] },
+      { name: '闲谈', prompt: '生成日常闲聊帖子，轻松随意，话题包括生活琐事、心情感悟、随想随写', replyPrompt: '生成闲谈帖子下的回复，轻松随意，有共鸣有调侃，像真实网友聊天', npcIds: [] },
+      { name: '求助', prompt: '生成求助类帖子，发帖人遇到各种困难或问题，语气困惑或焦急，需要帮助', replyPrompt: '生成求助帖子下的回复，有人给建议、有人分享经历、有人安慰，像真实热心网友', npcIds: [] },
+      { name: '水聊', prompt: '生成水帖，内容简短无厘头，可以是表情包文字、无意义的感叹、随机话题', replyPrompt: '生成水帖下的回复，简短搞笑，接梗、抬杠、无厘头都行', npcIds: [] },
+      { name: '教学', prompt: '生成教程类帖子，分享某种技能、知识或经验，语气耐心细致', replyPrompt: '生成教学帖子下的回复，有感谢、有追问、有补充经验的', npcIds: [] },
+      { name: '警示', prompt: '生成警示类帖子，揭露骗局、分享亲身遭遇的危险或教训，语气严肃', replyPrompt: '生成警示帖子下的回复，有表示震惊的、有分享类似经历的、有感谢提醒的', npcIds: [] },
+      { name: '吃瓜', prompt: '生成八卦吃瓜帖子，爆料某些八卦事件，语气神秘或兴奋，不透露真实人名', replyPrompt: '生成吃瓜帖子下的回复，有追问细节的、有分析剧情的、有表示不信的，吃瓜氛围拉满', npcIds: [] },
+      { name: '娱乐', prompt: '生成娱乐圈相关帖子，讨论虚构的明星、综艺、影视，语气粉丝或路人视角', replyPrompt: '生成娱乐帖子下的回复，有粉丝力挺、有路人评价、有黑子，立场各异', npcIds: [] },
+      { name: '美食', prompt: '生成美食分享帖子，描述某种食物的美味或烹饪方法，语气垂涎欲滴', replyPrompt: '生成美食帖子下的回复，有馋到的、有分享自己做法的、有推荐其他美食的', npcIds: [] },
+      { name: '音乐', prompt: '生成音乐分享或讨论帖子，可以是歌词感悟、歌手讨论或乐器经验', replyPrompt: '生成音乐帖子下的回复，有共鸣的、有推歌的、有讨论歌手的', npcIds: [] },
+      { name: '读书', prompt: '生成读书笔记或书评帖子，分享某本书的感悟或推荐', replyPrompt: '生成读书帖子下的回复，有共鸣感悟、有推荐其他书、有追问书名的', npcIds: [] },
+      { name: '彩妆', prompt: '生成美妆护肤相关帖子，分享彩妆心得、产品测评、变美技巧', replyPrompt: '生成彩妆帖子下的回复，有求链接的、有分享同款的、有讨论效果的', npcIds: [] },
+      { name: '健身', prompt: '生成健身运动相关帖子，分享训练方法、身材管理、运动感悟', replyPrompt: '生成健身帖子下的回复，有互相鼓励的、有求教程的、有分享自己计划的', npcIds: [] },
+      { name: '影视', prompt: '生成影视讨论帖子，讨论虚构的电影电视剧，可以是推荐、解析或吐槽', replyPrompt: '生成影视帖子下的回复，有强推的、有剧情分析的、有不同观点的', npcIds: [] },
+      { name: '动漫', prompt: '生成动漫相关帖子，讨论动画、漫画、轻小说，语气二次元风格', replyPrompt: '生成动漫帖子下的回复，二次元风格，有同好交流、有推荐、有角色讨论', npcIds: [] },
+      { name: 'nsfw', prompt: '生成成人向的论坛帖子，内容可以涉及擦边话题、情感纠葛、成人生活感悟，语气大胆直接', replyPrompt: '生成nsfw帖子下的回复，大胆直接，有共鸣、有调侃、有深入讨论', npcIds: [] },
     ];
 
     const DEFAULT_DIM_HOT_PROMPT = `你是一个跨次元热搜榜单生成器。请生成20条来自不同虚构世界的热搜词条，必须涵盖：现实都市、古代架空、魔幻奇幻、兽世、ABO、哨兵向导、修仙、无限流、末世、星际、游戏穿越等多种次元，每条热搜来自不同的次元世界，偶有1~2条与角色或当前世界有关。每条热搜要有强烈的次元感和代入感，像真实的热搜标题。
@@ -33,12 +33,12 @@ createApp({
 [{"title":"热搜标题","dimension":"所属次元","heat":"热度数字+单位如万"}]
 只返回JSON数组，不要有其他文字。`;
 
-    // ===== 设置表单（需在 getApiConfig 前声明）=====
     const settingsForm = ref({
       forumApi: { url: '', key: '', model: '' },
       dimHotPrompt: DEFAULT_DIM_HOT_PROMPT,
       categories: [],
-      fixedNpcs: []
+      fixedNpcs: [],
+      hotPlatformOrder: []
     });
 
     const apiConfig = ref({ url: '', key: '', model: '' });
@@ -51,7 +51,6 @@ createApp({
       return apiConfig.value;
     };
 
-    // ===== 分类和帖子 =====
     const categories = ref([...DEFAULT_CATEGORIES]);
     const currentCat = ref('闲谈');
     const posts = ref([]);
@@ -60,14 +59,12 @@ createApp({
       posts.value.filter(p => p.cat === currentCat.value).slice().reverse()
     );
 
-    // ===== 我的信息 =====
     const myProfile = ref({ name: '匿名用户', followers: 0, likes: 0 });
     const myPostsCount = computed(() => posts.value.filter(p => p.author === myProfile.value.name).length);
     const saveProfile = async () => {
       await dbSet('forumMyProfile', JSON.parse(JSON.stringify(myProfile.value)));
     };
 
-    // ===== 帖子操作 =====
     const currentPost = ref(null);
     const postFormShow = ref(false);
     const editingPost = ref(null);
@@ -158,6 +155,7 @@ createApp({
     const replyMenuTarget = ref(null);
     const editReplyShow = ref(false);
     const editReplyContent = ref('');
+    const generatingReplies = ref(false);
 
     const autoResizeReply = () => {
       const el = replyTextareaRef.value;
@@ -191,6 +189,81 @@ createApp({
         if (postScrollRef.value) postScrollRef.value.scrollTop = postScrollRef.value.scrollHeight;
         refreshIcons();
       });
+    };
+
+    // ===== AI生成评论 =====
+    const generateReplies = async () => {
+      if (!currentPost.value) return;
+      const cfg = getApiConfig();
+      if (!cfg.url || !cfg.key || !cfg.model) { alert('请先配置API'); return; }
+      generatingReplies.value = true;
+
+      const cat = categories.value.find(c => c.name === currentPost.value.cat);
+      const replyPrompt = cat && cat.replyPrompt
+        ? cat.replyPrompt
+        : `生成这个帖子下真实的网友回复，语气自然口语`;
+
+      const fixedNpcs = settingsForm.value.fixedNpcs || [];
+      const randomNpcNames = ['云游四海', '匿名小透明', '路过的风', '夜半钟声', '微笑刺客', '隐形战队', '悄悄说说', '不知名网友', '深夜emo', '快乐肥宅', '五月天粉', '边走边唱', '落叶归根', '星光下的你', '打工人小李', '摸鱼专家', '社恐本社'];
+      const count = Math.floor(Math.random() * 5) + 5;
+
+      const prompt = `以下是一个论坛帖子：
+标题：${currentPost.value.title}
+内容：${currentPost.value.content}
+
+请为这个帖子生成${count}条真实感强的网友回复。
+回复风格要求：${replyPrompt}
+${fixedNpcs.length ? `固定NPC参与回复：${fixedNpcs.map(n => n.name + (n.persona ? `（${n.persona}）` : '')).join('、')}` : ''}
+普通网友用户名参考：${randomNpcNames.sort(() => Math.random() - 0.5).slice(0, 5).join('、')}等
+
+每条回复要有自己的风格和立场，不要千篇一律。可以互相引用前面的回复内容（用"引用"字段填写被引用的内容原文）。
+请返回JSON数组：
+[{"author":"用户名","content":"回复内容（20~100字，自然口语，不用Markdown）","quote":"被引用的内容原文，没有引用则为空字符串","likes":数字}]
+只返回JSON数组，不要有其他文字。`;
+
+      try {
+        const res = await fetch(`${cfg.url.replace(/\/$/, '')}/chat/completions`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${cfg.key}` },
+          body: JSON.stringify({ model: cfg.model, messages: [{ role: 'user', content: prompt }] })
+        });
+        const data = await res.json();
+        const text = data.choices?.[0]?.message?.content || '[]';
+        const match = text.match(/\[[\s\S]*\]/);
+        if (match) {
+          const arr = JSON.parse(match[0]);
+          if (!currentPost.value.replies) currentPost.value.replies = [];
+          arr.forEach((item, i) => {
+            // 处理引用：找到内容匹配的已有回复
+            let quoteId = null;
+            if (item.quote && item.quote.trim()) {
+              const quoted = currentPost.value.replies.find(r =>
+                r.content && r.content.includes(item.quote.trim().slice(0, 10))
+              );
+              if (quoted) quoteId = quoted.id;
+            }
+            currentPost.value.replies.push({
+              id: Date.now() + i,
+              content: item.content || '',
+              time: Date.now() + i * 1000,
+              isOp: item.author === currentPost.value.author,
+              likes: item.likes || Math.floor(Math.random() * 30),
+              likedByMe: false,
+              quoteId
+            });
+          });
+          await savePosts();
+          nextTick(() => {
+            if (postScrollRef.value) postScrollRef.value.scrollTop = postScrollRef.value.scrollHeight;
+            refreshIcons();
+          });
+        } else {
+          alert('评论生成格式有误，请重试');
+        }
+      } catch (e) {
+        alert('评论生成失败：' + e.message);
+      }
+      generatingReplies.value = false;
     };
 
     const getQuoteContent = (quoteId) => {
@@ -296,8 +369,61 @@ createApp({
       if (post) { collectionShow.value = false; openPostDetail(post); }
     };
 
-    // ===== AI生成帖子 =====
+    // ===== AI生成帖子（含评论）=====
     const generating = ref(false);
+
+    const generateRepliesForPost = async (post) => {
+      const cfg = getApiConfig();
+      if (!cfg.url || !cfg.key || !cfg.model) return;
+
+      const cat = categories.value.find(c => c.name === post.cat);
+      const replyPrompt = cat && cat.replyPrompt
+        ? cat.replyPrompt
+        : `生成这个帖子下真实的网友回复，语气自然口语`;
+
+      const fixedNpcs = settingsForm.value.fixedNpcs || [];
+      const randomNpcNames = ['云游四海', '匿名小透明', '路过的风', '夜半钟声', '微笑刺客', '隐形战队', '悄悄说说', '不知名网友', '深夜emo', '快乐肥宅', '五月天粉', '边走边唱', '落叶归根', '星光下的你', '打工人小李', '摸鱼专家', '社恐本社'];
+      const count = Math.floor(Math.random() * 5) + 4;
+
+      const prompt = `以下是一个论坛帖子：
+标题：${post.title}
+内容：${post.content}
+
+请为这个帖子生成${count}条真实感强的网友回复。
+回复风格要求：${replyPrompt}
+${fixedNpcs.length ? `固定NPC参与回复：${fixedNpcs.map(n => n.name + (n.persona ? `（${n.persona}）` : '')).join('、')}` : ''}
+普通网友用户名参考：${randomNpcNames.sort(() => Math.random() - 0.5).slice(0, 5).join('、')}等
+
+每条回复要有自己的风格和立场，不要千篇一律。
+请返回JSON数组：
+[{"author":"用户名","content":"回复内容（20~100字，自然口语，不用Markdown）","likes":数字}]
+只返回JSON数组，不要有其他文字。`;
+
+      try {
+        const res = await fetch(`${cfg.url.replace(/\/$/, '')}/chat/completions`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${cfg.key}` },
+          body: JSON.stringify({ model: cfg.model, messages: [{ role: 'user', content: prompt }] })
+        });
+        const data = await res.json();
+        const text = data.choices?.[0]?.message?.content || '[]';
+        const match = text.match(/\[[\s\S]*\]/);
+        if (match) {
+          const arr = JSON.parse(match[0]);
+          post.replies = arr.map((item, i) => ({
+            id: Date.now() + i + Math.random(),
+            content: item.content || '',
+            time: Date.now() + i * 1000,
+            isOp: item.author === post.author,
+            likes: item.likes || Math.floor(Math.random() * 30),
+            likedByMe: false,
+            quoteId: null
+          }));
+        }
+      } catch (e) {
+        // 评论生成失败不阻断主流程
+      }
+    };
 
     const generatePosts = async () => {
       const cfg = getApiConfig();
@@ -325,7 +451,7 @@ createApp({
 ${allNpcs.length ? `参与发帖的用户：${allNpcs.map(n => n.name + (n.persona ? `（${n.persona}）` : '')).join('、')}，以及若干随机普通网友。` : '发帖者为随机普通网友。'}
 随机普通网友用户名可参考：${randomNpcNames.sort(() => Math.random() - 0.5).slice(0, 5).join('、')}等，也可自由发挥。
 请返回JSON数组，格式：
-[{"author":"用户名","title":"帖子标题（简洁有力，可标题党，吸引眼球，不超过20字）","content":"帖子正文（100~300字，自然口语，不使用Markdown格式）"}]
+[{"author":"用户名","title":"帖子标题（简洁有力，不超过20字）","content":"帖子正文（100~300字，自然口语，不使用Markdown格式）"}]
 只返回JSON数组，不要有其他文字。`;
 
       try {
@@ -339,19 +465,20 @@ ${allNpcs.length ? `参与发帖的用户：${allNpcs.map(n => n.name + (n.perso
         const match = text.match(/\[[\s\S]*\]/);
         if (match) {
           const arr = JSON.parse(match[0]);
-          arr.forEach((item, i) => {
-            posts.value.push({
-              id: Date.now() + i,
-              cat: currentCat.value,
-              author: item.author || '匿名网友',
-              title: item.title || '无标题',
-              content: item.content || '（内容生成失败）',
-              time: Date.now() + i * 1000,
-              likes: Math.floor(Math.random() * 60),
-              likedByMe: false,
-              replies: []
-            });
-          });
+          const newPosts = arr.map((item, i) => ({
+            id: Date.now() + i,
+            cat: currentCat.value,
+            author: item.author || '匿名网友',
+            title: item.title || '无标题',
+            content: item.content || '（内容生成失败）',
+            time: Date.now() + i * 1000,
+            likes: Math.floor(Math.random() * 60),
+            likedByMe: false,
+            replies: []
+          }));
+          // 并发为每个帖子生成评论
+          await Promise.all(newPosts.map(p => generateRepliesForPost(p)));
+          posts.value.push(...newPosts);
           await savePosts();
         } else {
           alert('生成内容格式有误，请重试');
@@ -369,72 +496,125 @@ ${allNpcs.length ? `参与发帖的用户：${allNpcs.map(n => n.name + (n.perso
     const hotList = ref([]);
     const hotLoading = ref(false);
     const hotError = ref('');
-    const hotPlatforms = [
-      { key: 'weibo', label: '微博' },
-      { key: 'zhihu', label: '知乎' },
-      { key: 'baidu', label: '百度' },
-      { key: 'douyin', label: '抖音' },
-      { key: 'toutiao', label: '头条' },
-    ];
+        const hotPlatforms = ref([
+      { key: 'weibo',       label: '微博',     region: '🇨🇳' },
+      { key: 'baidu',       label: '百度',     region: '🇨🇳' },
+      { key: 'douyin',      label: '抖音',     region: '🇨🇳' },
+      { key: 'toutiao',     label: '头条',     region: '🇨🇳' },
+      { key: 'bilibili',    label: 'B站',      region: '🇨🇳' },
+      { key: 'reddit',      label: 'Reddit',   region: '🇺🇸' },
+      { key: 'hackernews',  label: 'HN',       region: '🇺🇸' },
+      { key: 'github',      label: 'GitHub',   region: '🌍' },
+      { key: 'espn',        label: 'ESPN',     region: '🇺🇸' },
+      { key: 'lastfm',      label: 'Last.fm',  region: '🌍' },
+      { key: 'niconico',    label: 'NicoNico', region: '🇯🇵' },
+      { key: 'naver',       label: 'Naver',    region: '🇰🇷' },
+    ]);
 
-    const fetchHotList = async (type) => {
-  hotLoading.value = true;
-  hotError.value = '';
-  hotList.value = [];
 
-  // 换用 corsproxy.io 代理
-  const targetUrl = `https://api.vvhan.com/api/hotlist?type=${type}`;
-  const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(targetUrl)}`;
+    // 排序后的平台列表（从设置读取）
+    const hotPlatformsOrdered = computed(() => {
+      const order = settingsForm.value.hotPlatformOrder;
+      if (!order || !order.length) return hotPlatforms.value;
+      const map = {};
+      hotPlatforms.value.forEach(p => map[p.key] = p);
+      const result = order.map(key => map[key]).filter(Boolean);
+      // 补上不在order里的新平台
+      hotPlatforms.value.forEach(p => {
+        if (!order.includes(p.key)) result.push(p);
+      });
+      return result;
+    });
 
-  const parseItems = (data) => {
-    if (data && data.success && Array.isArray(data.data) && data.data.length) {
-      return data.data.slice(0, 30).map(item => ({
-        title: item.title || item.name || '',
-        hot: item.hot || item.desc || ''
-      }));
-    }
-    if (Array.isArray(data) && data.length) {
-      return data.slice(0, 30).map(item => ({
-        title: item.title || item.name || '',
-        hot: item.hot || ''
-      }));
-    }
-    return null;
-  };
+    // ===== 翻译功能 =====
+    const translating = ref({});
+    const translations = ref({});
 
-  try {
-    const res = await fetch(proxyUrl);
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const data = await res.json();
-    const items = parseItems(data);
-    if (items && items.length) {
-      hotList.value = items;
-    } else {
-      hotError.value = '接口返回数据为空，请稍后重试';
-    }
-  } catch (e) {
-    // corsproxy.io 失败，再试 thingproxy
-    try {
-      const fallbackUrl = `https://thingproxy.freeboard.io/fetch/${targetUrl}`;
-      const res2 = await fetch(fallbackUrl);
-      if (!res2.ok) throw new Error(`HTTP ${res2.status}`);
-      const data2 = await res2.json();
-      const items2 = parseItems(data2);
-      if (items2 && items2.length) {
-        hotList.value = items2;
-      } else {
-        hotError.value = '接口返回数据为空，请稍后重试';
+    const detectNeedTranslate = (text) => {
+      // 检测是否包含非中文字符（日文、韩文、英文等）
+      const chineseRatio = (text.match(/[\u4e00-\u9fff]/g) || []).length / text.length;
+      return chineseRatio < 0.3 && text.length > 2;
+    };
+
+    const translateText = async (text, idx) => {
+      if (translations.value[idx]) {
+        // 已有翻译，切换显示/隐藏
+        if (translations.value[idx] === 'hide') {
+          translations.value[idx] = translations.value[idx + '_cache'];
+        } else {
+          translations.value[idx + '_cache'] = translations.value[idx];
+          translations.value[idx] = 'hide';
+        }
+        return;
       }
-    } catch (e2) {
-      hotError.value = `加载失败：${e2.message}`;
-    }
-  }
+      translating.value[idx] = true;
+      let result = '';
 
-  hotLoading.value = false;
-};
+      // 第一层：LibreTranslate
+      try {
+        const res = await fetch('https://libretranslate.com/translate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ q: text, source: 'auto', target: 'zh', format: 'text' })
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.translatedText) result = data.translatedText;
+        }
+      } catch (e) { /* LibreTranslate 失败，继续尝试 MyMemory */ }
+
+      // 第二层：MyMemory
+      if (!result) {
+        try {
+          const res2 = await fetch(`https://api.mymemory.translated.net/get?q=${encodeURIComponent(text)}&langpair=autodetect|zh-CN`);
+          if (res2.ok) {
+            const data2 = await res2.json();
+            if (data2.responseStatus === 200 && data2.responseData?.translatedText) {
+              result = data2.responseData.translatedText;
+            }
+          }
+        } catch (e2) { /* 两层都失败 */ }
+      }
+
+      translations.value[idx] = result || '翻译失败';
+      translating.value[idx] = false;
+    };
+    const hotCache = {};
+    const HOT_CACHE_TTL = 2 * 60 * 60 * 1000;
+
+    const fetchHotList = async (type, force = false) => {
+      const cached = hotCache[type];
+      if (!force && cached && Date.now() - cached.time < HOT_CACHE_TTL) {
+        hotList.value = cached.data;
+        hotError.value = '';
+        return;
+      }
+      hotLoading.value = true;
+      hotError.value = '';
+      try {
+        const res = await fetch(`https://hotapi-seven.vercel.app/api/hot?type=${type}`);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        if (data.success && Array.isArray(data.data) && data.data.length) {
+          const list = data.data.slice(0, 30).map(item => ({
+            title: item.title || '',
+            hot: item.hot || ''
+          }));
+          hotCache[type] = { data: list, time: Date.now() };
+          hotList.value = list;
+        } else {
+          hotError.value = '暂无数据，请稍后重试';
+        }
+      } catch (e) {
+        hotError.value = `加载失败：${e.message}`;
+      }
+      hotLoading.value = false;
+    };
 
     const switchHotPlatform = (key) => {
       hotPlatform.value = key;
+      hotList.value = [];
+      translations.value = {};
       fetchHotList(key);
     };
 
@@ -553,6 +733,65 @@ ${allNpcs.length ? `参与发帖的用户：${allNpcs.map(n => n.name + (n.perso
         refreshIcons();
       });
     };
+    const pmGenerating = ref(false);
+
+    const generatePMReply = async () => {
+      if (!currentConv.value) return;
+      const cfg = getApiConfig();
+      if (!cfg.url || !cfg.key || !cfg.model) { alert('请先配置API'); return; }
+      pmGenerating.value = true;
+
+      const conv = currentConv.value;
+      const charList = await dbGet('charList') || [];
+      const matchedChar = charList.find(c => c.name === conv.name);
+      let systemPrompt = '';
+      if (matchedChar) {
+        systemPrompt = `你正在扮演角色「${matchedChar.name}」与用户私聊。${matchedChar.persona ? '你的人设：' + matchedChar.persona + '。' : ''}${matchedChar.world ? '世界观：' + matchedChar.world + '。' : ''}你在论坛上是一个普通用户，可能会隐藏自己的真实身份，也可能在熟悉后透露。`;
+      } else if (conv.sourcePost) {
+        systemPrompt = `你是论坛用户「${conv.name}」，正在与一个网友私聊。你在论坛上发过这样的帖子：\n标题：${conv.sourcePost.title}\n内容：${conv.sourcePost.content}\n请根据帖子内容推断你的性格、立场、背景，用符合帖子风格的语气与网友聊天。你有自己的秘密和隐藏身份，可以选择隐瞒或透露。`;
+      } else {
+        systemPrompt = `你是论坛用户「${conv.name}」，正在与一个网友私聊。请用自然口语风格回应，有自己的个性和立场。`;
+      }
+      systemPrompt += '\n主动发起或继续话题，每次只说1~3句话，像真实私信一样简短自然，不要使用Markdown格式。';
+
+      const historyMsgs = conv.messages.slice(-12).map(m => ({
+        role: m.role === 'user' ? 'user' : 'assistant',
+        content: m.content
+      }));
+
+      const loadingMsg = { id: Date.now() + 1, role: 'assistant', content: '', loading: true, time: Date.now() };
+      currentConv.value.messages.push(loadingMsg);
+      nextTick(() => { if (pmBodyRef.value) pmBodyRef.value.scrollTop = pmBodyRef.value.scrollHeight; });
+
+      try {
+        const res = await fetch(`${cfg.url.replace(/\/$/, '')}/chat/completions`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${cfg.key}` },
+          body: JSON.stringify({ model: cfg.model, messages: [{ role: 'system', content: systemPrompt }, ...historyMsgs] })
+        });
+        const data = await res.json();
+        const reply = data.choices?.[0]?.message?.content || '（无回复）';
+        const idx = currentConv.value.messages.findIndex(m => m.id === loadingMsg.id);
+        if (idx !== -1) {
+          currentConv.value.messages[idx] = {
+            id: Date.now() + 2, role: 'assistant', content: reply, loading: false, time: Date.now()
+          };
+        }
+      } catch (e) {
+        const idx = currentConv.value.messages.findIndex(m => m.id === loadingMsg.id);
+        if (idx !== -1) {
+          currentConv.value.messages[idx] = {
+            id: Date.now() + 2, role: 'assistant', content: '（生成失败：' + e.message + '）', loading: false, time: Date.now()
+          };
+        }
+      }
+      await saveConversations();
+      pmGenerating.value = false;
+      nextTick(() => {
+        if (pmBodyRef.value) pmBodyRef.value.scrollTop = pmBodyRef.value.scrollHeight;
+        refreshIcons();
+      });
+    };
 
     const sendPM = async () => {
       if (!pmText.value.trim() || !currentConv.value) return;
@@ -656,6 +895,9 @@ ${allNpcs.length ? `参与发帖的用户：${allNpcs.map(n => n.name + (n.perso
       settingsForm.value.categories = JSON.parse(JSON.stringify(categories.value));
       if (!settingsForm.value.fixedNpcs) settingsForm.value.fixedNpcs = [];
       if (!settingsForm.value.forumApi) settingsForm.value.forumApi = { url: '', key: '', model: '' };
+      if (!settingsForm.value.hotPlatformOrder || !settingsForm.value.hotPlatformOrder.length) {
+        settingsForm.value.hotPlatformOrder = hotPlatforms.value.map(p => p.key);
+      }
       const chars = await dbGet('charList') || [];
       availableChars.value = chars;
       settingsShow.value = true;
@@ -691,11 +933,32 @@ ${allNpcs.length ? `参与发帖的用户：${allNpcs.map(n => n.name + (n.perso
 
     const confirmAddCategory = async () => {
       if (!newCatName.value.trim()) return;
-      const newCat = { name: newCatName.value.trim(), prompt: newCatPrompt.value.trim(), npcIds: [] };
+      const newCat = {
+        name: newCatName.value.trim(),
+        prompt: newCatPrompt.value.trim(),
+        replyPrompt: '',
+        npcIds: []
+      };
       settingsForm.value.categories.push(newCat);
       categories.value.push(JSON.parse(JSON.stringify(newCat)));
       addCatShow.value = false;
       await dbSet('forumSettings', JSON.parse(JSON.stringify(settingsForm.value)));
+    };
+    const movePlatform = (key, dir) => {
+      const order = settingsForm.value.hotPlatformOrder.length
+        ? [...settingsForm.value.hotPlatformOrder]
+        : hotPlatforms.value.map(p => p.key);
+      const idx = order.indexOf(key);
+      if (idx === -1) return;
+      const newIdx = idx + dir;
+      if (newIdx < 0 || newIdx >= order.length) return;
+      order.splice(idx, 1);
+      order.splice(newIdx, 0, key);
+      settingsForm.value.hotPlatformOrder = order;
+    };
+
+    const resetPlatformOrder = () => {
+      settingsForm.value.hotPlatformOrder = hotPlatforms.value.map(p => p.key);
     };
 
     // ===== 数据存储 =====
@@ -761,12 +1024,14 @@ ${allNpcs.length ? `参与发帖的用户：${allNpcs.map(n => n.name + (n.perso
       openPostDetail, openPostForm, submitPost,
       postMenuShow, menuTarget, openPostMenu, collectFromMenu, editFromMenu, deleteFromMenu,
       replyText, quotingReply, replyTextareaRef, replyMenuShow, editReplyShow, editReplyContent,
+      generatingReplies, generateReplies,
       autoResizeReply, setQuoteReply, sendReply, getQuoteContent, scrollToReply,
       openReplyMenu, collectReplyFromMenu, editReplyFromMenu, confirmEditReply, deleteReplyFromMenu,
       likePost, likeReply, collections, isCollected, toggleCollect,
       collectionShow, collectionType, collectTab, collectionItems, openCollection, openCollectionItem,
       generating, generatePosts,
-      hotTab, hotPlatform, hotList, hotLoading, hotError, hotPlatforms, fetchHotList, switchHotPlatform,
+      hotTab, hotPlatform, hotList, hotLoading, hotError, hotPlatforms, hotPlatformsOrdered, fetchHotList, switchHotPlatform,
+      translating, translations, detectNeedTranslate, translateText,
       dimHotList, dimHotLoading, generateDimensionHot,
       searchType, searchQuery, searchLoading, searchResults, searchDone, aiSearchResult, doSearch,
       conversations, currentConv, pmText, pmBodyRef, pmTextareaRef,
@@ -774,7 +1039,7 @@ ${allNpcs.length ? `参与发帖的用户：${allNpcs.map(n => n.name + (n.perso
       settingsShow, expandedCats, availableChars, settingsForm, addCatShow, newCatName, newCatPrompt,
       forumModelList, fetchForumModels,
       openSettings, saveSettings, toggleCatExpand, toggleCatNpc, addCustomCategory, confirmAddCategory,
-      formatTime
+      formatTime, movePlatform, resetPlatformOrder,
     };
   }
 }).mount('#forum-app');
