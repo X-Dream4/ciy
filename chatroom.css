@@ -505,4 +505,25 @@ body.dark .summary-pos-btn.active { background: #eee; color: #111; }
 .char-blocked-badge { margin-left: 4px; }
 .user-blocked-badge { margin-right: 4px; }
 
+.time-divider { text-align: center; margin: 8px 0; }
+.time-divider span, .time-divider { font-size: 11px; color: rgba(0,0,0,0.4); background: rgba(0,0,0,0.06); backdrop-filter: blur(8px); border-radius: 12px; padding: 3px 10px; display: inline-block; }
+body.dark .time-divider { color: rgba(255,255,255,0.4); background: rgba(255,255,255,0.08); }
+
+.time-divider { text-align: center; margin: 8px 0; }
+.time-divider { font-size: 11px; color: rgba(0,0,0,0.4); background: rgba(0,0,0,0.06); backdrop-filter: blur(8px); border-radius: 12px; padding: 3px 10px; display: inline-block; }
+body.dark .time-divider { color: rgba(255,255,255,0.4); background: rgba(255,255,255,0.08); }
+
+.msg-timestamp { font-size: 10px; white-space: nowrap; flex-shrink: 0; line-height: 1; }
+.ts-left { order: -1; margin-right: 4px; }
+.ts-right { margin-left: 4px; }
+.ts-top { align-self: flex-start; }
+.ts-center { align-self: center; }
+.ts-bottom { align-self: flex-end; }
+
+.ts-format-row { display: flex; gap: 6px; }
+.ts-format-btn { flex: 1; padding: 7px; border-radius: 8px; border: 1.5px solid #e5e5ea; background: #f2f2f7; font-size: 12px; color: #333; cursor: pointer; text-align: center; transition: all 0.15s; }
+.ts-format-btn.active { background: #111; color: #fff; border-color: #111; }
+body.dark .ts-format-btn { background: #333; border-color: #444; color: #eee; }
+body.dark .ts-format-btn.active { background: #eee; color: #111; }
+
 [v-cloak] { display: none; }

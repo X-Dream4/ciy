@@ -36,7 +36,8 @@
       <button class="history-load-btn" @click="showHistory=true">查看过往消息</button>
     </div>
     <div class="msg-list">
-      <div v-for="(msg, i) in messages" :key="msg.id">
+      <div v-for="(msg, i) in messagesWithTime" :key="msg.id">
+        <div v-if="msg.isTimeDivider" class="time-divider">{{ formatMsgTime(msg.ts) }}</div>
         <div v-if="msg.recalled" class="recall-tip" @click="toggleRecallReveal(msg)">
           {{ msg.senderName || myName }} 撤回了一条消息
           <span class="recall-reveal-hint">{{ msg.revealed ? '收起' : '查看' }}</span>
@@ -54,6 +55,8 @@
               <div class="chat-inline-avatar avatar-left" v-if="msg.role==='char' && showMemberAvatars" :style="getMemberAvatar(msg.memberId)">
                 <span v-if="!getMemberAvatarUrl(msg.memberId)">{{ msg.senderName?.[0] }}</span>
               </div>
+              <div class="msg-timestamp ts-left" v-if="showTimestamp && msg.role==='user'" :class="'ts-'+tsMePos" :style="`font-size:${tsSize}px;color:${tsMeColor};opacity:${tsMeOpacity};`">{{ getMsgTimestamp(msg) }}</div>
+
               <div v-if="msg.type==='sticker'" class="msg-sticker"><img :src="getStickerUrl(msg.content)" :alt="msg.content" /></div>
               <div v-else class="msg-bubble" :class="[msg.role==='user'?'bubble-right':'bubble-left', msg.type==='whisper'?'bubble-whisper':'', msg.editing?'bubble-editing':'']" :style="getMemberBubbleStyle(msg)">
                 <span v-if="msg.loading" class="msg-loading"><span></span><span></span><span></span></span>
@@ -365,6 +368,67 @@
             <div class="toggle" :class="{on:hideNames}" @click="hideNames=!hideNames;saveBeauty()"></div>
           </div>
         </div>
+        <div class="beauty-section">
+          <div class="beauty-section-title">时间戳</div>
+          <div class="beauty-toggle-row">
+            <span>显示时间戳</span>
+            <div class="toggle" :class="{on: showTimestamp}" @click="showTimestamp=!showTimestamp; saveBeauty()"></div>
+          </div>
+          <div v-if="showTimestamp" class="bubble-custom-panel">
+            <div class="beauty-field">
+              <label>时间戳格式</label>
+              <div class="ts-format-row">
+                <div class="ts-format-btn" :class="{active: tsFormat==='time'}" @click="tsFormat='time'; saveBeauty()">时:分</div>
+                <div class="ts-format-btn" :class="{active: tsFormat==='read'}" @click="tsFormat='read'; saveBeauty()">已读</div>
+                <div class="ts-format-btn" :class="{active: tsFormat==='custom'}" @click="tsFormat='custom'; saveBeauty()">自定义</div>
+              </div>
+              <input v-if="tsFormat==='custom'" class="modal-input" v-model="tsCustom" @change="saveBeauty" placeholder="输入自定义时间戳文字..." style="margin-top:6px;" />
+            </div>
+            <div class="beauty-field">
+              <label>角色时间戳位置（气泡右侧）</label>
+              <div class="ts-format-row">
+                <div class="ts-format-btn" :class="{active: tsCharPos==='top'}" @click="tsCharPos='top'; saveBeauty()">上</div>
+                <div class="ts-format-btn" :class="{active: tsCharPos==='center'}" @click="tsCharPos='center'; saveBeauty()">中</div>
+                <div class="ts-format-btn" :class="{active: tsCharPos==='bottom'}" @click="tsCharPos='bottom'; saveBeauty()">下</div>
+              </div>
+            </div>
+            <div class="beauty-field">
+              <label>我的时间戳位置（气泡左侧）</label>
+              <div class="ts-format-row">
+                <div class="ts-format-btn" :class="{active: tsMePos==='top'}" @click="tsMePos='top'; saveBeauty()">上</div>
+                <div class="ts-format-btn" :class="{active: tsMePos==='center'}" @click="tsMePos='center'; saveBeauty()">中</div>
+                <div class="ts-format-btn" :class="{active: tsMePos==='bottom'}" @click="tsMePos='bottom'; saveBeauty()">下</div>
+              </div>
+            </div>
+            <div class="beauty-field">
+              <label>时间戳字体大小 (px)</label>
+              <input class="modal-input" type="number" v-model="tsSize" min="8" max="16" @change="saveBeauty" />
+            </div>
+            <div class="beauty-field">
+              <label>角色时间戳颜色</label>
+              <div class="color-row">
+                <input type="color" :value="tsColor.startsWith('rgba')?'#888888':tsColor" @change="e=>{tsColor=e.target.value; saveBeauty()}" />
+                <input class="modal-input" v-model="tsColor" @change="saveBeauty" placeholder="rgba(0,0,0,0.3)" style="flex:1;" />
+              </div>
+            </div>
+            <div class="beauty-field">
+              <label>角色时间戳透明度 (0-1)</label>
+              <input class="modal-input" type="number" v-model="tsOpacity" min="0" max="1" step="0.1" @change="saveBeauty" />
+            </div>
+            <div class="beauty-field">
+              <label>我的时间戳颜色</label>
+              <div class="color-row">
+                <input type="color" :value="tsMeColor.startsWith('rgba')?'#888888':tsMeColor" @change="e=>{tsMeColor=e.target.value; saveBeauty()}" />
+                <input class="modal-input" v-model="tsMeColor" @change="saveBeauty" placeholder="rgba(255,255,255,0.5)" style="flex:1;" />
+              </div>
+            </div>
+            <div class="beauty-field">
+              <label>我的时间戳透明度 (0-1)</label>
+              <input class="modal-input" type="number" v-model="tsMeOpacity" min="0" max="1" step="0.1" @change="saveBeauty" />
+            </div>
+          </div>
+        </div>
+
         <div class="beauty-section">
           <div class="beauty-section-title">气泡样式</div>
           <div class="beauty-toggle-row">

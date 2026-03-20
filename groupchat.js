@@ -142,8 +142,27 @@ createApp({
     };
 
     const saveBeauty = async () => {
-      await dbSet(`groupBeauty_${roomId}`, JSON.parse(JSON.stringify({ chatWallpaper: chatWallpaper.value, showMemberAvatars: showMemberAvatars.value, memberAvatars: memberAvatars.value, myAvatar: myAvatar.value, hideNames: hideNames.value, bubbleCustomOn: bubbleCustomOn.value, bubbleSize: bubbleSize.value, bubbleMaxWidth: bubbleMaxWidth.value, myBubbleColor: myBubbleColor.value, myBubbleTextColor: myBubbleTextColor.value, memberBubbleColors: memberBubbleColors.value, cssCustomOn: cssCustomOn.value, cssCustomInput: cssCustomInput.value, stickerSuggestOn: stickerSuggestOn.value })));
+      await dbSet(`groupBeauty_${roomId}`, JSON.parse(JSON.stringify({ chatWallpaper: chatWallpaper.value, showMemberAvatars: showMemberAvatars.value, memberAvatars: memberAvatars.value, myAvatar: myAvatar.value, hideNames: hideNames.value, bubbleCustomOn: bubbleCustomOn.value, bubbleSize: bubbleSize.value, bubbleMaxWidth: bubbleMaxWidth.value, myBubbleColor: myBubbleColor.value, myBubbleTextColor: myBubbleTextColor.value, memberBubbleColors: memberBubbleColors.value, cssCustomOn: cssCustomOn.value, cssCustomInput: cssCustomInput.value, stickerSuggestOn: stickerSuggestOn.value        , showTimestamp: showTimestamp.value, tsCharPos: tsCharPos.value, tsMePos: tsMePos.value, tsFormat: tsFormat.value, tsCustom: tsCustom.value, tsSize: tsSize.value, tsColor: tsColor.value, tsOpacity: tsOpacity.value, tsMeColor: tsMeColor.value, tsMeOpacity: tsMeOpacity.value })));
       applyBubbleStyle();
+    };
+    const showTimestamp = ref(false);
+    const tsCharPos = ref('bottom');
+    const tsMePos = ref('bottom');
+    const tsFormat = ref('time');
+    const tsCustom = ref('');
+    const tsSize = ref('10');
+    const tsColor = ref('rgba(0,0,0,0.3)');
+    const tsOpacity = ref('1');
+    const tsMeColor = ref('rgba(255,255,255,0.5)');
+    const tsMeOpacity = ref('1');
+
+    const getMsgTimestamp = (msg) => {
+      if (!showTimestamp.value) return '';
+      const ts = msg.timestamp || msg.id;
+      if (tsFormat.value === 'time') return formatMsgTime(ts);
+      if (tsFormat.value === 'read') return '已读';
+      if (tsFormat.value === 'custom') return tsCustom.value;
+      return '';
     };
 
     const loadBeauty = async () => {
@@ -157,6 +176,8 @@ createApp({
       memberBubbleColors.value = b.memberBubbleColors || {}; cssCustomOn.value = b.cssCustomOn || false;
       cssCustomInput.value = b.cssCustomInput || ''; stickerSuggestOn.value = b.stickerSuggestOn || false;
       applyWallpaperToDom(); applyBubbleStyle();
+      showTimestamp.value = b.showTimestamp || false; tsCharPos.value = b.tsCharPos || 'bottom'; tsMePos.value = b.tsMePos || 'bottom'; tsFormat.value = b.tsFormat || 'time'; tsCustom.value = b.tsCustom || ''; tsSize.value = b.tsSize || '10'; tsColor.value = b.tsColor || 'rgba(0,0,0,0.3)'; tsOpacity.value = b.tsOpacity || '1'; tsMeColor.value = b.tsMeColor || 'rgba(255,255,255,0.5)'; tsMeOpacity.value = b.tsMeOpacity || '1';
+
     };
 
     // 表情包
@@ -485,6 +506,27 @@ ${wbPrompt ? wbPrompt + '。' : ''}
 
     const autoResize = () => { const el = inputRef.value; if (!el) return; el.style.height = 'auto'; el.style.height = Math.min(el.scrollHeight, 120) + 'px'; };
     const scrollToBottom = () => { if (msgArea.value) msgArea.value.scrollTop = msgArea.value.scrollHeight; };
+    const formatMsgTime = (ts) => {
+      if (!ts) return '';
+      const now = new Date(); const d = new Date(ts);
+      const diffDays = Math.floor((now - d) / 86400000);
+      const timeStr = `${d.getHours().toString().padStart(2,'0')}:${d.getMinutes().toString().padStart(2,'0')}`;
+      if (diffDays === 0 && now.getDate() === d.getDate()) return timeStr;
+      if (now.getDate() - d.getDate() === 1 && diffDays <= 1) return `昨天 ${timeStr}`;
+      if (d.getFullYear() === now.getFullYear()) return `${d.getMonth()+1}月${d.getDate()}日 ${timeStr}`;
+      return `${d.getFullYear()}年${d.getMonth()+1}月${d.getDate()}日 ${timeStr}`;
+    };
+
+    const messagesWithTime = computed(() => {
+      const result = []; let lastTs = 0;
+      const msgs = showHistory.value ? allMessages.value : allMessages.value.slice(-MSG_LIMIT);
+      for (const msg of msgs) {
+        const ts = msg.timestamp || msg.id;
+        if (ts - lastTs > 20 * 60 * 1000) result.push({ isTimeDivider: true, ts, id: `td_${ts}` });
+        result.push(msg); lastTs = ts;
+      }
+      return result;
+    });
 
     const saveMessages = async () => {
       const roomList = JSON.parse(JSON.stringify((await dbGet('roomList')) || []));
@@ -579,7 +621,8 @@ ${wbPrompt ? wbPrompt + '。' : ''}
       doSummary, applySummary,
       onTouchStart, onTouchEnd, onTouchMove, onMouseDown, onMouseUp,
       quoteMsg, recallMsg, toggleRecallReveal, deleteMsg, editMsg, confirmEdit, cancelEdit,
-      startMultiSelect, toggleSelect, deleteSelected, cancelMultiSelect, autoResize
+      startMultiSelect, toggleSelect, deleteSelected, cancelMultiSelect, autoResize,
+      messagesWithTime, formatMsgTime, showTimestamp, tsCharPos, tsMePos, tsFormat, tsCustom, tsSize, tsColor, tsOpacity, tsMeColor, tsMeOpacity, getMsgTimestamp
     };
   }
 }).mount('#groupchat-app');

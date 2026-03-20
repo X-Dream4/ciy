@@ -38,8 +38,9 @@
     </div>
 
     <div class="msg-list">
-      <div v-for="(msg, i) in messages" :key="msg.id">
+      <div v-for="(msg, i) in messagesWithTime" :key="msg.id">
 
+       <div v-if="msg.isTimeDivider" class="time-divider">{{ formatMsgTime(msg.ts) }}</div>
         <div v-if="msg.recalled" class="recall-tip" @click="toggleRecallReveal(msg)">
           {{ msg.role === 'user' ? myName : charName }} 撤回了一条消息
           <span class="recall-reveal-hint">{{ msg.revealed ? '收起' : '查看' }}</span>
@@ -64,6 +65,7 @@
               <div class="chat-inline-avatar avatar-left" v-if="msg.role==='char' && showCharAvatar" :style="charAvatar?`background-image:url(${charAvatar})`:''">
                 <span v-if="!charAvatar">{{ charName[0] }}</span>
               </div>
+              <div class="msg-timestamp ts-left" v-if="showTimestamp && msg.role==='user'" :class="'ts-'+tsMePos" :style="`font-size:${tsSize}px;color:${tsMeColor};opacity:${tsMeOpacity};`">{{ getMsgTimestamp(msg) }}</div>
               <div class="block-badge user-blocked-badge" v-if="msg.role==='user' && msg.blockedByCharWhenSent">!</div>
               <div v-if="msg.type==='sticker'" class="msg-sticker">
                 <img :src="getStickerUrl(msg.content)" :alt="msg.content" />
@@ -81,6 +83,7 @@
                 <span v-if="msg.type==='whisper'" class="whisper-tag">心声</span>
               </div>
               <div class="block-badge char-blocked-badge" v-if="msg.role==='char' && msg.blockedWhenSent">!</div>
+              <div class="msg-timestamp ts-right" v-if="showTimestamp && msg.role==='char'" :class="'ts-'+tsCharPos" :style="`font-size:${tsSize}px;color:${tsColor};opacity:${tsOpacity};`">{{ getMsgTimestamp(msg) }}</div>
               <!-- v-else 结束，sticker 和 bubble 共用同一层 -->
               <div class="chat-inline-avatar avatar-right" v-if="msg.role==='user' && showCharAvatar" :style="myAvatar?`background-image:url(${myAvatar})`:''">
                 <span v-if="!myAvatar">{{ myName[0] }}</span>
@@ -120,6 +123,7 @@
       <button class="toolbar-btn" @click="openSummary"><i data-lucide="file-text"></i><span>聊天总结</span></button>
       <button class="toolbar-btn" @click="openEmoji"><i data-lucide="smile"></i><span>表情包</span></button>
       <button class="toolbar-btn" @click="openBlock" :style="isBlocked?'color:#e53e3e;':''"><i data-lucide="user-x"></i><span>{{ isBlocked?'已拉黑':'拉黑' }}</span></button>
+      <button class="toolbar-btn" @click="deleteCharShow=true" style="color:#e53e3e;"><i data-lucide="trash-2"></i><span>删除</span></button>
       <button class="toolbar-btn" @click="goBack"><i data-lucide="arrow-left"></i><span>返回</span></button>
     </div>
   </transition>
@@ -168,6 +172,13 @@
         <div class="modal-item"><label>世界观</label><textarea class="modal-textarea" v-model="charWorldInput" placeholder="角色所在的世界观..."></textarea></div>
         <div class="modal-item"><label>角色人设</label><textarea class="modal-textarea" v-model="charPersonaInput" placeholder="角色的性格、背景..."></textarea></div>
         <div class="modal-item"><label>AI可读取消息条数</label><input class="modal-input" type="number" v-model="aiReadCountInput" min="5" max="200" placeholder="默认20条" /></div>
+        <div class="modal-item">
+          <div style="display:flex;align-items:center;justify-content:space-between;font-size:13px;color:#555;">
+            <span>角色知道当前实时时间</span>
+            <div class="toggle" :class="{on: realtimeTimeOn}" @click="realtimeTimeOn=!realtimeTimeOn"></div>
+          </div>
+          <div style="font-size:11px;color:#aaa;margin-top:2px;">开启后每次调用API时注入当前准确时间</div>
+        </div>
         <div class="modal-item">
           <label>启用的世界书</label>
           <div v-if="allWorldBooks.length">
@@ -455,6 +466,66 @@
             <div class="toggle" :class="{on: hideNames}" @click="hideNames=!hideNames; saveBeauty()"></div>
           </div>
         </div>
+        <div class="beauty-section">
+          <div class="beauty-section-title">时间戳</div>
+          <div class="beauty-toggle-row">
+            <span>显示时间戳</span>
+            <div class="toggle" :class="{on: showTimestamp}" @click="showTimestamp=!showTimestamp; saveBeauty()"></div>
+          </div>
+          <div v-if="showTimestamp" class="bubble-custom-panel">
+            <div class="beauty-field">
+              <label>时间戳格式</label>
+              <div class="ts-format-row">
+                <div class="ts-format-btn" :class="{active: tsFormat==='time'}" @click="tsFormat='time'; saveBeauty()">时:分</div>
+                <div class="ts-format-btn" :class="{active: tsFormat==='read'}" @click="tsFormat='read'; saveBeauty()">已读</div>
+                <div class="ts-format-btn" :class="{active: tsFormat==='custom'}" @click="tsFormat='custom'; saveBeauty()">自定义</div>
+              </div>
+              <input v-if="tsFormat==='custom'" class="modal-input" v-model="tsCustom" @change="saveBeauty" placeholder="输入自定义时间戳文字..." style="margin-top:6px;" />
+            </div>
+            <div class="beauty-field">
+              <label>角色时间戳位置（气泡右侧）</label>
+              <div class="ts-format-row">
+                <div class="ts-format-btn" :class="{active: tsCharPos==='top'}" @click="tsCharPos='top'; saveBeauty()">上</div>
+                <div class="ts-format-btn" :class="{active: tsCharPos==='center'}" @click="tsCharPos='center'; saveBeauty()">中</div>
+                <div class="ts-format-btn" :class="{active: tsCharPos==='bottom'}" @click="tsCharPos='bottom'; saveBeauty()">下</div>
+              </div>
+            </div>
+            <div class="beauty-field">
+              <label>我的时间戳位置（气泡左侧）</label>
+              <div class="ts-format-row">
+                <div class="ts-format-btn" :class="{active: tsMePos==='top'}" @click="tsMePos='top'; saveBeauty()">上</div>
+                <div class="ts-format-btn" :class="{active: tsMePos==='center'}" @click="tsMePos='center'; saveBeauty()">中</div>
+                <div class="ts-format-btn" :class="{active: tsMePos==='bottom'}" @click="tsMePos='bottom'; saveBeauty()">下</div>
+              </div>
+            </div>
+            <div class="beauty-field">
+              <label>时间戳字体大小 (px)</label>
+              <input class="modal-input" type="number" v-model="tsSize" min="8" max="16" @change="saveBeauty" />
+            </div>
+            <div class="beauty-field">
+              <label>角色时间戳颜色</label>
+              <div class="color-row">
+                <input type="color" :value="tsColor.startsWith('rgba')?'#888888':tsColor" @change="e=>{tsColor=e.target.value; saveBeauty()}" />
+                <input class="modal-input" v-model="tsColor" @change="saveBeauty" placeholder="rgba(0,0,0,0.3)" style="flex:1;" />
+              </div>
+            </div>
+            <div class="beauty-field">
+              <label>角色时间戳透明度 (0-1)</label>
+              <input class="modal-input" type="number" v-model="tsOpacity" min="0" max="1" step="0.1" @change="saveBeauty" />
+            </div>
+            <div class="beauty-field">
+              <label>我的时间戳颜色</label>
+              <div class="color-row">
+                <input type="color" :value="tsMeColor.startsWith('rgba')?'#888888':tsMeColor" @change="e=>{tsMeColor=e.target.value; saveBeauty()}" />
+                <input class="modal-input" v-model="tsMeColor" @change="saveBeauty" placeholder="rgba(255,255,255,0.5)" style="flex:1;" />
+              </div>
+            </div>
+            <div class="beauty-field">
+              <label>我的时间戳透明度 (0-1)</label>
+              <input class="modal-input" type="number" v-model="tsMeOpacity" min="0" max="1" step="0.1" @change="saveBeauty" />
+            </div>
+          </div>
+        </div>
 
         <div class="beauty-section">
           <div class="beauty-section-title">气泡样式</div>
@@ -648,6 +719,18 @@
         <div class="modal-btns">
           <button class="modal-btn cancel" @click="insertShow=false">取消</button>
           <button class="modal-btn confirm" @click="confirmInsert">确认插入</button>
+        </div>
+      </div>
+    </div>
+  </transition>
+  <transition name="modal">
+    <div class="modal-mask" v-if="deleteCharShow && appReady" @click.self="deleteCharShow=false">
+      <div class="modal-box" style="max-width:300px;">
+        <div class="modal-title">删除角色</div>
+        <div style="font-size:14px;color:#555;text-align:center;padding:8px 0;">确定要删除「{{ charName }}」吗？<br/><span style="font-size:12px;color:#e53e3e;">所有聊天记录将被永久删除</span></div>
+        <div class="modal-btns">
+          <button class="modal-btn cancel" @click="deleteCharShow=false">否，取消</button>
+          <button class="modal-btn" style="background:#e53e3e;color:#fff;" @click="confirmDeleteChar">是，删除</button>
         </div>
       </div>
     </div>
