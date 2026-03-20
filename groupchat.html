@@ -164,6 +164,13 @@
           </div>
           <div style="font-size:12px;color:#aaa;padding:8px 0;" v-else>世界书馆暂无世界书</div>
         </div>
+<div class="modal-item">
+  <div style="display:flex;align-items:center;justify-content:space-between;">
+    <span style="font-size:13px;color:#555;font-weight:500;">成员知道当前实时时间</span>
+    <div class="toggle" :class="{on: realtimeTimeOn}" @click="realtimeTimeOn=!realtimeTimeOn"></div>
+  </div>
+  <div style="font-size:11px;color:#aaa;margin-top:2px;">开启后每次调用API时注入当前准确时间</div>
+</div>
         <div class="modal-item">
           <div style="display:flex;align-items:center;justify-content:space-between;">
             <span style="font-size:13px;color:#555;font-weight:500;">点击气泡翻译</span>

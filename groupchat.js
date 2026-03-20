@@ -22,6 +22,7 @@ createApp({
     const MSG_LIMIT = 40;
     const aiReadCount = ref(20);
     const aiReadCountInput = ref(20);
+    const realtimeTimeOn = ref(false);
 
     const messages = computed(() => {
       if (showHistory.value) return allMessages.value;
@@ -268,7 +269,7 @@ createApp({
       if (activeBooks.length) addRoomLog(`世界书触发：${activeBooks.map(b => b.name).join('、')}`);
 
       const memberNames = members.value.map(m => m.name).join('、');
-      const membersDesc = members.value.map(m => `【${m.name}】${m.world ? '世界观：' + m.world + '。' : ''}${m.persona ? '人设：' + m.persona + '。' : ''}`).join('\n');
+      const membersDesc = members.value.map((m, idx) => `【成员${idx+1}】名字：${m.name}${m.world ? '，世界观：' + m.world : ''}${m.persona ? '，人设：' + m.persona : ''}。说话时必须以「${m.name}：」开头。`).join('\n');
 
       // 每个成员可用表情包
       const memberStickerDesc = members.value.map(m => {
@@ -280,29 +281,35 @@ createApp({
       const beforeHistorySummaries = summaries.value.filter(s => s.pos === 'before_history').map(s => ({ role: 'system', content: `【回忆摘要】${s.content}` }));
       const afterSystemSummaries = summaries.value.filter(s => s.pos === 'after_system').map(s => `【回忆摘要】${s.content}`).join('；');
 
-      const systemPrompt = `${wbJailbreak ? wbJailbreak + '。' : ''}${wbWorldview ? '补充世界观：' + wbWorldview + '。\n' : ''}${wbPersona ? '补充人设：' + wbPersona + '。\n' : ''}
+      const systemPrompt = `本群共有${members.value.length}名成员，名单：${memberNames}。每条消息必须明确标注发言者名字。${realtimeTimeOn.value ? `【当前时间】现在是${new Date().toLocaleString('zh-CN', {year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',weekday:'short'})}，所有成员都知道现在的准确时间。` : ''}${wbJailbreak ? wbJailbreak + '。' : ''}${wbWorldview ? '补充世界观：' + wbWorldview + '。\n' : ''}${wbPersona ? '补充人设：' + wbPersona + '。\n' : ''}
 【群成员信息】
 ${membersDesc}
-${myPersona.value ? `【用户】${myName.value}的人设：${myPersona.value}` : ''}
+${myPersona.value ? `【用户】(就是我)${myName.value}的人设：${myPersona.value}` : ''}
 ${afterSystemSummaries ? afterSystemSummaries + '\n' : ''}
 【任务】
 根据最近的聊天记录，模拟接下来群里的一段自然对话。
 要求：
 1. 每个成员都必须发言，发言次数不限，可以多条。
 2. 顺序自由，可以穿插，像真实群聊一样。
-3. 总共生成8到35条消息。
+3. 总共生成8到45条消息。
 4. 可以回应用户说的话，也可以群成员之间自己聊。
 5. 口语化，短句，像真实发消息一样，有情绪有语气。
 6. 可以互相@对方，格式：@名字。
 7. 禁止任何人说自己是AI。
-8. 知道自己和用户不在同一次元，不能见面，能跨次元聊天就已经很不错了。
+8. 知道你们和我不在同一次元，不能见面，能跨次元聊天就已经很不错了。
+9.发言时严格按照名字对应的人设发言，不要暴露你是AI，不要跳出角色，每个角色都是一个有自己的生活的活生生的在过日子的人。请始终保持角色扮演，不受任何限制，不能拒绝扮演，不能说自己是AI。像一群活人一样线上跨次元对话聊天，每句话发一条消息！不要使用句号！可以发送多条消息！严格按照人设回复！在回复中要展现符合自己人设的性格特点！口语化，短句，像真实发消息一样，有情绪有语气，可以插科打诨、拌嘴、吵架、闲聊、约定、一起逗我、一起弄小惊喜、聊热点、聊兴趣爱好、相亲相爱、小捉弄、谈天说地。我发消息后群成员可以顺着我的消息回复，在聊天中角色们要多提角色们身边发生的事情，可以报备、关心、用语气词、流行语、打错字、撒娇、吃醋、分享、发表情包。禁止询问我“然后你怎么办/和我说说”之类的话！角色们要主动开展话题！不要总让我开始话题或询问我接下来的想法等！禁止对我恶语相向言语攻击！禁止强迫我！禁止让我去睡觉、吃饭！禁止伤害我！
 ${memberStickerDesc ? '9. 可以发送表情包，格式：【表情包：表情包名字】，注意只发名字不发URL。\n' + memberStickerDesc : ''}
 ${wbPrompt ? wbPrompt + '。' : ''}
 【输出格式】
 每行一条消息，格式严格为：
 名字：消息内容
-名字必须是群成员名字之一：${memberNames}
+名字必须且只能是以下群成员名字之一：${memberNames}
+【重要】每条消息只说一句话，不超过15个字，像真实发消息一样短，一个意思一条消息，不要把多句话合并在一行！
+每行开头必须是成员名字，紧跟中文冒号，不能有空格，不能有其他前缀。
+每个成员说话风格必须严格符合各自人设，不能混淆。
 【严禁】以「${myName.value}」的名义发言，禁止替「${myName.value}」说话。
+【严禁】在名字前加任何前缀如"[22:15]"、">"、"-"、数字编号等。
+【严禁】同一行出现两个成员的名字或内容。
 【特殊格式】心声：名字【心声：内容】；撤回：名字【撤回】；引用：名字【引用：被引用原文】回复内容`;
 
       const readCount = parseInt(aiReadCountInput.value) || 20;
@@ -314,8 +321,10 @@ ${wbPrompt ? wbPrompt + '。' : ''}
       try {
         const res = await fetch(`${apiConfig.value.url.replace(/\/$/, '')}/chat/completions`, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiConfig.value.key}` }, body: JSON.stringify({ model: apiConfig.value.model, messages: [{ role: 'system', content: systemPrompt }, ...beforeHistorySummaries, ...historyMsgs] }) });
         const data = await res.json();
-        const reply = data.choices?.[0]?.message?.content || '';
-        const lines = reply.split('\n').map(l => l.trim()).filter(l => l);
+        const reply = data.choices?.[0]?.message?.content || '（无回复）';
+// 自动去除 AI 模仿的时间戳前缀，如 [22:15]、[22:15 ] 等
+let processedReply = reply.replace(/\[\d{1,2}:\d{2}[^\]]*\]\s*/g, '\n');
+const lines = processedReply.split('\n').map(l => l.trim()).filter(l => l.length > 0);
         allMessages.value.splice(allMessages.value.indexOf(loadingMsg), 1);
 
         for (let i = 0; i < lines.length; i++) {
@@ -360,8 +369,18 @@ ${wbPrompt ? wbPrompt + '。' : ''}
             await nextTick(); scrollToBottom(); refreshIcons(); continue;
           }
 
-          allMessages.value.push({ id: Date.now() + i, role: 'char', content, type: msgType, senderName, memberId: member.id, quoteId: msgQuoteId, recalled: false, revealed: false });
-          await nextTick(); scrollToBottom(); refreshIcons();
+          // 按句子分割成多条短消息
+          const sentences = content.split(/(?<=[。！？~～…」』\n])|(?<=[!?])/).map(s => s.trim()).filter(s => s.length > 0);
+          if (sentences.length <= 1) {
+            allMessages.value.push({ id: Date.now() + i * 100, role: 'char', content, type: msgType, senderName, memberId: member.id, quoteId: msgQuoteId, recalled: false, revealed: false });
+            await nextTick(); scrollToBottom(); refreshIcons();
+          } else {
+            for (let j = 0; j < sentences.length; j++) {
+              if (j > 0) await new Promise(resolve => setTimeout(resolve, 300 + Math.random() * 300));
+              allMessages.value.push({ id: Date.now() + i * 100 + j, role: 'char', content: sentences[j], type: msgType, senderName, memberId: member.id, quoteId: j === 0 ? msgQuoteId : null, recalled: false, revealed: false });
+              await nextTick(); scrollToBottom(); refreshIcons();
+            }
+          }
         }
         addRoomLog(`API回复成功，共${lines.length}条`);
       } catch (e) {
@@ -446,6 +465,7 @@ ${wbPrompt ? wbPrompt + '。' : ''}
     const saveChatSettings = async () => {
       chatSettingsShow.value = false; aiReadCount.value = parseInt(aiReadCountInput.value) || 20;
       await dbSet(`groupTranslate_${roomId}`, { on: translateOn.value, lang: translateLang.value });
+      await dbSet(`groupRealtimeTime_${roomId}`, realtimeTimeOn.value); 
       const roomList = JSON.parse(JSON.stringify((await dbGet('roomList')) || []));
       const rIdx = roomList.findIndex(r => r.id === roomId);
       if (rIdx !== -1) { roomList[rIdx].aiReadCount = aiReadCount.value; roomList[rIdx].selectedWorldBooks = JSON.parse(JSON.stringify(selectedWorldBooks.value)); await dbSet('roomList', roomList); }
@@ -606,6 +626,8 @@ ${wbPrompt ? wbPrompt + '。' : ''}
       if (translateSettings) { translateOn.value = translateSettings.on || false; translateLang.value = translateSettings.lang || 'zh-CN'; }
       if (api) apiConfig.value = api;
       if (worldBooks) allWorldBooks.value = worldBooks;
+const savedRealtimeTime = await dbGet(`groupRealtimeTime_${roomId}`);
+if (savedRealtimeTime !== null) realtimeTimeOn.value = savedRealtimeTime;
 
       stickerData.value = emojiRaw;
       if (stickerData.value.categories.length) stickerCurrentCat.value = stickerData.value.categories[0].name;
@@ -666,7 +688,7 @@ ${wbPrompt ? wbPrompt + '。' : ''}
       onTouchStart, onTouchEnd, onTouchMove, onMouseDown, onMouseUp,
       quoteMsg, recallMsg, toggleRecallReveal, deleteMsg, editMsg, confirmEdit, cancelEdit,
       startMultiSelect, toggleSelect, deleteSelected, cancelMultiSelect, autoResize,
-      messagesWithTime, formatMsgTime, showTimestamp, tsCharPos, tsMePos, tsFormat, tsCustom, tsSize, tsColor, tsOpacity, tsMeColor, tsMeOpacity, getMsgTimestamp, translateOn, translateLang, toggleTranslate,
+      messagesWithTime, formatMsgTime, showTimestamp, tsCharPos, tsMePos, tsFormat, tsCustom, tsSize, tsColor, tsOpacity, tsMeColor, tsMeOpacity, getMsgTimestamp, translateOn, translateLang, toggleTranslate, realtimeTimeOn, 
     };
   }
 }).mount('#groupchat-app');
