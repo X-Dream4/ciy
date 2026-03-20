@@ -70,7 +70,9 @@
               <div v-if="msg.type==='sticker'" class="msg-sticker">
                 <img :src="getStickerUrl(msg.content)" :alt="msg.content" />
               </div>
-              <div v-else class="msg-bubble" :class="[msg.role==='user'?'bubble-right':'bubble-left', msg.type==='whisper'?'bubble-whisper':'', msg.editing?'bubble-editing':'']">
+              <div v-else class="msg-bubble" :class="[msg.role==='user'?'bubble-right':'bubble-left', msg.type==='whisper'?'bubble-whisper':'', msg.editing?'bubble-editing':'']"
+                @click="translateOn && msg.role==='char' && !msg.loading && !msg.editing ? toggleTranslate(msg) : null"
+                :style="translateOn && msg.role==='char' && !msg.loading ? 'cursor:pointer;' : ''">
                 <span v-if="msg.loading" class="msg-loading"><span></span><span></span><span></span></span>
                 <div v-else-if="msg.editing">
                   <textarea class="edit-textarea" v-model="msg.editContent" @keydown.enter.exact.prevent="confirmEdit(msg)"></textarea>
@@ -81,6 +83,13 @@
                 </div>
                 <span v-else>{{ msg.content }}</span>
                 <span v-if="msg.type==='whisper'" class="whisper-tag">心声</span>
+                <!-- 翻译区域 -->
+                <div v-if="msg.translating" class="msg-translation">
+                  <div class="msg-translation-loading"><span></span><span></span><span></span></div>
+                </div>
+                <div v-else-if="msg.translation && !msg.translationHidden" class="msg-translation" @click.stop="msg.translationHidden=true">
+                  {{ msg.translation }}
+                </div>
               </div>
               <div class="block-badge char-blocked-badge" v-if="msg.role==='char' && msg.blockedWhenSent">!</div>
             <div class="msg-timestamp-row-char" v-if="showTimestamp && !msg.isTimeDivider && msg.role==='char' && getMsgTimestamp(msg)" :style="`font-size:${tsSize}px;color:${tsColor};opacity:${tsOpacity};`">{{ getMsgTimestamp(msg) }}</div>
@@ -204,6 +213,38 @@
           </div>
           <div style="font-size:12px;color:#aaa;padding:8px 0;" v-else>世界书馆暂无世界书</div>
         </div>
+        <!-- 翻译设置 -->
+        <div class="modal-item">
+          <div style="display:flex;align-items:center;justify-content:space-between;">
+            <span style="font-size:13px;color:#555;font-weight:500;">点击气泡翻译</span>
+            <div class="toggle" :class="{on: translateOn}" @click="translateOn=!translateOn"></div>
+          </div>
+          <div style="font-size:11px;color:#aaa;margin-top:2px;">开启后点击角色气泡自动翻译为所选语言</div>
+        </div>
+        <div class="modal-item" v-if="translateOn">
+          <label>翻译目标语言</label>
+          <select class="modal-input" v-model="translateLang" style="padding:10px 12px;">
+            <option value="zh-CN">中文（简体）</option>
+            <option value="zh-TW">中文（繁體）</option>
+            <option value="en">English</option>
+            <option value="ja">日本語</option>
+            <option value="ko">한국어</option>
+            <option value="fr">Français</option>
+            <option value="de">Deutsch</option>
+            <option value="es">Español</option>
+            <option value="pt">Português</option>
+            <option value="ru">Русский</option>
+            <option value="ar">العربية</option>
+            <option value="it">Italiano</option>
+            <option value="nl">Nederlands</option>
+            <option value="pl">Polski</option>
+            <option value="tr">Türkçe</option>
+            <option value="vi">Tiếng Việt</option>
+            <option value="th">ภาษาไทย</option>
+            <option value="id">Bahasa Indonesia</option>
+          </select>
+        </div>
+
         <div class="modal-btns">
           <button class="modal-btn cancel" @click="chatSettingsShow=false">取消</button>
           <button class="modal-btn confirm" @click="saveChatSettings">保存</button>

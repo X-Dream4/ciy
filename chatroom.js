@@ -2,6 +2,9 @@ const { createApp, ref, onMounted, nextTick, computed } = Vue;
 
 createApp({
   setup() {
+    const translateOn = ref(false);
+    const translateLang = ref('zh-CN');
+
     const params = new URLSearchParams(window.location.search);
     const charId = parseInt(params.get('id'));
 
@@ -400,6 +403,7 @@ ${myPersona.value ? '与你对话的人(我)叫' + myName.value + '，我的人�
     const openChatSettings = () => { toolbarOpen.value = false; charNameInput.value = charName.value; charWorldInput.value = charWorld.value; charPersonaInput.value = charPersona.value; aiReadCountInput.value = aiReadCount.value; chatSettingsShow.value = true; nextTick(() => refreshIcons()); };
     const saveChatSettings = async () => {
       chatSettingsShow.value = false;
+      await dbSet(`chatTranslate_${charId}`, { on: translateOn.value, lang: translateLang.value });
       charName.value = charNameInput.value; charWorld.value = charWorldInput.value; charPersona.value = charPersonaInput.value;
       aiReadCount.value = parseInt(aiReadCountInput.value) || 20;
       const charList = JSON.parse(JSON.stringify((await dbGet('charList')) || []));
@@ -588,6 +592,37 @@ ${myPersona.value ? '与你对话的人(我)叫' + myName.value + '，我的人�
 
     const autoResize = () => { const el = inputRef.value; if (!el) return; el.style.height = 'auto'; el.style.height = Math.min(el.scrollHeight, 120) + 'px'; };
     const scrollToBottom = () => { if (msgArea.value) msgArea.value.scrollTop = msgArea.value.scrollHeight; };
+    const toggleTranslate = async (msg) => {
+      if (msg.translation && !msg.translationHidden) {
+        msg.translationHidden = true;
+        return;
+      }
+      if (msg.translation && msg.translationHidden) {
+        msg.translationHidden = false;
+        return;
+      }
+      msg.translating = true;
+      try {
+        const res = await fetch(
+          `https://api.mymemory.translated.net/get?q=${encodeURIComponent(msg.content)}&langpair=autodetect|${translateLang.value}`
+        );
+        if (res.ok) {
+          const data = await res.json();
+          if (data.responseStatus === 200 && data.responseData?.translatedText) {
+            msg.translation = data.responseData.translatedText;
+            msg.translationHidden = false;
+          } else {
+            msg.translation = '翻译失败';
+            msg.translationHidden = false;
+          }
+        }
+      } catch (e) {
+        msg.translation = '翻译失败：' + e.message;
+        msg.translationHidden = false;
+      }
+      msg.translating = false;
+    };
+
     const formatMsgTime = (ts) => {
       if (!ts) return '';
       const now = new Date();
@@ -840,6 +875,8 @@ ${myPersona.value ? '与你对话的人(我)叫' + myName.value + '，我的人�
       if (wp) { document.body.style.backgroundImage = `url(${wp})`; document.body.style.backgroundSize = 'cover'; document.body.style.backgroundPosition = 'center'; }
       const list = charList || [];
       const char = list.find(c => c.id === charId);
+      const translateSettings = await dbGet(`chatTranslate_${charId}`);
+      if (translateSettings) { translateOn.value = translateSettings.on || false; translateLang.value = translateSettings.lang || 'zh-CN'; }
       if (char) { charName.value = char.name; charWorld.value = char.world || ''; charPersona.value = char.persona || ''; allMessages.value = char.messages || []; aiReadCount.value = char.aiReadCount || 20; aiReadCountInput.value = char.aiReadCount || 20; isBlocked.value = char.isBlocked || false; iBlockedByChar.value = char.iBlockedByChar || false; realtimeTimeOn.value = char.realtimeTimeOn || false; }
       if (mySettings) { myName.value = mySettings.name || '我'; myPersona.value = mySettings.persona || ''; }
       if (api) apiConfig.value = api;
@@ -918,7 +955,7 @@ ${myPersona.value ? '与你对话的人(我)叫' + myName.value + '，我的人�
       messagesWithTime, formatMsgTime, realtimeTimeOn,
       showTimestamp, tsCharPos, tsMePos, tsFormat, tsCustom, tsSize, tsColor, tsOpacity, tsMeColor, tsMeOpacity, getMsgTimestamp,autoResize,
       isBlocked, blockShow, openBlock, confirmBlock, confirmUnblock, iBlockedByChar,
-      deleteCharShow, confirmDeleteChar
+      deleteCharShow, confirmDeleteChar, translateOn, translateLang, toggleTranslate,
     };
   }
 }).mount('#chatroom-app');

@@ -532,4 +532,12 @@ body.dark .ts-format-btn.active { background: #eee; color: #111; }
 .bubble-row-right .ts-me { order: -1; margin-right: 4px; margin-left: 0; }
 .bubble-row-left .ts-right { order: 1; }
 
+/* ===== 翻译气泡 ===== */
+.msg-translation { font-size: 12px; color: #888; padding: 4px 14px 8px; line-height: 1.5; border-top: 1px dashed rgba(0,0,0,0.08); margin-top: 4px; }
+body.dark .msg-translation { color: #888; border-top-color: rgba(255,255,255,0.08); }
+.msg-translation-loading { display: flex; gap: 3px; align-items: center; padding: 4px 0; }
+.msg-translation-loading span { width: 4px; height: 4px; border-radius: 50%; background: #bbb; animation: bounce 1.2s infinite; }
+.msg-translation-loading span:nth-child(2) { animation-delay: 0.2s; }
+.msg-translation-loading span:nth-child(3) { animation-delay: 0.4s; }
+
 [v-cloak] { display: none; }

@@ -2,6 +2,9 @@ const { createApp, ref, onMounted, nextTick, computed } = Vue;
 
 createApp({
   setup() {
+    const translateOn = ref(false);
+    const translateLang = ref('zh-CN');
+
     const params = new URLSearchParams(window.location.search);
     const roomId = parseInt(params.get('id'));
 
@@ -442,6 +445,7 @@ ${wbPrompt ? wbPrompt + '。' : ''}
     const openChatSettings = () => { toolbarOpen.value = false; aiReadCountInput.value = aiReadCount.value; chatSettingsShow.value = true; nextTick(() => refreshIcons()); };
     const saveChatSettings = async () => {
       chatSettingsShow.value = false; aiReadCount.value = parseInt(aiReadCountInput.value) || 20;
+      await dbSet(`groupTranslate_${roomId}`, { on: translateOn.value, lang: translateLang.value });
       const roomList = JSON.parse(JSON.stringify((await dbGet('roomList')) || []));
       const rIdx = roomList.findIndex(r => r.id === roomId);
       if (rIdx !== -1) { roomList[rIdx].aiReadCount = aiReadCount.value; roomList[rIdx].selectedWorldBooks = JSON.parse(JSON.stringify(selectedWorldBooks.value)); await dbSet('roomList', roomList); }
@@ -512,6 +516,37 @@ ${wbPrompt ? wbPrompt + '。' : ''}
 
     const autoResize = () => { const el = inputRef.value; if (!el) return; el.style.height = 'auto'; el.style.height = Math.min(el.scrollHeight, 120) + 'px'; };
     const scrollToBottom = () => { if (msgArea.value) msgArea.value.scrollTop = msgArea.value.scrollHeight; };
+    const toggleTranslate = async (msg) => {
+      if (msg.translation && !msg.translationHidden) {
+        msg.translationHidden = true;
+        return;
+      }
+      if (msg.translation && msg.translationHidden) {
+        msg.translationHidden = false;
+        return;
+      }
+      msg.translating = true;
+      try {
+        const res = await fetch(
+          `https://api.mymemory.translated.net/get?q=${encodeURIComponent(msg.content)}&langpair=autodetect|${translateLang.value}`
+        );
+        if (res.ok) {
+          const data = await res.json();
+          if (data.responseStatus === 200 && data.responseData?.translatedText) {
+            msg.translation = data.responseData.translatedText;
+            msg.translationHidden = false;
+          } else {
+            msg.translation = '翻译失败';
+            msg.translationHidden = false;
+          }
+        }
+      } catch (e) {
+        msg.translation = '翻译失败：' + e.message;
+        msg.translationHidden = false;
+      }
+      msg.translating = false;
+    };
+
     const formatMsgTime = (ts) => {
       if (!ts) return '';
       const now = new Date(); const d = new Date(ts);
@@ -567,6 +602,8 @@ ${wbPrompt ? wbPrompt + '。' : ''}
       }
 
       if (mySettings) { myName.value = mySettings.name || '我'; myPersona.value = mySettings.persona || ''; }
+      const translateSettings = await dbGet(`groupTranslate_${roomId}`);
+      if (translateSettings) { translateOn.value = translateSettings.on || false; translateLang.value = translateSettings.lang || 'zh-CN'; }
       if (api) apiConfig.value = api;
       if (worldBooks) allWorldBooks.value = worldBooks;
 
@@ -629,7 +666,7 @@ ${wbPrompt ? wbPrompt + '。' : ''}
       onTouchStart, onTouchEnd, onTouchMove, onMouseDown, onMouseUp,
       quoteMsg, recallMsg, toggleRecallReveal, deleteMsg, editMsg, confirmEdit, cancelEdit,
       startMultiSelect, toggleSelect, deleteSelected, cancelMultiSelect, autoResize,
-      messagesWithTime, formatMsgTime, showTimestamp, tsCharPos, tsMePos, tsFormat, tsCustom, tsSize, tsColor, tsOpacity, tsMeColor, tsMeOpacity, getMsgTimestamp
+      messagesWithTime, formatMsgTime, showTimestamp, tsCharPos, tsMePos, tsFormat, tsCustom, tsSize, tsColor, tsOpacity, tsMeColor, tsMeOpacity, getMsgTimestamp, translateOn, translateLang, toggleTranslate,
     };
   }
 }).mount('#groupchat-app');
