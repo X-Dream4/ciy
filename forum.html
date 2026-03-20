@@ -9,6 +9,20 @@
 <link rel="stylesheet" href="forum.css" />
 </head>
 <body>
+<div class="forum-loading-mask" id="forumLoadingMask">
+  <div class="forum-tangle">
+    <svg viewBox="0 0 80 80" xmlns="http://www.w3.org/2000/svg">
+      <path class="forum-tangle-line" d="M10,40 Q20,10 40,20 Q60,30 50,50 Q40,70 20,60 Q5,52 15,35 Q25,18 45,25 Q65,32 55,55 Q45,75 25,65"/>
+      <path class="forum-tangle-line" d="M70,20 Q80,40 65,55 Q50,70 30,65 Q10,60 12,40 Q14,20 35,15 Q55,10 68,28 Q78,42 60,58 Q42,72 22,62"/>
+      <path class="forum-tangle-line" d="M40,5 Q65,8 72,30 Q78,52 58,65 Q38,78 18,65 Q2,52 8,30 Q14,8 38,5 Q55,3 68,18 Q80,35 72,55"/>
+      <path class="forum-tangle-line" d="M15,15 Q35,5 55,15 Q75,25 75,45 Q75,65 55,72 Q35,78 18,65 Q3,52 8,32 Q13,12 32,8 Q52,4 68,20"/>
+      <path class="forum-tangle-line" d="M40,75 Q18,72 10,52 Q3,32 18,18 Q33,5 55,12 Q75,20 78,42 Q80,62 62,72 Q44,80 25,70 Q8,60 10,40"/>
+      <path class="forum-tangle-line" d="M5,50 Q2,28 20,16 Q38,5 58,14 Q76,24 76,45 Q76,66 56,74 Q36,80 18,68 Q2,56 6,38 Q10,20 28,12 Q48,4 65,18"/>
+    </svg>
+  </div>
+  <div class="forum-loading-text">连接中…</div>
+</div>
+
 <div id="forum-app" v-cloak>
 
   <!-- ===== 底部导航 ===== -->
@@ -106,7 +120,7 @@
       <div class="hotlist-platform-bar">
         <div class="hotlist-platform-chip" v-for="p in hotPlatformsOrdered" :key="p.key"
           :class="{active: hotPlatform===p.key}" @click="switchHotPlatform(p.key)">
-          {{ p.region }} {{ p.label }}
+          {{ p.label }}
         </div>
       </div>
       <div class="hotlist-loading" v-if="hotLoading"><span></span><span></span><span></span></div>
@@ -119,7 +133,7 @@
         <div class="hotlist-item" v-for="(item, idx) in hotList" :key="idx" style="flex-direction:column;align-items:flex-start;gap:4px;">
           <div style="display:flex;align-items:center;width:100%;gap:12px;">
             <div class="hotlist-rank" :class="idx===0?'top1':idx===1?'top2':idx===2?'top3':''">{{ idx+1 }}</div>
-            <div class="hotlist-title" style="flex:1;">{{ item.title }}</div>
+            <div class="hotlist-title" style="flex:1;cursor:pointer;" @click="openHotDetail(item)">{{ item.title }}</div>
             <div class="hotlist-hot">{{ item.hot || '' }}</div>
             <button v-if="detectNeedTranslate(item.title)"
               @click="translateText(item.title, idx)"
@@ -358,6 +372,50 @@
             @input="autoResizePM" ref="pmTextareaRef"></textarea>
         </div>
         <button class="pm-send-btn" @click="sendPM"><i data-lucide="send"></i></button>
+      </div>
+    </div>
+  </transition>
+  <!-- ===== 热搜详情页 ===== -->
+  <transition name="slide">
+    <div class="hotdetail-wrap" v-if="hotDetailShow">
+      <div class="hotdetail-header">
+        <button class="back-btn" @click="hotDetailShow=false"><i data-lucide="arrow-left"></i></button>
+        <div class="hotdetail-title">{{ hotDetailItem ? hotDetailItem.title : '' }}</div>
+        <a v-if="hotDetailItem && hotDetailItem.url" :href="hotDetailItem.url" target="_blank"
+          style="width:34px;height:34px;border-radius:50%;border:none;background:transparent;cursor:pointer;display:flex;align-items:center;justify-content:center;color:#555;text-decoration:none;">
+          <i data-lucide="external-link" style="width:18px;height:18px;"></i>
+        </a>
+      </div>
+      <div class="hotdetail-scroll">
+        <!-- 加载中 -->
+        <div class="gen-loading" v-if="hotDetailLoading">
+          <span></span><span></span><span></span>
+        </div>
+        <template v-if="!hotDetailLoading && hotDetailData">
+          <!-- 话题简介 -->
+          <div class="hotdetail-intro">
+            <div class="hotdetail-intro-label">话题简介</div>
+            <div class="hotdetail-intro-text">{{ hotDetailData.intro }}</div>
+          </div>
+          <!-- 模拟讨论 -->
+          <div class="hotdetail-discuss" v-if="hotDetailData.comments && hotDetailData.comments.length">
+            <div class="hotdetail-discuss-label">模拟讨论 · {{ hotDetailData.comments.length }}条</div>
+            <div class="hotdetail-comment" v-for="(c, i) in hotDetailData.comments" :key="i">
+              <div class="hotdetail-comment-author">{{ c.author }}</div>
+              <div class="hotdetail-comment-content">{{ c.content }}</div>
+              <div class="hotdetail-comment-likes">{{ c.likes || 0 }} 赞</div>
+            </div>
+          </div>
+          <!-- 操作按钮 -->
+          <div class="hotdetail-actions">
+            <button class="hotdetail-action-btn primary" @click="postHotToForum">
+              <i data-lucide="plus"></i> 发帖到论坛
+            </button>
+            <button class="hotdetail-action-btn secondary" @click="refreshHotDetail">
+              <i data-lucide="refresh-cw"></i> 重新生成
+            </button>
+          </div>
+        </template>
       </div>
     </div>
   </transition>

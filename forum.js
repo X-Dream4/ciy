@@ -2,7 +2,7 @@ const { createApp, ref, computed, onMounted, nextTick, watch } = Vue;
 
 createApp({
   setup() {
-
+    const appReady = ref(false);
     const mainTab = ref('home');
     const goBack = () => { window.location.href = 'world.html'; };
 
@@ -496,19 +496,18 @@ ${allNpcs.length ? `参与发帖的用户：${allNpcs.map(n => n.name + (n.perso
     const hotList = ref([]);
     const hotLoading = ref(false);
     const hotError = ref('');
-        const hotPlatforms = ref([
-      { key: 'weibo',       label: '微博',     region: '🇨🇳' },
-      { key: 'baidu',       label: '百度',     region: '🇨🇳' },
-      { key: 'douyin',      label: '抖音',     region: '🇨🇳' },
-      { key: 'toutiao',     label: '头条',     region: '🇨🇳' },
-      { key: 'bilibili',    label: 'B站',      region: '🇨🇳' },
-      { key: 'reddit',      label: 'Reddit',   region: '🇺🇸' },
-      { key: 'hackernews',  label: 'HN',       region: '🇺🇸' },
-      { key: 'github',      label: 'GitHub',   region: '🌍' },
-      { key: 'espn',        label: 'ESPN',     region: '🇺🇸' },
-      { key: 'lastfm',      label: 'Last.fm',  region: '🌍' },
-      { key: 'niconico',    label: 'NicoNico', region: '🇯🇵' },
-      { key: 'naver',       label: 'Naver',    region: '🇰🇷' },
+    const hotPlatforms = ref([
+      { key: 'weibo',      label: '微博' },
+      { key: 'baidu',      label: '百度' },
+      { key: 'douyin',     label: '抖音' },
+      { key: 'toutiao',    label: '头条' },
+      { key: 'bilibili',   label: 'B站' },
+      { key: 'reddit',     label: 'Reddit' },
+      { key: 'hackernews', label: 'HN' },
+      { key: 'espn',       label: 'ESPN' },
+      { key: 'lastfm',     label: 'Last.fm' },
+      { key: 'niconico',   label: 'NicoNico' },
+      { key: 'naver',      label: 'Naver' },
     ]);
 
 
@@ -536,9 +535,8 @@ ${allNpcs.length ? `参与发帖的用户：${allNpcs.map(n => n.name + (n.perso
       return chineseRatio < 0.3 && text.length > 2;
     };
 
-    const translateText = async (text, idx) => {
+        const translateText = async (text, idx) => {
       if (translations.value[idx]) {
-        // 已有翻译，切换显示/隐藏
         if (translations.value[idx] === 'hide') {
           translations.value[idx] = translations.value[idx + '_cache'];
         } else {
@@ -549,36 +547,21 @@ ${allNpcs.length ? `参与发帖的用户：${allNpcs.map(n => n.name + (n.perso
       }
       translating.value[idx] = true;
       let result = '';
-
-      // 第一层：LibreTranslate
       try {
-        const res = await fetch('https://libretranslate.com/translate', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ q: text, source: 'auto', target: 'zh', format: 'text' })
-        });
+        const res = await fetch(
+          `https://api.mymemory.translated.net/get?q=${encodeURIComponent(text)}&langpair=autodetect|zh-CN`
+        );
         if (res.ok) {
           const data = await res.json();
-          if (data.translatedText) result = data.translatedText;
-        }
-      } catch (e) { /* LibreTranslate 失败，继续尝试 MyMemory */ }
-
-      // 第二层：MyMemory
-      if (!result) {
-        try {
-          const res2 = await fetch(`https://api.mymemory.translated.net/get?q=${encodeURIComponent(text)}&langpair=autodetect|zh-CN`);
-          if (res2.ok) {
-            const data2 = await res2.json();
-            if (data2.responseStatus === 200 && data2.responseData?.translatedText) {
-              result = data2.responseData.translatedText;
-            }
+          if (data.responseStatus === 200 && data.responseData?.translatedText) {
+            result = data.responseData.translatedText;
           }
-        } catch (e2) { /* 两层都失败 */ }
-      }
-
+        }
+      } catch (e) {}
       translations.value[idx] = result || '翻译失败';
       translating.value[idx] = false;
     };
+
     const hotCache = {};
     const HOT_CACHE_TTL = 2 * 60 * 60 * 1000;
 
@@ -616,6 +599,107 @@ ${allNpcs.length ? `参与发帖的用户：${allNpcs.map(n => n.name + (n.perso
       hotList.value = [];
       translations.value = {};
       fetchHotList(key);
+    };
+    // ===== 热搜详情 =====
+    const hotDetailShow = ref(false);
+    const hotDetailItem = ref(null);
+    const hotDetailData = ref(null);
+    const hotDetailLoading = ref(false);
+
+    const openHotDetail = async (item) => {
+      hotDetailItem.value = item;
+      hotDetailData.value = null;
+      hotDetailShow.value = true;
+      nextTick(() => refreshIcons());
+      await generateHotDetail(item);
+    };
+
+    const generateHotDetail = async (item) => {
+      const cfg = getApiConfig();
+      if (!cfg.url || !cfg.key || !cfg.model) {
+        hotDetailData.value = { intro: '请先配置API才能生成详情', comments: [] };
+        return;
+      }
+      hotDetailLoading.value = true;
+      const platform = hotPlatforms.value.find(p => p.key === hotPlatform.value)?.label || '';
+      const prompt = `当前热搜平台：${platform}
+热搜标题：${item.title}
+热度：${item.hot || '未知'}
+
+请以这个热搜话题为基础，生成：
+1. 话题简介（100~200字，概述这个话题的背景和为什么热搜，如果是外文话题请用中文描述，语气像新闻简讯）
+2. 模拟网友讨论（8~12条，每条有用户名、内容、点赞数，语气真实多元，有支持有反对有调侃，根据平台风格调整语气：Reddit偏英语网络用语、韩国平台偏追星、日本平台偏二次元等，但内容统一用中文）
+
+请返回JSON：
+{
+  "intro": "话题简介文字",
+  "comments": [
+    {"author": "用户名", "content": "评论内容", "likes": 数字},
+    ...
+  ]
+}
+只返回JSON，不要有其他文字。`;
+
+      try {
+        const res = await fetch(`${cfg.url.replace(/\/$/, '')}/chat/completions`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${cfg.key}` },
+          body: JSON.stringify({ model: cfg.model, messages: [{ role: 'user', content: prompt }] })
+        });
+        const data = await res.json();
+        const text = data.choices?.[0]?.message?.content || '{}';
+        const match = text.match(/\{[\s\S]*\}/);
+        if (match) {
+          hotDetailData.value = JSON.parse(match[0]);
+        } else {
+          hotDetailData.value = { intro: '生成失败，请重试', comments: [] };
+        }
+      } catch (e) {
+        hotDetailData.value = { intro: '生成失败：' + e.message, comments: [] };
+      }
+      hotDetailLoading.value = false;
+      nextTick(() => refreshIcons());
+    };
+
+    const refreshHotDetail = () => {
+      if (hotDetailItem.value) generateHotDetail(hotDetailItem.value);
+    };
+
+    const postHotToForum = async () => {
+      if (!hotDetailItem.value || !hotDetailData.value) return;
+      // 找到或创建热搜分类
+      let hotCat = categories.value.find(c => c.name === '热搜');
+      if (!hotCat) {
+        hotCat = { name: '热搜', prompt: '来自各平台的热搜话题讨论', replyPrompt: '围绕热搜话题发表观点，多元立场', npcIds: [] };
+        categories.value.push(hotCat);
+      }
+      const platform = hotPlatforms.value.find(p => p.key === hotPlatform.value)?.label || '';
+      const newPost = {
+        id: Date.now(),
+        cat: '热搜',
+        author: myProfile.value.name,
+        title: `【${platform}热搜】${hotDetailItem.value.title}`,
+        content: hotDetailData.value.intro || hotDetailItem.value.title,
+        time: Date.now(),
+        likes: 0,
+        likedByMe: false,
+        replies: (hotDetailData.value.comments || []).map((c, i) => ({
+          id: Date.now() + i + 1,
+          content: c.content || '',
+          time: Date.now() + i * 1000,
+          isOp: false,
+          likes: c.likes || 0,
+          likedByMe: false,
+          quoteId: null
+        }))
+      };
+      posts.value.push(newPost);
+      await savePosts();
+      hotDetailShow.value = false;
+      // 切换到首页热搜分类
+      mainTab.value = 'home';
+      currentCat.value = '热搜';
+      nextTick(() => refreshIcons());
     };
 
     watch(hotTab, (val) => {
@@ -1013,7 +1097,15 @@ ${allNpcs.length ? `参与发帖的用户：${allNpcs.map(n => n.name + (n.perso
       if (charList) availableChars.value = charList;
 
       fetchHotList(hotPlatform.value);
-      nextTick(() => refreshIcons());
+      nextTick(() => {
+        refreshIcons();
+        appReady.value = true;
+        const mask = document.getElementById('forumLoadingMask');
+        if (mask) {
+          mask.classList.add('hide');
+          setTimeout(() => mask.remove(), 400);
+        }
+      });
     });
 
     return {
@@ -1031,6 +1123,8 @@ ${allNpcs.length ? `参与发帖的用户：${allNpcs.map(n => n.name + (n.perso
       collectionShow, collectionType, collectTab, collectionItems, openCollection, openCollectionItem,
       generating, generatePosts,
       hotTab, hotPlatform, hotList, hotLoading, hotError, hotPlatforms, hotPlatformsOrdered, fetchHotList, switchHotPlatform,
+      hotDetailShow, hotDetailItem, hotDetailData, hotDetailLoading,
+      openHotDetail, refreshHotDetail, postHotToForum,
       translating, translations, detectNeedTranslate, translateText,
       dimHotList, dimHotLoading, generateDimensionHot,
       searchType, searchQuery, searchLoading, searchResults, searchDone, aiSearchResult, doSearch,
@@ -1039,7 +1133,7 @@ ${allNpcs.length ? `参与发帖的用户：${allNpcs.map(n => n.name + (n.perso
       settingsShow, expandedCats, availableChars, settingsForm, addCatShow, newCatName, newCatPrompt,
       forumModelList, fetchForumModels,
       openSettings, saveSettings, toggleCatExpand, toggleCatNpc, addCustomCategory, confirmAddCategory,
-      formatTime, movePlatform, resetPlatformOrder,
+      formatTime, movePlatform, resetPlatformOrder, appReady,
     };
   }
 }).mount('#forum-app');
