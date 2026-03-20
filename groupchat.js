@@ -35,7 +35,7 @@ createApp({
     const beautyShow = ref(false);
     const emojiShow = ref(false);
     const summaryShow = ref(false);
-
+    const dissolveShow = ref(false);
     const myNameInput = ref('');
     const myPersonaInput = ref('');
     const selectedMember = ref(null);
@@ -484,6 +484,12 @@ ${wbPrompt ? wbPrompt + '。' : ''}
       summaryShow.value = false;
       addRoomLog(`回忆已插入（位置：${summaryPos.value === 'before_history' ? '消息历史前' : '系统提示词后'}）`);
     };
+    const confirmDissolve = async () => {
+      const roomList = JSON.parse(JSON.stringify((await dbGet('roomList')) || []));
+      const idx = roomList.findIndex(r => r.id === roomId);
+      if (idx !== -1) { roomList.splice(idx, 1); await dbSet('roomList', roomList); }
+      window.location.href = 'chat.html';
+    };
 
     // 气泡操作
     const onTouchStart = (msg, i, e) => { touchMoved = false; longPressTimer = setTimeout(() => { if (!touchMoved) { bubbleMenuMsgId.value = bubbleMenuMsgId.value === msg.id ? null : msg.id; nextTick(() => refreshIcons()); } }, 500); };
@@ -619,6 +625,7 @@ ${wbPrompt ? wbPrompt + '。' : ''}
       openMySettings, saveMySettings, openChatSettings, saveChatSettings,
       openDimensionLink, openEmoji, openMyWhisper, openBeauty, openSummary,
       doSummary, applySummary,
+      dissolveShow, confirmDissolve,
       onTouchStart, onTouchEnd, onTouchMove, onMouseDown, onMouseUp,
       quoteMsg, recallMsg, toggleRecallReveal, deleteMsg, editMsg, confirmEdit, cancelEdit,
       startMultiSelect, toggleSelect, deleteSelected, cancelMultiSelect, autoResize,

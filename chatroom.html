@@ -40,14 +40,14 @@
     <div class="msg-list">
       <div v-for="(msg, i) in messagesWithTime" :key="msg.id">
 
-       <div v-if="msg.isTimeDivider" class="time-divider">{{ formatMsgTime(msg.ts) }}</div>
-        <div v-if="msg.recalled" class="recall-tip" @click="toggleRecallReveal(msg)">
+       <div v-if="msg.isTimeDivider" class="time-divider"><span>{{ formatMsgTime(msg.ts) }}</span></div>
+        <div v-if="!msg.isTimeDivider && msg.recalled" class="recall-tip" @click="toggleRecallReveal(msg)">
           {{ msg.role === 'user' ? myName : charName }} 撤回了一条消息
           <span class="recall-reveal-hint">{{ msg.revealed ? '收起' : '查看' }}</span>
         </div>
-        <div v-if="msg.recalled && msg.revealed" class="recall-revealed">{{ msg.content }}</div>
+        <div v-if="!msg.isTimeDivider && msg.recalled && msg.revealed" class="recall-revealed">{{ msg.content }}</div>
 
-        <div v-if="!msg.recalled" class="msg-row" :class="[msg.role==='user'?'row-right':'row-left', multiSelectMode?'selectable':'', selectedMsgs.includes(msg.id)?'selected-row':'']" @click="multiSelectMode ? toggleSelect(msg.id) : null" @touchstart="onTouchStart(msg, i, $event)" @touchend="onTouchEnd" @touchmove="onTouchMove" @mousedown="onMouseDown(msg, i)" @mouseup="onMouseUp">
+        <div v-if="!msg.isTimeDivider && !msg.recalled" class="msg-row" :class="[msg.role==='user'?'row-right':'row-left', multiSelectMode?'selectable':'', selectedMsgs.includes(msg.id)?'selected-row':'']" @click="multiSelectMode ? toggleSelect(msg.id) : null" @touchstart="onTouchStart(msg, i, $event)" @touchend="onTouchEnd" @touchmove="onTouchMove" @mousedown="onMouseDown(msg, i)" @mouseup="onMouseUp">
 
           <div class="select-check" v-if="multiSelectMode">
             <div class="check-circle" :class="{checked: selectedMsgs.includes(msg.id)}"></div>
@@ -65,8 +65,8 @@
               <div class="chat-inline-avatar avatar-left" v-if="msg.role==='char' && showCharAvatar" :style="charAvatar?`background-image:url(${charAvatar})`:''">
                 <span v-if="!charAvatar">{{ charName[0] }}</span>
               </div>
-              <div class="msg-timestamp ts-left" v-if="showTimestamp && msg.role==='user'" :class="'ts-'+tsMePos" :style="`font-size:${tsSize}px;color:${tsMeColor};opacity:${tsMeOpacity};`">{{ getMsgTimestamp(msg) }}</div>
               <div class="block-badge user-blocked-badge" v-if="msg.role==='user' && msg.blockedByCharWhenSent">!</div>
+              <div class="msg-timestamp ts-me" v-if="showTimestamp && !msg.isTimeDivider && msg.role==='user' && getMsgTimestamp(msg)" :class="'ts-'+tsMePos" :style="`font-size:${tsSize}px;color:${tsMeColor};opacity:${tsMeOpacity};`">{{ getMsgTimestamp(msg) }}</div>
               <div v-if="msg.type==='sticker'" class="msg-sticker">
                 <img :src="getStickerUrl(msg.content)" :alt="msg.content" />
               </div>
@@ -83,7 +83,7 @@
                 <span v-if="msg.type==='whisper'" class="whisper-tag">心声</span>
               </div>
               <div class="block-badge char-blocked-badge" v-if="msg.role==='char' && msg.blockedWhenSent">!</div>
-              <div class="msg-timestamp ts-right" v-if="showTimestamp && msg.role==='char'" :class="'ts-'+tsCharPos" :style="`font-size:${tsSize}px;color:${tsColor};opacity:${tsOpacity};`">{{ getMsgTimestamp(msg) }}</div>
+            <div class="msg-timestamp-row-char" v-if="showTimestamp && !msg.isTimeDivider && msg.role==='char' && getMsgTimestamp(msg)" :style="`font-size:${tsSize}px;color:${tsColor};opacity:${tsOpacity};`">{{ getMsgTimestamp(msg) }}</div>
               <!-- v-else 结束，sticker 和 bubble 共用同一层 -->
               <div class="chat-inline-avatar avatar-right" v-if="msg.role==='user' && showCharAvatar" :style="myAvatar?`background-image:url(${myAvatar})`:''">
                 <span v-if="!myAvatar">{{ myName[0] }}</span>
@@ -517,7 +517,7 @@
               <label>我的时间戳颜色</label>
               <div class="color-row">
                 <input type="color" :value="tsMeColor.startsWith('rgba')?'#888888':tsMeColor" @change="e=>{tsMeColor=e.target.value; saveBeauty()}" />
-                <input class="modal-input" v-model="tsMeColor" @change="saveBeauty" placeholder="rgba(255,255,255,0.5)" style="flex:1;" />
+                <input class="modal-input" v-model="tsMeColor" @change="saveBeauty" placeholder="rgba(0,0,0,0.3)" style="flex:1;" />
               </div>
             </div>
             <div class="beauty-field">
