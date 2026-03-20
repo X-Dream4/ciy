@@ -36,6 +36,7 @@ createApp({
     const settingsForm = ref({
       forumApi: { url: '', key: '', model: '' },
       dimHotPrompt: DEFAULT_DIM_HOT_PROMPT,
+      dimHotWorldBooks: [],
       categories: [],
       fixedNpcs: [],
       hotPlatformOrder: []
@@ -433,6 +434,7 @@ ${fixedNpcs.length ? `固定NPC参与回复：${fixedNpcs.map(n => n.name + (n.p
       generating.value = true;
       const cat = categories.value.find(c => c.name === currentCat.value);
       const catPrompt = cat ? cat.prompt : `生成关于「${currentCat.value}」的论坛帖子`;
+      const catWorldBookInject = getWorldBookInject(cat?.worldBookIds || []);
       const npcNames = [];
       if (cat && cat.npcIds && cat.npcIds.length) {
         const chars = await dbGet('charList') || [];
@@ -448,6 +450,7 @@ ${fixedNpcs.length ? `固定NPC参与回复：${fixedNpcs.map(n => n.name + (n.p
       const prompt = `你现在是一个真实运营的综合论坛，板块名称是「${currentCat.value}」。
 请严格按照该板块主题生成${count}个真实的论坛帖子。
 板块风格提示：${catPrompt}
+${catWorldBookInject ? '背景设定：' + catWorldBookInject : ''}
 ${allNpcs.length ? `参与发帖的用户：${allNpcs.map(n => n.name + (n.persona ? `（${n.persona}）` : '')).join('、')}，以及若干随机普通网友。` : '发帖者为随机普通网友。'}
 随机普通网友用户名可参考：${randomNpcNames.sort(() => Math.random() - 0.5).slice(0, 5).join('、')}等，也可自由发挥。
 请返回JSON数组，格式：
@@ -720,7 +723,9 @@ ${allNpcs.length ? `参与发帖的用户：${allNpcs.map(n => n.name + (n.perso
       const cfg = getApiConfig();
       if (!cfg.url || !cfg.key || !cfg.model) { alert('请先配置API'); return; }
       dimHotLoading.value = true;
-      const prompt = settingsForm.value.dimHotPrompt || DEFAULT_DIM_HOT_PROMPT;
+      const dimWbInject = getWorldBookInject(settingsForm.value.dimHotWorldBooks || []);
+      const basePrompt = settingsForm.value.dimHotPrompt || DEFAULT_DIM_HOT_PROMPT;
+      const prompt = dimWbInject ? basePrompt + '\n额外背景设定：' + dimWbInject : basePrompt;
       try {
         const res = await fetch(`${cfg.url.replace(/\/$/, '')}/chat/completions`, {
           method: 'POST',
@@ -965,6 +970,42 @@ ${allNpcs.length ? `参与发帖的用户：${allNpcs.map(n => n.name + (n.perso
     const settingsShow = ref(false);
     const expandedCats = ref([]);
     const availableChars = ref([]);
+    const availableWorldBooks = ref([]);
+    const availableWorldBookCats = ref([]);
+
+    const wbCatBooks = (cat) => availableWorldBooks.value.filter(b => (b.category || '') === cat);
+
+    const toggleCatWorldBook = (cat, bookId) => {
+      if (!cat.worldBookIds) cat.worldBookIds = [];
+      const idx = cat.worldBookIds.indexOf(bookId);
+      if (idx === -1) cat.worldBookIds.push(bookId);
+      else cat.worldBookIds.splice(idx, 1);
+    };
+
+    const toggleDimHotWorldBook = (bookId) => {
+      if (!settingsForm.value.dimHotWorldBooks) settingsForm.value.dimHotWorldBooks = [];
+      const idx = settingsForm.value.dimHotWorldBooks.indexOf(bookId);
+      if (idx === -1) settingsForm.value.dimHotWorldBooks.push(bookId);
+      else settingsForm.value.dimHotWorldBooks.splice(idx, 1);
+    };
+
+    // 获取选中世界书的内容注入文本
+    const getWorldBookInject = (bookIds) => {
+      if (!bookIds || !bookIds.length) return '';
+      const books = availableWorldBooks.value.filter(b => bookIds.includes(b.id));
+      if (!books.length) return '';
+      const jailbreak = books.filter(b => b.type === 'jailbreak').map(b => b.content).join('；');
+      const worldview = books.filter(b => b.type === 'worldview').map(b => b.content).join('；');
+      const persona = books.filter(b => b.type === 'persona').map(b => b.content).join('；');
+      const prompt = books.filter(b => b.type === 'prompt').map(b => b.content).join('；');
+      let result = '';
+      if (jailbreak) result += jailbreak + '。';
+      if (worldview) result += '世界观补充：' + worldview + '。';
+      if (persona) result += '人设补充：' + persona + '。';
+      if (prompt) result += prompt + '。';
+      return result;
+    };
+
     const addCatShow = ref(false);
     const newCatName = ref('');
     const newCatPrompt = ref('');
@@ -991,8 +1032,13 @@ ${allNpcs.length ? `参与发帖的用户：${allNpcs.map(n => n.name + (n.perso
       if (!settingsForm.value.hotPlatformOrder || !settingsForm.value.hotPlatformOrder.length) {
         settingsForm.value.hotPlatformOrder = hotPlatforms.value.map(p => p.key);
       }
+      if (!settingsForm.value.dimHotWorldBooks) settingsForm.value.dimHotWorldBooks = [];
       const chars = await dbGet('charList') || [];
       availableChars.value = chars;
+      const wbs = await dbGet('worldBooks') || [];
+      availableWorldBooks.value = wbs;
+      const wbCats = await dbGet('worldBookCats') || [];
+      availableWorldBookCats.value = wbCats;
       settingsShow.value = true;
       nextTick(() => refreshIcons());
     };
@@ -1140,10 +1186,11 @@ ${allNpcs.length ? `参与发帖的用户：${allNpcs.map(n => n.name + (n.perso
       dimHotList, dimHotLoading, generateDimensionHot,
       searchType, searchQuery, searchLoading, searchResults, searchDone, aiSearchResult, doSearch,
       conversations, currentConv, pmText, pmBodyRef, pmTextareaRef,
-      autoResizePM, openPM, openConversation, sendPM,
+      autoResizePM, openPM, openConversation, sendPM, pmGenerating, generatePMReply,
       settingsShow, expandedCats, availableChars, settingsForm, addCatShow, newCatName, newCatPrompt,
       forumModelList, fetchForumModels,
       openSettings, saveSettings, toggleCatExpand, toggleCatNpc, addCustomCategory, confirmAddCategory,
+      availableWorldBooks, availableWorldBookCats, wbCatBooks, toggleCatWorldBook, toggleDimHotWorldBook,
       formatTime, movePlatform, resetPlatformOrder, appReady,
     };
   }

@@ -478,6 +478,23 @@
         <div class="settings-section">
           <div class="settings-section-title">次元热搜提示词</div>
           <textarea class="settings-textarea" v-model="settingsForm.dimHotPrompt" placeholder="次元热搜生成提示词..."></textarea>
+          <div class="settings-row" style="margin-top:6px;">
+            <span class="settings-label" style="font-size:12px;">注入世界书</span>
+          </div>
+          <div v-if="availableWorldBooks.length">
+            <div v-for="wbcat in ['', ...availableWorldBookCats]" :key="wbcat" style="margin-bottom:4px;">
+              <div style="font-size:10px;color:#bbb;margin-bottom:2px;">{{ wbcat || '无分类' }}</div>
+              <div style="display:flex;flex-wrap:wrap;gap:4px;">
+                <div v-for="book in wbCatBooks(wbcat)" :key="book.id"
+                  class="settings-npc-chip"
+                  :class="{selected: (settingsForm.dimHotWorldBooks||[]).includes(book.id)}"
+                  @click="toggleDimHotWorldBook(book.id)">
+                  {{ book.name }}
+                </div>
+              </div>
+            </div>
+          </div>
+          <div v-else style="font-size:11px;color:#bbb;">世界书馆暂无世界书</div>
         </div>
 
         <!-- 分类提示词 -->
@@ -513,6 +530,24 @@
                   </div>
                   <div class="settings-npc-chip" style="opacity:0.5;cursor:default;font-size:10px;">+ 随机NPC自动参与</div>
                 </div>
+                <div class="settings-row" style="margin-top:6px;">
+                  <span class="settings-label" style="font-size:12px;">注入世界书</span>
+                </div>
+                <div v-if="availableWorldBooks.length">
+                  <div v-for="wbcat in ['', ...availableWorldBookCats]" :key="wbcat" style="margin-bottom:4px;">
+                    <div style="font-size:10px;color:#bbb;margin-bottom:2px;">{{ wbcat || '无分类' }}</div>
+                    <div style="display:flex;flex-wrap:wrap;gap:4px;">
+                      <div v-for="book in wbCatBooks(wbcat)" :key="book.id"
+                        class="settings-npc-chip"
+                        :class="{selected: cat.worldBookIds && cat.worldBookIds.includes(book.id)}"
+                        @click="toggleCatWorldBook(cat, book.id)">
+                        {{ book.name }}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div v-else style="font-size:11px;color:#bbb;">世界书馆暂无世界书</div>
+
               </div>
             </div>
           </div>
