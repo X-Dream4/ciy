@@ -497,19 +497,25 @@ ${allNpcs.length ? `参与发帖的用户：${allNpcs.map(n => n.name + (n.perso
     const hotLoading = ref(false);
     const hotError = ref('');
     const hotPlatforms = ref([
-      { key: 'weibo',      label: '微博' },
-      { key: 'baidu',      label: '百度' },
-      { key: 'douyin',     label: '抖音' },
-      { key: 'toutiao',    label: '头条' },
-      { key: 'bilibili',   label: 'B站' },
-      { key: 'reddit',     label: 'Reddit' },
-      { key: 'hackernews', label: 'HN' },
-      { key: 'espn',       label: 'ESPN' },
-      { key: 'lastfm',     label: 'Last.fm' },
-      { key: 'niconico',   label: 'NicoNico' },
-      { key: 'naver',      label: 'Naver' },
+      { key: 'weibo',          label: '微博' },
+      { key: 'baidu',          label: '百度' },
+      { key: 'douyin',         label: '抖音' },
+      { key: 'toutiao',        label: '头条' },
+      { key: 'bilibili',       label: 'B站' },
+      { key: 'hackernews',     label: 'HN' },
+      { key: 'espn',           label: 'ESPN' },
+      { key: 'lastfm',         label: '音乐热歌' },
+      { key: 'lastfm_artist',  label: '热门歌手' },
+      { key: 'lastfm_kpop',    label: 'Kpop' },
+      { key: 'lastfm_jpop',    label: 'Jpop' },
+      { key: 'lastfm_cantopop',label: '粤语流行' },
+      { key: 'lastfm_mandopop',label: '国语流行' },
+      { key: 'lastfm_chinese', label: '中文音乐' },
+      { key: 'lastfm_korean',  label: '韩国音乐' },
+      { key: 'lastfm_japanese',label: '日本音乐' },
+      { key: 'lastfm_british', label: '英国音乐' },
+      { key: 'lastfm_american',label: '美国音乐' },
     ]);
-
 
     // 排序后的平台列表（从设置读取）
     const hotPlatformsOrdered = computed(() => {
@@ -724,7 +730,10 @@ ${allNpcs.length ? `参与发帖的用户：${allNpcs.map(n => n.name + (n.perso
         const data = await res.json();
         const text = data.choices?.[0]?.message?.content || '[]';
         const match = text.match(/\[[\s\S]*\]/);
-        if (match) dimHotList.value = JSON.parse(match[0]);
+        if (match) {
+          dimHotList.value = JSON.parse(match[0]);
+          await dbSet('forumDimHotList', JSON.parse(JSON.stringify(dimHotList.value)));
+        }
         else alert('次元热搜格式有误，请重试');
       } catch (e) {
         alert('次元热搜生成失败：' + e.message);
@@ -1095,6 +1104,8 @@ ${allNpcs.length ? `参与发帖的用户：${allNpcs.map(n => n.name + (n.perso
       if (savedCollections) collections.value = savedCollections;
       if (savedProfile) myProfile.value = savedProfile;
       if (charList) availableChars.value = charList;
+      const savedDimHot = await dbGet('forumDimHotList');
+      if (savedDimHot && savedDimHot.length) dimHotList.value = savedDimHot;
 
       fetchHotList(hotPlatform.value);
       nextTick(() => {
