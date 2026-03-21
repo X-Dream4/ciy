@@ -53,6 +53,14 @@ createApp({
     };
 
     onMounted(async () => {
+      // 加载自定义字体
+      const savedFont = await dbGet('customFont');
+      if (savedFont && savedFont.src) {
+        let style = document.getElementById('custom-font-style');
+        if (!style) { style = document.createElement('style'); style.id = 'custom-font-style'; document.head.appendChild(style); }
+        style.textContent = `@font-face { font-family: 'CustomGlobalFont'; src: url('${savedFont.src}'); } * { font-family: 'CustomGlobalFont', -apple-system, 'PingFang SC', 'Helvetica Neue', sans-serif !important; }`;
+      }
+
       const [dark, wp, chars, rooms] = await Promise.all([
         dbGet('darkMode'), dbGet('wallpaper'), dbGet('charList'), dbGet('roomList')
       ]);

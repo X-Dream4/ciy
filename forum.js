@@ -1119,7 +1119,16 @@ ${allNpcs.length ? `参与发帖的用户：${allNpcs.map(n => n.name + (n.perso
     };
 
     // ===== 初始化 =====
+
     onMounted(async () => {
+      // 加载自定义字体
+      const savedFont = await dbGet('customFont');
+      if (savedFont && savedFont.src) {
+        let style = document.getElementById('custom-font-style');
+        if (!style) { style = document.createElement('style'); style.id = 'custom-font-style'; document.head.appendChild(style); }
+        style.textContent = `@font-face { font-family: 'CustomGlobalFont'; src: url('${savedFont.src}'); } * { font-family: 'CustomGlobalFont', -apple-system, 'PingFang SC', 'Helvetica Neue', sans-serif !important; }`;
+      }
+
       const [dark, api, savedPosts, savedSettings, savedConvs, savedCollections, savedProfile, charList] = await Promise.all([
         dbGet('darkMode'),
         dbGet('apiConfig'),

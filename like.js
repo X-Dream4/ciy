@@ -2,7 +2,9 @@ const { createApp, ref, computed, onMounted } = Vue;
 
 createApp({
   setup() {
+    const drawerOpen = ref(false);
     const tab = ref('like');
+    const currentTabTitle = computed(() => ({ like: '喜欢', settings: '设置', theme: '美化' }[tab.value] || ''));
     const goBack = () => { window.location.href = 'index.html'; };
 
     const api = ref({ url: '', key: '', model: '', summaryUrl: '', summaryKey: '', summaryModel: '' });
@@ -32,6 +34,96 @@ createApp({
     const importFile = ref(null);
     const wallpaperFile = ref(null);
     const iconFile = ref(null);
+
+    const fontFile = ref(null);
+    const customFontUrl = ref('');
+    const customFontName = ref('');
+    const previewFontLoaded = ref(false);
+    const previewFontStyle = ref({});
+
+    const loadFontFace = (name, src) => {
+      return new Promise((resolve, reject) => {
+        const font = new FontFace(name, `url(${src})`);
+        font.load().then(loaded => {
+          document.fonts.add(loaded);
+          resolve();
+        }).catch(reject);
+      });
+    };
+
+    const previewFontFromUrl = async () => {
+      if (!customFontUrl.value.trim()) return;
+      try {
+        await loadFontFace('CustomPreviewFont', customFontUrl.value.trim());
+        previewFontStyle.value = { fontFamily: "'CustomPreviewFont', sans-serif" };
+        previewFontLoaded.value = true;
+        customFontName.value = customFontUrl.value.trim().split('/').pop();
+        addLog('字体预览加载成功');
+      } catch (e) {
+        addLog('字体加载失败：' + e.message, 'error');
+      }
+    };
+
+    const triggerFontUpload = () => { fontFile.value.click(); };
+
+    const previewFontFromFile = async (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = async (evt) => {
+        try {
+          const font = new FontFace('CustomPreviewFont', evt.target.result);
+          await font.load();
+          document.fonts.add(font);
+          previewFontStyle.value = { fontFamily: "'CustomPreviewFont', sans-serif" };
+          previewFontLoaded.value = true;
+          customFontName.value = file.name;
+          // 把字体数据存起来供后续使用
+          customFontUrl.value = evt.target.result;
+          addLog('字体预览加载成功：' + file.name);
+        } catch (err) {
+          addLog('字体加载失败：' + err.message, 'error');
+        }
+        e.target.value = '';
+      };
+      reader.readAsArrayBuffer(file);
+    };
+
+    const applyCustomFont = async () => {
+      if (!previewFontLoaded.value) return;
+      // 保存字体数据到 IndexedDB
+      await dbSet('customFont', { src: customFontUrl.value, name: customFontName.value });
+      // 注入全局字体样式
+      injectGlobalFont(customFontUrl.value, customFontName.value);
+      addLog('字体已应用：' + customFontName.value);
+    };
+
+    const injectGlobalFont = (src, name) => {
+      let style = document.getElementById('custom-font-style');
+      if (!style) {
+        style = document.createElement('style');
+        style.id = 'custom-font-style';
+        document.head.appendChild(style);
+      }
+      style.textContent = `
+        @font-face {
+          font-family: 'CustomGlobalFont';
+          src: url('${src}');
+        }
+        * { font-family: 'CustomGlobalFont', -apple-system, 'PingFang SC', 'Helvetica Neue', sans-serif !important; }
+      `;
+    };
+
+    const clearCustomFont = async () => {
+      await dbSet('customFont', null);
+      const style = document.getElementById('custom-font-style');
+      if (style) style.remove();
+      customFontUrl.value = '';
+      customFontName.value = '';
+      previewFontLoaded.value = false;
+      previewFontStyle.value = {};
+      addLog('已恢复默认字体');
+    };
 
     let lucideTimer = null;
     const refreshIcons = () => { clearTimeout(lucideTimer); lucideTimer = setTimeout(() => lucide.createIcons(), 50); };
@@ -254,6 +346,12 @@ createApp({
       if (wp) { wallpaper.value = wp; }
       if (icons) appIcons.value = icons;
       await Promise.all([loadStorageInfo(), loadGlobalLogs()]);
+      const savedFont = await dbGet('customFont');
+      if (savedFont && savedFont.src) {
+        customFontUrl.value = savedFont.src;
+        customFontName.value = savedFont.name || '';
+        injectGlobalFont(savedFont.src, savedFont.name);
+      }
       refreshIcons();
       addLog('喜欢App已打开');
     });
@@ -267,7 +365,9 @@ createApp({
       selectSummaryModel, fetchSummaryModels, loadSummaryPreset,
       exportData, triggerImport, importData, clearStorage,
       toggleDark, applyWallpaperUrl, triggerWallpaper, uploadWallpaper, clearWallpaper,
-      triggerIconUpload, uploadIcon, goBack
+      triggerIconUpload, uploadIcon, goBack, drawerOpen, currentTabTitle,
+      fontFile, customFontUrl, customFontName, previewFontLoaded, previewFontStyle,
+      previewFontFromUrl, triggerFontUpload, previewFontFromFile, applyCustomFont, clearCustomFont,
     };
   }
 }).mount('#like-app');
