@@ -303,8 +303,9 @@ ${afterSystemSummaries ? afterSystemSummaries + '\n' : ''}
 ${memberStickerDesc ? '10. 可以发送表情包，格式：【表情包：表情包名字】，注意只发名字不发URL。\n' + memberStickerDesc : ''}
 ${wbPrompt ? '【额外设定】' + wbPrompt + '。' : ''}
 【输出格式】
-每行一条消息，格式严格为：
-名字：消息内容
+每条消息格式严格为：
+名字：消息内容&
+每条消息末尾必须加&符号，&符号后直接换行，不能省略。
 名字必须且只能是以下群成员名字之一：${memberNames}
 【重要格式要求】每条消息只说一句话，不超过15个字，像真实发消息一样短，一个意思一条消息，不要把多句话合并在一行！每句话必须分行、换行！不要把多个想法写在同一行！就像真实聊天软件里发消息一样，想到什么说什么，分多条发。
 每行开头必须是成员名字，紧跟中文冒号，不能有空格，不能有其他前缀。
@@ -326,8 +327,9 @@ ${wbPrompt ? '【额外设定】' + wbPrompt + '。' : ''}
         const data = await res.json();
         const reply = data.choices?.[0]?.message?.content || '（无回复）';
 // 自动去除 AI 模仿的时间戳前缀，如 [22:15]、[22:15 ] 等
-let processedReply = reply.replace(/\[\d{1,2}:\d{2}[^\]]*\]\s*/g, '\n');
-const lines = processedReply.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+let processedReply = reply.replace(/\[\d{1,2}:\d{2}[^\]]*\]\s*/g, '');
+const lines = processedReply.split('&').map(l => l.trim()).filter(l => l.length > 0);
+
         allMessages.value.splice(allMessages.value.indexOf(loadingMsg), 1);
 
         for (let i = 0; i < lines.length; i++) {
