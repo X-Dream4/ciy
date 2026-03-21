@@ -85,6 +85,26 @@
         <span>还没有聊天室</span>
       </div>
     </div>
+    <!-- 次元聊天面板 -->
+    <div class="panel">
+      <div class="panel-label">次元聊天</div>
+      <div class="chat-list" v-if="randomCharList.length">
+        <div class="chat-list-item" v-for="c in randomCharList" :key="c.id" @click="enterRandomChat(c)">
+          <div class="chat-avatar" :style="c.avatar ? `background-image:url(${c.avatar})` : ''">
+            <span v-if="!c.avatar">{{ c.name[0] }}</span>
+          </div>
+          <div class="chat-info">
+            <div class="chat-name">{{ c.name }}</div>
+            <div class="chat-preview">{{ c.lastMsg || '开始跨次元聊天吧…' }}</div>
+          </div>
+        </div>
+      </div>
+      <div class="list-empty" v-else>
+        <i data-lucide="compass" style="width:32px;height:32px;color:#ccc;"></i>
+        <span>还没有连接的次元角色</span>
+        <span style="font-size:11px;color:#ccc;">在次元发现页面建立连接</span>
+      </div>
+    </div>
 
   </div>
 

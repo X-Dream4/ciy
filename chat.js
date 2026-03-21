@@ -6,6 +6,7 @@ createApp({
     const menuBtnRef = ref(null);
     const charList = ref([]);
     const roomList = ref([]);
+    const randomCharList = ref([]);
     const connectCharShow = ref(false);
     const connectRoomShow = ref(false);
     const newChar = ref({ name: '', world: '', persona: '', avatar: '' });
@@ -47,32 +48,47 @@ createApp({
 
     const enterChat = (c) => { window.location.href = `chatroom.html?id=${c.id}&type=char`; };
     const enterRoom = (r) => { window.location.href = `groupchat.html?id=${r.id}`; };
+    const enterRandomChat = (c) => { window.location.href = `chatroom.html?id=${c.id}&type=char`; };
 
     const handleOutsideClick = (e) => {
       if (menuOpen.value && menuBtnRef.value && !menuBtnRef.value.contains(e.target)) { menuOpen.value = false; }
     };
 
     onMounted(async () => {
-      // 加载自定义字体
       const savedFont = await dbGet('customFont');
       if (savedFont && savedFont.src) {
         let style = document.getElementById('custom-font-style');
         if (!style) { style = document.createElement('style'); style.id = 'custom-font-style'; document.head.appendChild(style); }
         style.textContent = `@font-face { font-family: 'CustomGlobalFont'; src: url('${savedFont.src}'); } * { font-family: 'CustomGlobalFont', -apple-system, 'PingFang SC', 'Helvetica Neue', sans-serif !important; }`;
       }
+      const savedFontSize = await dbGet('customFontSize');
+      if (savedFontSize) {
+        let fsStyle = document.getElementById('custom-fontsize-style');
+        if (!fsStyle) { fsStyle = document.createElement('style'); fsStyle.id = 'custom-fontsize-style'; document.head.appendChild(fsStyle); }
+        fsStyle.textContent = `* { font-size: ${savedFontSize}px !important; }`;
+      }
 
       const [dark, wp, chars, rooms] = await Promise.all([
         dbGet('darkMode'), dbGet('wallpaper'), dbGet('charList'), dbGet('roomList')
       ]);
+
       if (dark) document.body.classList.add('dark');
       if (wp) { document.body.style.backgroundImage = `url(${wp})`; document.body.style.backgroundSize = 'cover'; document.body.style.backgroundPosition = 'center'; }
       charList.value = chars || [];
       roomList.value = rooms || [];
-      // 加载每个角色的头像
+
       for (const c of charList.value) {
         const beauty = await dbGet(`chatBeauty_${c.id}`);
         if (beauty && beauty.charAvatar) { c.avatar = beauty.charAvatar; }
       }
+
+      const randomChars = await dbGet('randomCharList');
+      randomCharList.value = randomChars || [];
+      for (const c of randomCharList.value) {
+        const beauty = await dbGet(`chatBeauty_${c.id}`);
+        if (beauty && beauty.charAvatar) { c.avatar = beauty.charAvatar; }
+      }
+
       nextTick(() => refreshIcons());
       document.addEventListener('click', handleOutsideClick);
     });
@@ -82,7 +98,8 @@ createApp({
       connectCharShow, connectRoomShow, newChar, newRoom,
       toggleMenu, openConnectChar, openConnectRoom, goRandom, goBack, goToWorldbook,
       confirmConnectChar, confirmConnectRoom, toggleMember,
-      enterChat, enterRoom
+      enterChat, enterRoom,
+      randomCharList, enterRandomChat,
     };
   }
 }).mount('#chat-app');

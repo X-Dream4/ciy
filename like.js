@@ -124,6 +124,27 @@ createApp({
       previewFontStyle.value = {};
       addLog('已恢复默认字体');
     };
+    const globalFontSize = ref(15);
+
+    const applyGlobalFontSize = () => {
+      let style = document.getElementById('custom-fontsize-style');
+      if (!style) { style = document.createElement('style'); style.id = 'custom-fontsize-style'; document.head.appendChild(style); }
+      style.textContent = `* { font-size: ${globalFontSize.value}px !important; }`;
+    };
+
+    const saveGlobalFontSize = async () => {
+      await dbSet('customFontSize', globalFontSize.value);
+      applyGlobalFontSize();
+      addLog('字体大小已保存：' + globalFontSize.value + 'px');
+    };
+
+    const clearGlobalFontSize = async () => {
+      globalFontSize.value = 15;
+      await dbSet('customFontSize', null);
+      const style = document.getElementById('custom-fontsize-style');
+      if (style) style.remove();
+      addLog('已恢复默认字体大小');
+    };
 
     let lucideTimer = null;
     const refreshIcons = () => { clearTimeout(lucideTimer); lucideTimer = setTimeout(() => lucide.createIcons(), 50); };
@@ -352,6 +373,9 @@ createApp({
         customFontName.value = savedFont.name || '';
         injectGlobalFont(savedFont.src, savedFont.name);
       }
+      const savedFontSize = await dbGet('customFontSize');
+      if (savedFontSize) { globalFontSize.value = savedFontSize; applyGlobalFontSize(); }
+
       refreshIcons();
       addLog('喜欢App已打开');
     });
@@ -368,6 +392,7 @@ createApp({
       triggerIconUpload, uploadIcon, goBack, drawerOpen, currentTabTitle,
       fontFile, customFontUrl, customFontName, previewFontLoaded, previewFontStyle,
       previewFontFromUrl, triggerFontUpload, previewFontFromFile, applyCustomFont, clearCustomFont,
+      globalFontSize, applyGlobalFontSize, saveGlobalFontSize, clearGlobalFontSize,
     };
   }
 }).mount('#like-app');

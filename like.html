@@ -217,6 +217,18 @@
           <button class="settings-btn danger" @click="clearCustomFont">恢复默认</button>
         </div>
       </div>
+      <div class="settings-card">
+        <div class="settings-card-title">全局字体大小</div>
+        <div style="font-size:13px;color:#555;margin-bottom:4px;">当前大小：{{ globalFontSize }}px</div>
+        <input type="range" min="10" max="22" step="1" v-model="globalFontSize" @input="applyGlobalFontSize" style="width:100%;accent-color:#111;" />
+        <div style="display:flex;justify-content:space-between;font-size:11px;color:#aaa;margin-top:2px;">
+          <span>小 10px</span><span>默认 15px</span><span>大 22px</span>
+        </div>
+        <div class="settings-row" style="gap:8px;margin-top:8px;">
+          <button class="settings-btn primary" @click="saveGlobalFontSize">保存</button>
+          <button class="settings-btn danger" @click="clearGlobalFontSize">恢复默认</button>
+        </div>
+      </div>
 
       <div class="settings-card">
         <div class="settings-card-title">App 图标</div>

@@ -894,16 +894,25 @@ const lines = processedReply.split('\n').map(l => l.trim()).filter(l => l.length
         if (!style) { style = document.createElement('style'); style.id = 'custom-font-style'; document.head.appendChild(style); }
         style.textContent = `@font-face { font-family: 'CustomGlobalFont'; src: url('${savedFont.src}'); } * { font-family: 'CustomGlobalFont', -apple-system, 'PingFang SC', 'Helvetica Neue', sans-serif !important; }`;
       }
+      const savedFontSize = await dbGet('customFontSize');
+      if (savedFontSize) {
+        let fsStyle = document.getElementById('custom-fontsize-style');
+        if (!fsStyle) { fsStyle = document.createElement('style'); fsStyle.id = 'custom-fontsize-style'; document.head.appendChild(fsStyle); }
+        fsStyle.textContent = `* { font-size: ${savedFontSize}px !important; }`;
+      }
 
-      const [dark, wp, charList, mySettings, api, ph, mh] = await Promise.all([
-        dbGet('darkMode'), dbGet('wallpaper'), dbGet('charList'),
-        dbGet(`mySettings_${charId}`), dbGet('apiConfig'),
-        dbGet(`peekHistory_${charId}`), dbGet(`mirrorHistory_${charId}`)
-      ]);
+      const [dark, wp, charList, mySettings, api, ph, mh, randomCharList] = await Promise.all([
+  dbGet('darkMode'), dbGet('wallpaper'), dbGet('charList'),
+  dbGet(`mySettings_${charId}`), dbGet('apiConfig'),
+  dbGet(`peekHistory_${charId}`), dbGet(`mirrorHistory_${charId}`),
+  dbGet('randomCharList')
+]);
       if (dark) document.body.classList.add('dark');
       if (wp) { document.body.style.backgroundImage = `url(${wp})`; document.body.style.backgroundSize = 'cover'; document.body.style.backgroundPosition = 'center'; }
       const list = charList || [];
-      const char = list.find(c => c.id === charId);
+      const randomList = randomCharList || [];
+      const char = list.find(c => c.id === charId) || randomList.find(c => c.id === charId);
+      
       const translateSettings = await dbGet(`chatTranslate_${charId}`);
       if (translateSettings) { translateOn.value = translateSettings.on || false; translateLang.value = translateSettings.lang || 'zh-CN'; }
       if (char) { charName.value = char.name; charWorld.value = char.world || ''; charPersona.value = char.persona || ''; allMessages.value = char.messages || []; aiReadCount.value = char.aiReadCount || 20; aiReadCountInput.value = char.aiReadCount || 20; isBlocked.value = char.isBlocked || false; iBlockedByChar.value = char.iBlockedByChar || false; realtimeTimeOn.value = char.realtimeTimeOn || false; }

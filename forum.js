@@ -1128,6 +1128,12 @@ ${allNpcs.length ? `参与发帖的用户：${allNpcs.map(n => n.name + (n.perso
         if (!style) { style = document.createElement('style'); style.id = 'custom-font-style'; document.head.appendChild(style); }
         style.textContent = `@font-face { font-family: 'CustomGlobalFont'; src: url('${savedFont.src}'); } * { font-family: 'CustomGlobalFont', -apple-system, 'PingFang SC', 'Helvetica Neue', sans-serif !important; }`;
       }
+      const savedFontSize = await dbGet('customFontSize');
+      if (savedFontSize) {
+        let fsStyle = document.getElementById('custom-fontsize-style');
+        if (!fsStyle) { fsStyle = document.createElement('style'); fsStyle.id = 'custom-fontsize-style'; document.head.appendChild(fsStyle); }
+        fsStyle.textContent = `* { font-size: ${savedFontSize}px !important; }`;
+      }
 
       const [dark, api, savedPosts, savedSettings, savedConvs, savedCollections, savedProfile, charList] = await Promise.all([
         dbGet('darkMode'),

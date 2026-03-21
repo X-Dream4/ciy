@@ -624,6 +624,12 @@ const lines = processedReply.split('\n').map(l => l.trim()).filter(l => l.length
         if (!style) { style = document.createElement('style'); style.id = 'custom-font-style'; document.head.appendChild(style); }
         style.textContent = `@font-face { font-family: 'CustomGlobalFont'; src: url('${savedFont.src}'); } * { font-family: 'CustomGlobalFont', -apple-system, 'PingFang SC', 'Helvetica Neue', sans-serif !important; }`;
       }
+      const savedFontSize = await dbGet('customFontSize');
+      if (savedFontSize) {
+        let fsStyle = document.getElementById('custom-fontsize-style');
+        if (!fsStyle) { fsStyle = document.createElement('style'); fsStyle.id = 'custom-fontsize-style'; document.head.appendChild(fsStyle); }
+        fsStyle.textContent = `* { font-size: ${savedFontSize}px !important; }`;
+      }
 
       const [dark, wp, roomList, mySettings, api, worldBooks, emojiRaw, stickerCats, savedSummaries] = await Promise.all([
         dbGet('darkMode'), dbGet('wallpaper'), dbGet('roomList'),
