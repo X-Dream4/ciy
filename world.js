@@ -4,6 +4,7 @@ createApp({
   setup() {
     const goBack = () => { window.location.href = 'index.html'; };
     const goForum = () => { window.location.href = 'forum.html'; };
+    const goNovel = () => { window.location.href = 'novel.html'; };
 
     onMounted(async () => {
 if (typeof listenForNotifications === 'function') listenForNotifications();
@@ -30,6 +31,6 @@ if (typeof requestNotifyPermission === 'function') requestNotifyPermission();
       lucide.createIcons();
     });
 
-    return { goBack, goForum };
+    return { goBack, goForum, goNovel };
   }
 }).mount('#world-app');
