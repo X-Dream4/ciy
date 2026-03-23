@@ -89,6 +89,7 @@
             <button class="bubble-menu-btn" @click="editMsg(msg)"><i data-lucide="pencil"></i><span>编辑</span></button>
             <button class="bubble-menu-btn" @click="deleteMsg(msg)"><i data-lucide="trash-2"></i><span>删除</span></button>
             <button class="bubble-menu-btn" @click="startMultiSelect(msg.id)"><i data-lucide="check-square"></i><span>多选</span></button>
+            <button class="bubble-menu-btn" @click="collectMsg(msg); bubbleMenuMsgId=null"><i data-lucide="bookmark"></i><span>收藏</span></button>
             <button class="bubble-menu-btn" @click="bubbleMenuMsgId=null"><i data-lucide="x"></i><span>关闭</span></button>
           </div>
         </transition>
@@ -364,6 +365,7 @@
         <div class="modal-btns">
           <button class="modal-btn cancel" @click="peekSoulShow=false">关闭</button>
           <button class="modal-btn cancel" @click="peekHistoryShow=true">历史</button>
+          <button class="modal-btn cancel" @click="collectPeekRoom" v-if="peekResults.length">收藏</button>
           <button class="modal-btn confirm" @click="doPeekSoul">窥探</button>
         </div>
       </div>
@@ -397,6 +399,7 @@
         <div class="modal-btns">
           <button class="modal-btn cancel" @click="dimensionMirrorShow=false">关闭</button>
           <button class="modal-btn cancel" @click="mirrorHistoryShow=true">历史</button>
+          <button class="modal-btn cancel" @click="collectMirrorRoom" v-if="mirrorResults.length">收藏</button>
           <button class="modal-btn confirm" @click="doMirror">窥镜</button>
         </div>
       </div>
@@ -660,6 +663,7 @@
         <div class="modal-btns">
           <button class="modal-btn cancel" @click="summaryShow=false">关闭</button>
           <button class="modal-btn cancel" @click="doSummary" :disabled="summaryLoading">总结</button>
+          <button class="modal-btn cancel" v-if="summaryResult!==null && !summaryLoading" @click="collectSummaryRoom">收藏</button>
           <button class="modal-btn confirm" v-if="summaryResult!==null && !summaryLoading" @click="applySummary">插入</button>
         </div>
       </div>
@@ -671,7 +675,10 @@
         <div class="modal-title">窥探心声历史</div>
         <div class="history-list" v-if="peekHistory.length">
           <div class="history-item" v-for="(h,i) in peekHistory" :key="i">
-            <div class="history-time">{{ h.time }}</div>
+            <div style="display:flex;align-items:center;justify-content:space-between;">
+              <div class="history-time">{{ h.time }}</div>
+              <button @click="collectPeekHistory(h)" style="background:transparent;border:none;cursor:pointer;color:#aaa;display:flex;align-items:center;padding:3px;"><i data-lucide="bookmark" style="width:14px;height:14px;"></i></button>
+            </div>
             <div v-for="r in h.results" :key="r.name" style="margin-bottom:8px;">
               <div style="font-size:12px;font-weight:700;color:#888;margin-bottom:3px;">{{ r.name }}</div>
               <div class="peek-section"><div class="peek-section-title">动作 / 情绪</div><div class="peek-content">{{ r.action }}</div></div>
@@ -691,7 +698,10 @@
         <div class="modal-title">次元时境历史</div>
         <div class="history-list" v-if="mirrorHistory.length">
           <div class="history-item" v-for="(h,i) in mirrorHistory" :key="i">
-            <div class="history-time">{{ h.time }} · {{ h.mode==='chat'?'聊时窥探':'闲时窥镜' }}</div>
+            <div style="display:flex;align-items:center;justify-content:space-between;">
+              <div class="history-time">{{ h.time }} · {{ h.mode==='chat'?'聊时窥探':'闲时窥镜' }}</div>
+              <button @click="collectMirrorHistory(h)" style="background:transparent;border:none;cursor:pointer;color:#aaa;display:flex;align-items:center;padding:3px;"><i data-lucide="bookmark" style="width:14px;height:14px;"></i></button>
+            </div>
             <div v-for="r in h.results" :key="r.name" style="margin-bottom:8px;">
               <div style="font-size:12px;font-weight:700;color:#888;margin-bottom:3px;">{{ r.name }}</div>
               <div class="peek-content">{{ r.content }}</div>
@@ -797,7 +807,12 @@
           </div>
         </div>
         <div class="peek-loading" v-if="theaterLoading"><span></span><span></span><span></span></div>
-        <div v-if="theaterTextResult" style="background:#f9f9f9;border-radius:10px;padding:12px;font-size:13px;color:#333;line-height:1.8;max-height:300px;overflow-y:auto;white-space:pre-wrap;">{{ theaterTextResult }}</div>
+        <div v-if="theaterTextResult" style="background:#f9f9f9;border-radius:10px;padding:12px;font-size:13px;color:#333;line-height:1.8;max-height:300px;overflow-y:auto;white-space:pre-wrap;position:relative;">
+  {{ theaterTextResult }}
+  <button @click="collectTheaterRoom(theaterTextResult)" style="position:absolute;top:8px;right:8px;background:transparent;border:none;cursor:pointer;color:#aaa;display:flex;align-items:center;padding:3px;">
+    <i data-lucide="bookmark" style="width:14px;height:14px;"></i>
+  </button>
+</div>
 <!-- 群成员评论区 -->
 <div v-if="theaterTextResult" style="display:flex;flex-direction:column;gap:6px;">
   <div style="display:flex;align-items:center;gap:8px;">

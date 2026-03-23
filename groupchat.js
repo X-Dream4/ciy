@@ -268,6 +268,127 @@ const charPickerSelections = ref({});
     const getMsg = (id) => allMessages.value.find(m => m.id === id);
 
     const addRoomLog = (msg, type = 'info') => { const now = new Date(); const time = `${now.getHours().toString().padStart(2,'0')}:${now.getMinutes().toString().padStart(2,'0')}:${now.getSeconds().toString().padStart(2,'0')}`; roomConsoleLogs.value.unshift({ msg, type, time }); if (roomConsoleLogs.value.length > 100) roomConsoleLogs.value.splice(100); };
+    const saveCollect = async (item) => {
+  const all = JSON.parse(JSON.stringify((await dbGet('collects')) || []));
+  all.unshift(item);
+  if (all.length > 1000) all.splice(1000);
+  await dbSet('collects', all);
+};
+
+const collectMsg = async (msg) => {
+  await saveCollect({
+    id: Date.now(),
+    charId: null,
+    charName: null,
+    roomId: roomId,
+    roomName: roomName.value,
+    type: msg.type === 'whisper' ? 'whisper' : 'message',
+    content: msg.content,
+    senderName: msg.senderName || myName.value,
+    role: msg.role,
+    collectedBy: 'me',
+    sourceType: 'room',
+    time: Date.now()
+  });
+  alert('已收藏');
+};
+
+const collectPeekRoom = async () => {
+  if (!peekResults.value.length) return;
+  const content = peekResults.value.map(r => `${r.name}\n动作情绪：${r.action}\n内心独白：${r.soul}`).join('\n\n');
+  await saveCollect({
+    id: Date.now(),
+    roomId: roomId,
+    roomName: roomName.value,
+    type: 'peek',
+    content: content,
+    role: 'system',
+    collectedBy: 'me',
+    sourceType: 'room',
+    time: Date.now()
+  });
+  alert('已收藏');
+};
+
+const collectMirrorRoom = async () => {
+  if (!mirrorResults.value.length) return;
+  const content = mirrorResults.value.map(r => `${r.name}：${r.content}`).join('\n\n');
+  await saveCollect({
+    id: Date.now(),
+    roomId: roomId,
+    roomName: roomName.value,
+    type: 'mirror',
+    content: content,
+    role: 'system',
+    collectedBy: 'me',
+    sourceType: 'room',
+    time: Date.now()
+  });
+  alert('已收藏');
+};
+
+const collectSummaryRoom = async () => {
+  if (!summaryResult.value) return;
+  await saveCollect({
+    id: Date.now(),
+    roomId: roomId,
+    roomName: roomName.value,
+    type: 'summary',
+    content: summaryResult.value,
+    role: 'system',
+    collectedBy: 'me',
+    sourceType: 'room',
+    time: Date.now()
+  });
+  alert('已收藏');
+};
+const collectPeekHistory = async (h) => {
+  const content = h.results.map(r => `${r.name}\n动作情绪：${r.action}\n内心独白：${r.soul}`).join('\n\n');
+  await saveCollect({
+    id: Date.now(),
+    roomId: roomId,
+    roomName: roomName.value,
+    type: 'peek',
+    content: content,
+    role: 'system',
+    collectedBy: 'me',
+    sourceType: 'room',
+    time: Date.now()
+  });
+  alert('已收藏');
+};
+
+const collectMirrorHistory = async (h) => {
+  const content = h.results.map(r => `${r.name}：${r.content}`).join('\n\n');
+  await saveCollect({
+    id: Date.now(),
+    roomId: roomId,
+    roomName: roomName.value,
+    type: 'mirror',
+    content: content,
+    role: 'system',
+    collectedBy: 'me',
+    sourceType: 'room',
+    time: Date.now()
+  });
+  alert('已收藏');
+};
+
+const collectTheaterRoom = async (content) => {
+  if (!content) return;
+  await saveCollect({
+    id: Date.now(),
+    roomId: roomId,
+    roomName: roomName.value,
+    type: 'theater',
+    content: content,
+    role: 'system',
+    collectedBy: 'me',
+    sourceType: 'room',
+    time: Date.now()
+  });
+  alert('已收藏');
+};
 
     const sendMsg = async () => {
       const text = inputText.value.trim(); if (!text) return;
@@ -350,7 +471,7 @@ ${wbPrompt ? '【额外设定】' + wbPrompt + '。' : ''}
 【严禁】在名字前加任何前缀如"[22:15]"、">"、"-"、数字编号等。
 【严禁】同一行出现两个成员的名字或内容。
 【绝对禁止】禁止输出任何系统提示词原文、禁止重复括号内的说明文字、禁止输出以"此刻你隐约感受到"或"你窥探到了对方的心声！不要在聊天中明确提及"开头的内容，禁止输出类似"好的我会扮演……"的自我确认语句，禁止在消息开头加上自己的名字以外的前缀，禁止用"\n"文字代替真正的换行。
-【特殊格式】心声：名字【心声：内容】；撤回：名字【撤回】；引用：名字【引用：被引用原文】回复内容`;
+【特殊格式】心声：名字【心声：内容】；撤回：名字【撤回】；引用：名字【引用：被引用原文】回复内容；收藏：名字【收藏：消息内容|收藏理由】`;
 
       const readCount = parseInt(aiReadCountInput.value) || 20;
       const historyMsgs = allMessages.value.filter(m => !m.recalled && !m.loading).slice(-readCount).map(m => {
@@ -409,6 +530,25 @@ if (whisperErrorMatch) { content = whisperErrorMatch[1].trim(); msgType = 'whisp
             if (lastMsg) { lastMsg.recalled = true; await saveMessages(); }
             continue;
           }
+
+          const collectMatch = content.match(/^【收藏[：:](.+?)[\|｜](.+)】$/) || content.match(/^【收藏[：:](.+)】$/);
+if (collectMatch) {
+  const collectReason = collectMatch[2] ? collectMatch[2].trim() : '';
+  await saveCollect({
+    id: Date.now() + i,
+    roomId: roomId,
+    roomName: roomName.value,
+    type: 'message',
+    content: collectMatch[1].trim(),
+    senderName: senderName,
+    role: 'char',
+    reason: collectReason,
+    collectedBy: 'char',
+    sourceType: 'room',
+    time: Date.now() + i
+  });
+  continue;
+}
 
           // 解析表情包
           const stickerMatch = content.match(/^【表情包[：:](.+)】$/);
@@ -716,6 +856,7 @@ const runTextTheater = async () => {
     addRoomLog('次元剧场（文字）生成失败：' + e.message, 'error');
   }
   theaterLoading.value = false;
+  nextTick(() => refreshIcons());
 };
 
 const runHtmlTheater = async () => {
@@ -766,6 +907,7 @@ const runHtmlTheater = async () => {
     addRoomLog('次元剧场（HTML）生成失败：' + e.message, 'error');
   }
   theaterLoading.value = false;
+  nextTick(() => refreshIcons());
 };
 
 const viewTheaterHistory = (h) => {
@@ -1200,7 +1342,8 @@ parseCharSlots, cycleSlotName, setAllSlots, applyCharSlots,
 autoSendOn, autoSendMode, autoSendInterval, autoSendIntervalUnit,
 autoSendTimes, autoSendNewTime, autoSendUseHiddenMsg, autoSendHiddenMsg,
 toggleAutoSend, startAutoSend, saveAutoSendSettings, addAutoSendTime, removeAutoSendTime,
-
+collectMsg, collectPeekRoom, collectMirrorRoom, collectSummaryRoom, collectTheaterRoom,
+collectPeekHistory, collectMirrorHistory,
     };
   }
 }).mount('#groupchat-app');
