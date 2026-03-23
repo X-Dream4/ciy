@@ -587,6 +587,9 @@ alert('连接失败：' + e.message);
 
     // 窥探心声
     const openPeekSoul = () => { toolbarOpen.value = false; peekResults.value = []; peekSoulShow.value = true; nextTick(() => refreshIcons()); };
+    const openPeekHistory = () => { peekHistoryShow.value = true; nextTick(() => refreshIcons()); };
+    const openMirrorHistory = () => { mirrorHistoryShow.value = true; nextTick(() => refreshIcons()); };
+
     const doPeekSoul = async () => {
       if (!apiConfig.value.url || !apiConfig.value.key || !apiConfig.value.model) { alert('请先配置API'); return; }
       peekLoading.value = true; peekResults.value = [];
@@ -1291,6 +1294,11 @@ if (autoSendData) {
         if (mask) { mask.classList.add('hide'); setTimeout(() => mask.remove(), 400); }
       }, 100);
     });
+    // 监听历史弹窗开启时刷新图标
+    Vue.watch(() => peekHistoryShow.value, (val) => { if (val) nextTick(() => refreshIcons()); });
+    Vue.watch(() => mirrorHistoryShow.value, (val) => { if (val) nextTick(() => refreshIcons()); });
+    Vue.watch(() => theaterShow.value, (val) => { if (val) nextTick(() => refreshIcons()); });
+    Vue.watch(() => theaterHtmlViewShow.value, (val) => { if (val) nextTick(() => refreshIcons()); });
 
     return {
       roomName, members, myName, myPersona, allMessages, messages, inputText,
@@ -1354,6 +1362,7 @@ autoSendTimes, autoSendNewTime, autoSendUseHiddenMsg, autoSendHiddenMsg,
 toggleAutoSend, startAutoSend, saveAutoSendSettings, addAutoSendTime, removeAutoSendTime,
 collectMsg, collectPeekRoom, collectMirrorRoom, collectSummaryRoom, collectTheaterRoom,
 collectPeekHistory, collectMirrorHistory, htmlViewWidth, htmlViewHeight, htmlViewRounded, htmlViewPanelOpen,
+openPeekHistory, openMirrorHistory,
 
     };
   }

@@ -442,6 +442,9 @@ alert('连接失败：' + e.message);
     };
 
     const openPeekSoul = () => { toolbarOpen.value = false; peekResult.value = null; peekSoulShow.value = true; nextTick(() => refreshIcons()); };
+    const openPeekHistory = () => { peekHistoryShow.value = true; nextTick(() => refreshIcons()); };
+    const openMirrorHistory = () => { mirrorHistoryShow.value = true; nextTick(() => refreshIcons()); };
+
     const doPeekSoul = async () => {
       if (!apiConfig.value.url || !apiConfig.value.key || !apiConfig.value.model) { alert('请先配置API'); return; }
       peekLoading.value = true; peekResult.value = null;
@@ -1584,6 +1587,11 @@ if (notifySystemOnData !== null) notifySystemOn.value = notifySystemOnData;
         if (mask) { mask.classList.add('hide'); setTimeout(() => mask.remove(), 400); }
       }, 100);
     });
+    // 监听历史弹窗开启时刷新图标
+    Vue.watch(() => peekHistoryShow.value, (val) => { if (val) nextTick(() => refreshIcons()); });
+    Vue.watch(() => mirrorHistoryShow.value, (val) => { if (val) nextTick(() => refreshIcons()); });
+    Vue.watch(() => theaterShow.value, (val) => { if (val) nextTick(() => refreshIcons()); });
+    Vue.watch(() => theaterHtmlViewShow.value, (val) => { if (val) nextTick(() => refreshIcons()); });
 
     return {
       charName, charWorld, charPersona, myName, myPersona,
@@ -1655,6 +1663,7 @@ keepAliveOn, toggleKeepAlive,
 collectMsg, collectPeek, collectMirror, collectSummary, collectTheater,
 collectPeekHistory, collectMirrorHistory,
 htmlViewWidth, htmlViewHeight, htmlViewRounded, htmlViewPanelOpen,
+openPeekHistory, openMirrorHistory,
 
     };
   }

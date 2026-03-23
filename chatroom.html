@@ -417,7 +417,7 @@
         <div class="peek-empty" v-else>选择模式后点击窥镜</div>
         <div class="modal-btns">
           <button class="modal-btn cancel" @click="dimensionMirrorShow=false">关闭</button>
-          <button class="modal-btn cancel" @click="mirrorHistoryShow=true; nextTick(refreshIcons)">历史</button>
+          <button class="modal-btn cancel" @click="mirrorHistoryShow=true; $nextTick(refreshIcons)">历史</button>
           <button class="modal-btn cancel" @click="collectMirror" v-if="mirrorResult">收藏</button>
           <button class="modal-btn confirm" @click="doMirror">窥镜</button>
         </div>
@@ -1005,7 +1005,7 @@
       <div style="display:flex;gap:6px;align-items:center;">
         <button class="modal-btn cancel" style="flex:none;padding:4px 10px;font-size:11px;border-radius:8px;" @click="viewTheaterHistory(h)">查看</button>
         <button class="modal-btn cancel" style="flex:none;padding:4px 10px;font-size:11px;border-radius:8px;" @click="startEditTheaterHistory(i)">编辑</button>
-        <button style="background:transparent;border:none;cursor:pointer;color:#aaa;display:flex;align-items:center;padding:4px;" @click="collectTheater(h.result); nextTick(refreshIcons)"><i data-lucide="bookmark" style="width:13px;height:13px;"></i></button>
+        <button style="background:transparent;border:none;cursor:pointer;color:#aaa;display:flex;align-items:center;padding:4px;" @click="collectTheater(h.result)"><i data-lucide="bookmark" style="width:13px;height:13px;"></i></button>
         <button style="background:transparent;border:none;color:#e53e3e;cursor:pointer;font-size:11px;" @click="deleteTheaterHistory(theaterHistory.length-1-i)">删除</button>
       </div>
     </div>
