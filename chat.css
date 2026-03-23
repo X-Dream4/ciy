@@ -79,7 +79,7 @@ body.dark .chat-list-item:hover { background: #333; }
 
 .room-avatar { background: #f0f0f5; color: #888; }
 
-body.dark .chat-avatar { background: #444; color: #aaa; }
+body.dark .chat-avatar { background-color: #444; color: #aaa; }
 
 .chat-info { flex: 1; min-width: 0; }
 

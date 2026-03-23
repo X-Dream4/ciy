@@ -1121,6 +1121,9 @@ ${allNpcs.length ? `参与发帖的用户：${allNpcs.map(n => n.name + (n.perso
     // ===== 初始化 =====
 
     onMounted(async () => {
+if (typeof listenForNotifications === 'function') listenForNotifications();
+if (typeof requestNotifyPermission === 'function') requestNotifyPermission();
+
       // 加载自定义字体
       const savedFont = await dbGet('customFont');
       if (savedFont && savedFont.src) {

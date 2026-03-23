@@ -6,6 +6,7 @@
 <title>聊天</title>
 <script src="vue.global.js"></script>
 <script src="lucide.min.js"></script>
+<script src="notify.js"></script>
 <link rel="stylesheet" href="chatroom.css" />
 </head>
 <body>
@@ -45,9 +46,18 @@
           {{ msg.role === 'user' ? myName : charName }} 撤回了一条消息
           <span class="recall-reveal-hint">{{ msg.revealed ? '收起' : '查看' }}</span>
         </div>
+
         <div v-if="!msg.isTimeDivider && msg.recalled && msg.revealed" class="recall-revealed">{{ msg.content }}</div>
 
-        <div v-if="!msg.isTimeDivider && !msg.recalled" class="msg-row" :class="[msg.role==='user'?'row-right':'row-left', multiSelectMode?'selectable':'', selectedMsgs.includes(msg.id)?'selected-row':'']" @click="multiSelectMode ? toggleSelect(msg.id) : null" @touchstart="onTouchStart(msg, i, $event)" @touchend="onTouchEnd" @touchmove="onTouchMove" @mousedown="onMouseDown(msg, i)" @mouseup="onMouseUp">
+        <!-- 自动触发隐藏消息：折叠显示 -->
+        <div v-if="!msg.isTimeDivider && msg.type==='auto_trigger'" class="time-divider" style="cursor:pointer;" @click="msg.triggerExpanded=!msg.triggerExpanded">
+          <span style="background:rgba(0,0,0,0.05);color:rgba(0,0,0,0.3);font-size:10px;padding:2px 10px;border-radius:10px;user-select:none;">
+            ——
+          </span>
+          <span v-if="msg.triggerExpanded" style="display:block;font-size:11px;color:#aaa;padding:4px 12px;text-align:center;white-space:pre-wrap;word-break:break-all;">{{ msg.content }}</span>
+        </div>
+
+        <div v-if="!msg.isTimeDivider && !msg.recalled && msg.type!=='auto_trigger'" class="msg-row" :class="[msg.role==='user'?'row-right':'row-left', multiSelectMode?'selectable':'', selectedMsgs.includes(msg.id)?'selected-row':'']" @click="multiSelectMode ? toggleSelect(msg.id) : null" @touchstart="onTouchStart(msg, i, $event)" @touchend="onTouchEnd" @touchmove="onTouchMove" @mousedown="onMouseDown(msg, i, $event)" @mouseup="onMouseUp">
 
           <div class="select-check" v-if="multiSelectMode">
             <div class="check-circle" :class="{checked: selectedMsgs.includes(msg.id)}"></div>
@@ -102,7 +112,7 @@
         </div>
 
         <transition name="popup">
-          <div class="bubble-menu" v-if="bubbleMenuMsgId===msg.id && !msg.recalled && appReady" :class="msg.role==='user'?'menu-right':'menu-left'">
+          <div class="bubble-menu" v-if="bubbleMenuMsgId===msg.id && !msg.recalled && appReady" :style="`top:${bubbleMenuPos.top}px;`">
             <button class="bubble-menu-btn" @click="quoteMsg(msg)"><i data-lucide="corner-up-left"></i><span>引用</span></button>
             <button class="bubble-menu-btn" @click="recallMsg(msg)"><i data-lucide="undo-2"></i><span>撤回</span></button>
             <button class="bubble-menu-btn" @click="editMsg(msg)"><i data-lucide="pencil"></i><span>编辑</span></button>
@@ -130,6 +140,7 @@
       <button class="toolbar-btn" @click="openMyWhisper"><i data-lucide="message-circle"></i><span>我的心声</span></button>
       <button class="toolbar-btn" @click="openBeauty"><i data-lucide="sparkles"></i><span>聊天美化</span></button>
       <button class="toolbar-btn" @click="openSummary"><i data-lucide="file-text"></i><span>聊天总结</span></button>
+      <button class="toolbar-btn" @click="openTheater"><i data-lucide="clapperboard"></i><span>次元剧场</span></button>
       <button class="toolbar-btn" @click="openEmoji"><i data-lucide="smile"></i><span>表情包</span></button>
       <button class="toolbar-btn" @click="openBlock" :style="isBlocked?'color:#e53e3e;':''"><i data-lucide="user-x"></i><span>{{ isBlocked?'已拉黑':'拉黑' }}</span></button>
       <button class="toolbar-btn" @click="deleteCharShow=true" style="color:#e53e3e;"><i data-lucide="trash-2"></i><span>删除</span></button>
@@ -178,6 +189,11 @@
       <div class="modal-box">
         <div class="modal-title">聊天设置</div>
         <div class="modal-item"><label>角色备注名</label><input class="modal-input" v-model="charNameInput" placeholder="角色的备注名..." /></div>
+<div class="modal-item">
+  <label>角色真名（自动从人设提取，可修改）</label>
+  <input class="modal-input" v-model="charRealNameInput" placeholder="未能自动提取，可手动填写..." />
+  <div style="font-size:11px;color:#aaa;margin-top:3px;">真名用于聊天总结、剧场生成等功能中的名字替换</div>
+</div>
         <div class="modal-item"><label>世界观</label><textarea class="modal-textarea" v-model="charWorldInput" placeholder="角色所在的世界观..."></textarea></div>
         <div class="modal-item"><label>角色人设</label><textarea class="modal-textarea" v-model="charPersonaInput" placeholder="角色的性格、背景..."></textarea></div>
         <div class="modal-item"><label>AI可读取消息条数</label><input class="modal-input" type="number" v-model="aiReadCountInput" min="5" max="200" placeholder="默认20条" /></div>
@@ -244,6 +260,93 @@
             <option value="id">Bahasa Indonesia</option>
           </select>
         </div>
+<!-- 自动发消息设置 -->
+<div class="beauty-section" style="margin-top:4px;">
+  <div class="beauty-section-title">角色自动发消息</div>
+  <div class="beauty-toggle-row">
+    <span>开启自动发消息</span>
+    <div class="toggle" :class="{on: autoSendOn}" @click="toggleAutoSend"></div>
+  </div>
+  <div style="font-size:11px;color:#aaa;margin-top:2px;">开启后角色将按设定时间主动发消息（需保持聊天界面打开）</div>
+
+  <div v-if="autoSendOn" style="display:flex;flex-direction:column;gap:10px;margin-top:8px;">
+    <!-- 模式切换 -->
+    <div style="display:flex;gap:8px;">
+      <div class="summary-pos-btn" :class="{active: autoSendMode==='interval'}" @click="autoSendMode='interval'; saveAutoSendSettings(); if(autoSendOn) startAutoSend()">间隔发送</div>
+      <div class="summary-pos-btn" :class="{active: autoSendMode==='time'}" @click="autoSendMode='time'; saveAutoSendSettings(); if(autoSendOn) startAutoSend()">定时发送</div>
+    </div>
+
+    <!-- 间隔模式 -->
+    <div v-if="autoSendMode==='interval'" style="display:flex;flex-direction:column;gap:6px;">
+      <div style="font-size:12px;color:#555;font-weight:500;">每隔多久发一次</div>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <input class="modal-input" type="number" v-model="autoSendInterval" min="1" max="999" style="width:80px;text-align:center;" @change="saveAutoSendSettings" />
+        <div style="display:flex;gap:6px;">
+          <div class="summary-pos-btn" :class="{active: autoSendIntervalUnit==='sec'}" @click="autoSendIntervalUnit='sec'; saveAutoSendSettings(); if(autoSendOn) startAutoSend()">秒</div>
+          <div class="summary-pos-btn" :class="{active: autoSendIntervalUnit==='min'}" @click="autoSendIntervalUnit='min'; saveAutoSendSettings(); if(autoSendOn) startAutoSend()">分钟</div>
+        </div>
+      </div>
+      <div style="font-size:11px;color:#aaa;">注意：间隔太短会消耗大量API调用次数</div>
+    </div>
+
+    <!-- 定时模式 -->
+    <div v-if="autoSendMode==='time'" style="display:flex;flex-direction:column;gap:6px;">
+      <div style="font-size:12px;color:#555;font-weight:500;">设定发送时间点</div>
+      <div style="display:flex;gap:6px;align-items:center;">
+        <input class="modal-input" type="time" v-model="autoSendNewTime" style="flex:1;" />
+        <button class="modal-btn confirm" style="flex:none;padding:0 14px;height:38px;font-size:13px;" @click="addAutoSendTime">添加</button>
+      </div>
+      <div v-if="autoSendTimes.length" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:2px;">
+        <div v-for="(t,i) in autoSendTimes" :key="i" style="display:flex;align-items:center;gap:4px;padding:4px 10px;background:#f0f0f5;border-radius:20px;font-size:13px;color:#333;">
+          <span>{{ t }}</span>
+          <span style="cursor:pointer;color:#e53e3e;font-size:14px;line-height:1;" @click="removeAutoSendTime(i)">×</span>
+        </div>
+      </div>
+      <div v-else style="font-size:11px;color:#aaa;">还未添加时间点</div>
+      <div style="font-size:11px;color:#aaa;">到达设定时间时角色会主动发消息（精确到分钟）</div>
+    </div>
+
+    <!-- 触发方式 -->
+    <div style="display:flex;flex-direction:column;gap:6px;padding-top:4px;border-top:1px solid #f0f0f0;margin-top:4px;">
+      <div class="beauty-toggle-row">
+        <span style="font-size:12px;color:#555;font-weight:500;">用隐藏消息触发回复</span>
+        <div class="toggle" :class="{on: autoSendUseHiddenMsg}" @click="autoSendUseHiddenMsg=!autoSendUseHiddenMsg; saveAutoSendSettings()"></div>
+      </div>
+      <div style="font-size:11px;color:#aaa;">开启后会先发一条你看不到的心声消息，让角色主动回复（兼容 Claude 等需要 user 先说话的模型）；关闭则直接调用 API</div>
+      <div v-if="autoSendUseHiddenMsg" style="display:flex;flex-direction:column;gap:4px;">
+        <div style="font-size:12px;color:#555;font-weight:500;">隐藏触发消息内容（可自定义）</div>
+        <textarea class="modal-textarea" v-model="autoSendHiddenMsg" @change="saveAutoSendSettings" style="min-height:90px;font-size:12px;" placeholder="输入触发角色主动发消息的提示词..."></textarea>
+        <div style="font-size:11px;color:#aaa;">这条消息会以折叠条「——」显示在对话中，点击可展开查看内容，角色能感知但不会以普通气泡形式出现</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 消息通知设置 -->
+<div class="beauty-section" style="margin-top:4px;">
+  <div class="beauty-section-title">消息通知</div>
+  <div class="beauty-toggle-row">
+    <span>角色消息弹窗提示</span>
+    <div class="toggle" :class="{on: notifyOn}" @click="toggleNotify"></div>
+  </div>
+  <div style="font-size:11px;color:#aaa;margin-top:2px;">开启后收到角色消息时在所有页面顶部弹出提示</div>
+  <div v-if="notifyOn" style="margin-top:8px;">
+    <div class="beauty-toggle-row">
+      <span>浏览器系统通知</span>
+      <div class="toggle" :class="{on: notifySystemOn}" @click="toggleSystemNotify"></div>
+    </div>
+    <div style="font-size:11px;color:#aaa;margin-top:2px;">允许浏览器发送系统级通知（切换到其他应用时仍可收到）</div>
+  </div>
+</div>
+<!-- 后台保活设置 -->
+<div class="beauty-section" style="margin-top:4px;">
+  <div class="beauty-section-title">后台保活</div>
+  <div class="beauty-toggle-row">
+    <span>开启后台保活</span>
+    <div class="toggle" :class="{on: keepAliveOn}" @click="toggleKeepAlive"></div>
+  </div>
+  <div style="font-size:11px;color:#aaa;margin-top:2px;">开启后播放静音音频并保持页面活跃，降低被系统杀死的概率（会稍微增加耗电）</div>
+</div>
 
         <div class="modal-btns">
           <button class="modal-btn cancel" @click="chatSettingsShow=false">取消</button>
@@ -776,6 +879,155 @@
       </div>
     </div>
   </transition>
+<!-- 次元剧场主弹窗 -->
+<transition name="modal">
+  <div class="modal-mask" v-if="theaterShow && appReady" @click.self="theaterShow=false">
+    <div class="modal-box" style="max-width:440px;">
+      <div class="modal-title">次元剧场</div>
+
+      <!-- Tab 切换 -->
+      <div style="display:flex;gap:8px;">
+        <div class="summary-pos-btn" :class="{active: theaterTab==='text'}" @click="theaterTab='text'">纯文字剧场</div>
+        <div class="summary-pos-btn" :class="{active: theaterTab==='html'}" @click="theaterTab='html'">HTML剧场</div>
+        <div class="summary-pos-btn" :class="{active: theaterTab==='history'}" @click="theaterTab='history'">历史记录</div>
+      </div>
+<!-- 文风设置（仅在文字/HTML tab显示，不折叠） -->
+<div v-if="theaterTab!=='history'" style="border:1.5px solid #e5e5ea;border-radius:12px;padding:12px 14px;display:flex;flex-direction:column;gap:8px;">
+  <span style="font-size:13px;font-weight:600;color:#333;">文风设置</span>
+  <textarea class="modal-textarea" v-model="theaterStylePrompt" style="min-height:80px;" placeholder="描述文风要求，例如：文笔细腻深情，大量景色描写，以第三人称旁观视角叙述..."></textarea>
+  <div style="display:flex;gap:6px;align-items:center;">
+    <input class="modal-input" v-model="theaterStyleSaveName" placeholder="文风预设名称..." style="flex:1;" />
+    <button class="modal-btn cancel" style="flex:none;padding:0 14px;height:36px;font-size:12px;" @click="saveTheaterStylePreset">存档</button>
+    <button class="modal-btn cancel" style="flex:none;padding:0 14px;height:36px;font-size:12px;color:#e53e3e;" v-if="theaterStylePrompt" @click="theaterStylePrompt=''">清空</button>
+  </div>
+  <div v-if="theaterStylePresets.length" style="display:flex;flex-direction:column;gap:4px;max-height:100px;overflow-y:auto;background:#f2f2f7;border-radius:8px;padding:6px 8px;">
+    <div style="font-size:10px;color:#aaa;font-weight:700;margin-bottom:2px;">已保存文风预设</div>
+    <div v-for="(p,i) in theaterStylePresets" :key="i" style="display:flex;align-items:center;gap:6px;padding:3px 0;border-bottom:1px solid #e8e8e8;">
+      <span style="flex:1;font-size:12px;color:#333;cursor:pointer;" @click="theaterStylePrompt=p.prompt">{{ p.name }}</span>
+      <button style="background:transparent;border:none;color:#e53e3e;cursor:pointer;font-size:11px;" @click="deleteTheaterStylePreset(i)">删除</button>
+    </div>
+  </div>
+  <div style="font-size:11px;color:#aaa;">文风设置对文字剧场和HTML剧场均生效。</div>
+</div>
+
+
+      <!-- 纯文字剧场 -->
+      <div v-if="theaterTab==='text'" style="display:flex;flex-direction:column;gap:10px;">
+        <div class="modal-item">
+          <label>剧场提示词</label>
+          <textarea class="modal-textarea" v-model="theaterTextPrompt" style="min-height:120px;" placeholder="例：生成一个以「当角色和我...」为主题的番外。内容不少于xxxx字"></textarea>
+        <div v-pre style="font-size:10px;color:#bbb;margin-top:3px;">{{char}} 或 &lt;char&gt; 或 char 自动替换为角色真名，{{user}} 或 &lt;user&gt; 或 user 自动替换为我的名字</div>
+        </div>
+
+        <div style="display:flex;gap:8px;align-items:center;">
+          <input class="modal-input" v-model="theaterSaveName" placeholder="存档名称（可选）" style="flex:1;" />
+          <button class="modal-btn cancel" style="flex:none;padding:0 14px;height:40px;font-size:13px;" @click="saveTheaterPreset">存档</button>
+        </div>
+        <!-- 已保存预设 -->
+        <div v-if="theaterPresets.length" style="display:flex;flex-direction:column;gap:4px;max-height:120px;overflow-y:auto;background:#f9f9f9;border-radius:10px;padding:8px;">
+          <div style="font-size:11px;color:#aaa;font-weight:700;margin-bottom:2px;">已保存预设</div>
+          <div v-for="(p,i) in theaterPresets" :key="i" style="display:flex;align-items:center;gap:6px;padding:4px 0;border-bottom:1px solid #eee;">
+            <span style="flex:1;font-size:12px;color:#333;cursor:pointer;" @click="theaterTextPrompt=replaceTheaterVars(p.prompt)">{{ p.name }}</span>
+            <button style="background:transparent;border:none;color:#e53e3e;cursor:pointer;font-size:11px;" @click="deleteTheaterPreset(i)">删除</button>
+          </div>
+        </div>
+        <div class="peek-loading" v-if="theaterLoading"><span></span><span></span><span></span></div>
+        <div v-if="theaterTextResult" style="background:#f9f9f9;border-radius:10px;padding:12px;font-size:13px;color:#333;line-height:1.8;max-height:300px;overflow-y:auto;white-space:pre-wrap;">{{ theaterTextResult }}</div>
+<!-- 角色评论区 -->
+<div v-if="theaterTextResult" style="display:flex;flex-direction:column;gap:6px;">
+  <div style="display:flex;align-items:center;gap:8px;">
+    <span style="font-size:11px;font-weight:700;color:#aaa;letter-spacing:0.5px;">角色评论</span>
+    <button class="modal-btn cancel" style="flex:none;padding:4px 12px;font-size:11px;border-radius:20px;" @click="runTheaterComment" :disabled="theaterCommentLoading">
+      {{ theaterCommentLoading ? '生成中...' : ('让'+charName+'评论这段剧场') }}
+    </button>
+  </div>
+  <div class="peek-loading" v-if="theaterCommentLoading"><span></span><span></span><span></span></div>
+  <div v-if="theaterCommentResult" style="background:#fff;border-left:3px solid #111;border-radius:0 10px 10px 0;padding:10px 12px;font-size:13px;color:#333;line-height:1.7;white-space:pre-wrap;">{{ theaterCommentResult }}</div>
+</div>
+<div class="modal-btns">
+  <button class="modal-btn cancel" @click="theaterShow=false">关闭</button>
+
+          <button class="modal-btn cancel" @click="theaterTab='history'" v-if="theaterTextResult">查看历史</button>
+          <button class="modal-btn confirm" @click="runTextTheater" :disabled="theaterLoading">生成剧场</button>
+        </div>
+      </div>
+
+      <!-- HTML剧场 -->
+      <div v-if="theaterTab==='html'" style="display:flex;flex-direction:column;gap:10px;">
+        <div class="modal-item">
+          <label>HTML剧场提示词</label>
+          <textarea class="modal-textarea" v-model="theaterHtmlPrompt" style="min-height:120px;" placeholder="输入提示词，将生成HTML内容并在弹窗内展示..."></textarea>
+        <div v-pre style="font-size:10px;color:#bbb;margin-top:3px;">{{char}} 或 &lt;char&gt; 或 char 自动替换为角色真名，{{user}} 或 &lt;user&gt; 或 user 自动替换为我的名字</div>
+        </div>
+
+        <div style="display:flex;gap:8px;align-items:center;">
+          <input class="modal-input" v-model="theaterHtmlSaveName" placeholder="存档名称（可选）" style="flex:1;" />
+          <button class="modal-btn cancel" style="flex:none;padding:0 14px;height:40px;font-size:13px;" @click="saveTheaterHtmlPreset">存档</button>
+        </div>
+        <!-- 已保存HTML预设 -->
+        <div v-if="theaterHtmlPresets.length" style="display:flex;flex-direction:column;gap:4px;max-height:120px;overflow-y:auto;background:#f9f9f9;border-radius:10px;padding:8px;">
+          <div style="font-size:11px;color:#aaa;font-weight:700;margin-bottom:2px;">已保存预设</div>
+          <div v-for="(p,i) in theaterHtmlPresets" :key="i" style="display:flex;align-items:center;gap:6px;padding:4px 0;border-bottom:1px solid #eee;">
+            <span style="flex:1;font-size:12px;color:#333;cursor:pointer;" @click="theaterHtmlPrompt=replaceTheaterVars(p.prompt)">{{ p.name }}</span>
+            <button style="background:transparent;border:none;color:#e53e3e;cursor:pointer;font-size:11px;" @click="deleteTheaterHtmlPreset(i)">删除</button>
+          </div>
+        </div>
+        <div class="peek-loading" v-if="theaterLoading"><span></span><span></span><span></span></div>
+        <div class="modal-btns">
+          <button class="modal-btn cancel" @click="theaterShow=false">关闭</button>
+          <button class="modal-btn cancel" @click="theaterTab='history'" v-if="theaterHtmlResult">查看历史</button>
+          <button class="modal-btn confirm" @click="runHtmlTheater" :disabled="theaterLoading">生成剧场</button>
+        </div>
+      </div>
+
+<!-- 历史记录 -->
+<div v-if="theaterTab==='history'" style="display:flex;flex-direction:column;gap:8px;max-height:60vh;overflow-y:auto;">
+  <div v-if="!theaterHistory.length" class="peek-empty">暂无历史记录</div>
+  <div v-for="(h,i) in theaterHistory.slice().reverse()" :key="i" style="background:#f9f9f9;border-radius:10px;padding:10px 12px;display:flex;flex-direction:column;gap:6px;">
+    <div style="display:flex;align-items:center;justify-content:space-between;">
+      <span style="font-size:11px;color:#aaa;">{{ h.time }} · {{ h.type==='html'?'HTML剧场':'文字剧场' }}</span>
+      <div style="display:flex;gap:6px;">
+        <button class="modal-btn cancel" style="flex:none;padding:4px 10px;font-size:11px;border-radius:8px;" @click="viewTheaterHistory(h)">查看</button>
+        <button class="modal-btn cancel" style="flex:none;padding:4px 10px;font-size:11px;border-radius:8px;" @click="startEditTheaterHistory(i)">编辑</button>
+        <button style="background:transparent;border:none;color:#e53e3e;cursor:pointer;font-size:11px;" @click="deleteTheaterHistory(theaterHistory.length-1-i)">删除</button>
+      </div>
+    </div>
+    <div style="font-size:12px;color:#555;line-height:1.5;">{{ h.prompt.slice(0,60) }}{{ h.prompt.length>60?'...':'' }}</div>
+
+    <!-- 编辑区域 -->
+    <div v-if="theaterEditingIndex===theaterHistory.length-1-i" style="display:flex;flex-direction:column;gap:6px;margin-top:4px;">
+      <textarea class="modal-textarea" v-model="theaterEditingContent" style="min-height:160px;font-size:12px;line-height:1.8;"></textarea>
+      <div style="display:flex;gap:6px;">
+        <button class="modal-btn cancel" style="flex:none;padding:6px 14px;font-size:12px;" @click="cancelEditTheaterHistory">取消</button>
+        <button class="modal-btn confirm" style="flex:1;padding:6px 14px;font-size:12px;" @click="confirmEditTheaterHistory">保存</button>
+      </div>
+    </div>
+  </div>
+  <div class="modal-btns">
+    <button class="modal-btn cancel" @click="theaterTab='text'">返回</button>
+  </div>
+</div>
+
+
+    </div>
+  </div>
+</transition>
+
+<!-- HTML剧场展示弹窗 -->
+<transition name="modal">
+  <div class="modal-mask" v-if="theaterHtmlViewShow && appReady" @click.self="theaterHtmlViewShow=false">
+    <div style="background:#fff;border-radius:20px;width:100%;max-width:440px;max-height:90vh;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 8px 32px rgba(0,0,0,0.15);">
+      <div style="display:flex;align-items:center;padding:12px 16px;border-bottom:1px solid #f0f0f0;flex-shrink:0;gap:8px;">
+        <span style="flex:1;font-size:15px;font-weight:700;color:#111;">次元剧场 · HTML</span>
+        <button @click="theaterHtmlViewShow=false; theaterShow=true" style="background:#f2f2f7;border:none;cursor:pointer;color:#555;border-radius:8px;padding:6px 12px;font-size:12px;">返回剧场</button>
+        <button @click="theaterHtmlViewShow=false" style="background:transparent;border:none;cursor:pointer;color:#aaa;display:flex;align-items:center;"><i data-lucide="x" style="width:18px;height:18px;"></i></button>
+      </div>
+      <div style="flex:1;overflow-y:auto;">
+        <iframe :srcdoc="theaterHtmlResult" style="width:100%;height:60vh;border:none;display:block;" sandbox="allow-same-origin allow-scripts"></iframe>
+      </div>
+    </div>
+  </div>
+</transition>
 
 </div>
 <script src="db.js"></script>

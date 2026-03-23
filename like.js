@@ -358,6 +358,9 @@ createApp({
     };
 
     onMounted(async () => {
+if (typeof listenForNotifications === 'function') listenForNotifications();
+if (typeof requestNotifyPermission === 'function') requestNotifyPermission();
+
       const [apiConf, presets, dark, wp, icons] = await Promise.all([
         dbGet('apiConfig'), dbGet('apiPresets'), dbGet('darkMode'), dbGet('wallpaper'), dbGet('appIcons')
       ]);

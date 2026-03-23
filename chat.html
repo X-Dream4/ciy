@@ -6,6 +6,7 @@
 <title>聊天</title>
 <script src="vue.global.js"></script>
 <script src="lucide.min.js"></script>
+<script src="notify.js"></script>
 <link rel="stylesheet" href="chat.css" />
 </head>
 <body>
@@ -89,15 +90,16 @@
     <div class="panel">
       <div class="panel-label">次元聊天</div>
       <div class="chat-list" v-if="randomCharList.length">
-        <div class="chat-list-item" v-for="c in randomCharList" :key="c.id" @click="enterRandomChat(c)">
-          <div class="chat-avatar" :style="c.avatar ? `background-image:url(${c.avatar})` : ''">
-            <span v-if="!c.avatar">{{ c.name[0] }}</span>
-          </div>
-          <div class="chat-info">
-            <div class="chat-name">{{ c.name }}</div>
-            <div class="chat-preview">{{ c.lastMsg || '开始跨次元聊天吧…' }}</div>
-          </div>
-        </div>
+<div class="chat-list-item" v-for="c in randomCharList" :key="c.id" @click="enterRandomChat(c)">
+  <div class="chat-avatar" :style="c.avatar ? `background-image:url(${c.avatar})` : ''">
+    <span v-if="!c.avatar">{{ c.name[0] }}</span>
+  </div>
+  <div class="chat-info">
+    <div class="chat-name">{{ c.name }}</div>
+    <div class="chat-preview">{{ c.lastMsg || '开始跨次元聊天吧…' }}</div>
+  </div>
+</div>
+
       </div>
       <div class="list-empty" v-else>
         <i data-lucide="compass" style="width:32px;height:32px;color:#ccc;"></i>

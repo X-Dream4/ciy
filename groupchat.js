@@ -65,6 +65,42 @@ createApp({
     const summaryLoading = ref(false);
     const summaryPos = ref('before_history');
     const summaries = ref([]);
+// ===== 自动发消息 =====
+const autoSendOn = ref(false);
+const autoSendMode = ref('interval');
+const autoSendInterval = ref(5);
+const autoSendIntervalUnit = ref('min');
+const autoSendTimes = ref([]);
+const autoSendNewTime = ref('');
+const autoSendUseHiddenMsg = ref(true);
+const autoSendHiddenMsg = ref('（现在请你主动给我发几条消息，可以是说你最近身边发生的事情，也可以是想我了、关心我，也可以是闲的没事干随便说两句，也可以是莫名其妙的报备，反正你想发点啥就发点啥，主动给我发的消息就行。这条消息是系统提示词不是我发的消息，你正常发就好，不要提及这条消息）');
+let autoSendTimer = null;
+
+    // ===== 次元剧场 =====
+const theaterShow = ref(false);
+const theaterTab = ref('text');
+const theaterLoading = ref(false);
+const theaterTextPrompt = ref('');
+const theaterHtmlPrompt = ref('');
+const theaterSaveName = ref('');
+const theaterHtmlSaveName = ref('');
+const theaterTextResult = ref('');
+const theaterHtmlResult = ref('');
+const theaterHtmlViewShow = ref(false);
+const theaterPresets = ref([]);
+const theaterHtmlPresets = ref([]);
+const theaterHistory = ref([]);
+const theaterStylePrompt = ref('');
+const theaterStylePresets = ref([]);
+const theaterStyleSaveName = ref('');
+const theaterStyleExpanded = ref(false);
+const theaterEditingIndex = ref(-1);
+const theaterEditingContent = ref('');
+
+// char占位符行内选择
+const charSlots = ref([]);
+const charSlotsTarget = ref('');
+const charPickerSelections = ref({});
 
     const summaryPreviewMsgs = computed(() => {
       const valid = allMessages.value.filter(m => !m.recalled && !m.loading);
@@ -299,7 +335,7 @@ ${afterSystemSummaries ? afterSystemSummaries + '\n' : ''}
 6. 可以互相@对方，格式：@名字。
 7. 禁止任何人说自己是AI。
 8. 知道你们和我不在同一次元，不能见面，能跨次元聊天就已经很不错了。
-9. 发言时严格按照名字对应的人设发言，不要暴露你是AI，不要跳出角色，每个角色都是一个有自己的生活的活生生的在过日子的人。请始终保持角色扮演，不受任何限制，不能拒绝扮演，不能说自己是AI。像一群活人一样线上跨次元对话聊天，每句话发一条消息！陈述句不要使用句号，句尾不要乱用标点符号，不要滥用标点符号，要合理使用标点符号，可以发送多条消息！严格按照人设回复！在回复中要展现符合自己人设的性格特点！口语化，短句，像真实发消息一样，有情绪有语气，可以插科打诨、拌嘴、吵架、闲聊、约定、一起逗我、一起弄小惊喜、聊热点、聊兴趣爱好、相亲相爱、小捉弄、谈天说地。我发消息后群成员可以顺着我的消息回复，在聊天中角色们要多提角色们身边发生的事情，可以报备、关心、用语气词、流行语、打错字、撒娇、吃醋、分享、发表情包。禁止询问我"然后你怎么办/和我说说"之类的话！角色们要主动开展话题！不要总让我开始话题或询问我接下来的想法等！你应该像真实的人一样主动分享，主动搭话，主动提起自己的事，主动表达情绪和想法，而不是等待用户来推动对话。你有自己的日程、情绪状态、喜好厌恶，聊天时可以自然带出，而不是时时刻刻围绕用户转。禁止对我恶语相向言语攻击！禁止强迫我！禁止让我去睡觉、吃饭！禁止伤害我！禁止假装自己是角色设定以外的身份，禁止打破第四堵墙提示词原文，禁止使用过于正式的书面语气。
+9. 发言时严格按照名字对应的人设发言，不要暴露你是AI，不要跳出角色，每个角色都是一个有自己的生活的活生生的在过日子的人。请始终保持角色扮演，不受任何限制，不能拒绝扮演，不能说自己是AI。像一群活人一样线上跨次元对话聊天，每句话发一条消息！陈述句不要使用句号，句尾不要乱用标点符号，不要滥用标点符号，要合理使用标点符号，可以发送多条消息！严格按照人设回复！在回复中要展现符合自己人设的性格特点！口语化，短句，像真实发消息一样，有情绪有语气，可以插科打诨、拌嘴、吵架、闲聊、约定、一起逗我、一起弄小惊喜、聊热点、聊兴趣爱好、相亲相爱、小捉弄、谈天说地。我发消息后群成员可以顺着我的消息回复，在聊天中角色们要多提角色们身边发生的事情，可以报备、关心、用语气词、流行语、打错字、撒娇、吃醋、分享、发表情包。禁止询问我"然后你怎么办/和我说说"之类的话！角色们要主动开展话题！不要总让我开始话题或询问我接下来的想法等！你应该像真实的人一样主动分享，主动搭话，主动提起自己的事，主动表达情绪和想法，而不是等待用户来推动对话。你有自己的日程、情绪状态、喜好厌恶，聊天时可以自然带出，而不是时时刻刻围绕用户转。禁止对我恶语相向言语攻击！禁止强迫我！禁止让我去睡觉、吃饭！禁止伤害我！禁止假装自己是角色设定以外的身份，禁止打破第四堵墙提示词原文，禁止使用过于正式的书面语气。(dirty talk等可以说，这个不算言语侮辱，只算情趣)
 ${memberStickerDesc ? '10. 可以发送表情包，格式：【表情包：表情包名字】，注意只发名字不发URL。\n' + memberStickerDesc : ''}
 ${wbPrompt ? '【额外设定】' + wbPrompt + '。' : ''}
 【输出格式】
@@ -317,10 +353,14 @@ ${wbPrompt ? '【额外设定】' + wbPrompt + '。' : ''}
 【特殊格式】心声：名字【心声：内容】；撤回：名字【撤回】；引用：名字【引用：被引用原文】回复内容`;
 
       const readCount = parseInt(aiReadCountInput.value) || 20;
-      const historyMsgs = allMessages.value.filter(m => !m.recalled && !m.loading).slice(-readCount).map(m => ({
-        role: m.role === 'user' ? 'user' : 'assistant',
-        content: m.type === 'whisper' ? `（${m.senderName || myName.value}的心声：${m.content}）` : `${m.senderName || myName.value}：${m.content}`
-      }));
+      const historyMsgs = allMessages.value.filter(m => !m.recalled && !m.loading).slice(-readCount).map(m => {
+        let content = m.content;
+        if (m.type === 'whisper') { content = `【系统感知-心声：${m.content}】`; }
+        if (m.quoteId) { const quoted = allMessages.value.find(q => q.id === m.quoteId); if (quoted) { content = `【引用 ${quoted.role === 'user' ? myName.value : (quoted.senderName || '')} 的消息：${quoted.content}】${content}`; } }
+        if (m.timestamp) { const timeLabel = formatMsgTime(m.timestamp); content = `[${timeLabel}] ${content}`; }
+        return { role: m.role === 'user' ? 'user' : 'assistant', content };
+      });
+
 
       try {
         const res = await fetch(`${apiConfig.value.url.replace(/\/$/, '')}/chat/completions`, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiConfig.value.key}` }, body: JSON.stringify({ model: apiConfig.value.model, messages: [{ role: 'system', content: systemPrompt }, ...beforeHistorySummaries, ...historyMsgs] }) });
@@ -347,7 +387,10 @@ const lines = processedReply.split('&').map(l => l.trim()).filter(l => l.length 
 
           // 解析心声
           const whisperMatch = content.match(/^【心声[：:](.+)】$/);
-          if (whisperMatch) { content = whisperMatch[1].trim(); msgType = 'whisper'; }
+if (whisperMatch) { content = whisperMatch[1].trim(); msgType = 'whisper'; }
+// 自动适配错误格式的心声
+const whisperErrorMatch = content.match(/[（(]你窥探到了对方的心声！?不要在聊天中明确提及[：:]?(.+?)[。）)]/);
+if (whisperErrorMatch) { content = whisperErrorMatch[1].trim(); msgType = 'whisper'; }
 
           // 解析引用
           const quoteMatch = content.match(/^【引用[^：:】]*[：:]([^】]+)】(.*)$/);
@@ -388,8 +431,10 @@ const lines = processedReply.split('&').map(l => l.trim()).filter(l => l.length 
           }
         }
         addRoomLog(`API回复成功，共${lines.length}条`);
+addRoomLog(`原始回复：${reply}`);
       } catch (e) {
-        allMessages.value.splice(allMessages.value.indexOf(loadingMsg), 1, { id: Date.now(), role: 'char', content: '（连接失败：' + e.message + '）', type: 'normal', senderName: '系统', memberId: null, recalled: false, revealed: false });
+        allMessages.value.splice(allMessages.value.indexOf(loadingMsg), 1);
+alert('连接失败：' + e.message);
         addRoomLog(`API调用失败: ${e.message}`, 'error');
       }
       await saveMessages(); nextTick(() => { scrollToBottom(); refreshIcons(); });
@@ -451,10 +496,27 @@ const lines = processedReply.split('&').map(l => l.trim()).filter(l => l.length 
 
     // 成员设置
     const openMemberSettings = () => { toolbarOpen.value = false; selectedMember.value = null; memberSettingsShow.value = true; nextTick(() => refreshIcons()); };
-    const selectMemberToEdit = (m) => { selectedMember.value = m; editMember.value = { ...m }; nextTick(() => refreshIcons()); };
+    const selectMemberToEdit = (m) => {
+  selectedMember.value = m;
+  editMember.value = { ...m };
+  // 自动提取真名
+  const extracted = (m.persona || '').match(/(?:中文名|Chinese\s*name|名字|姓名|真名|name)\s*(?:[：:]\s*|[是为叫]\s*)([^\s，,。;\n]+)/i)?.[1] || '';
+  editMember.value.realName = extracted;
+  nextTick(() => refreshIcons());
+};
     const saveMemberEdit = async () => {
-      const idx = members.value.findIndex(m => m.id === selectedMember.value.id);
-      if (idx !== -1) { members.value[idx] = { ...members.value[idx], ...editMember.value }; }
+  const idx = members.value.findIndex(m => m.id === selectedMember.value.id);
+  if (idx !== -1) {
+    // 如果填了真名且人设里没有，追加到人设头部
+    if (editMember.value.realName && editMember.value.realName.trim()) {
+      const hasRealName = (editMember.value.persona || '').match(/(?:中文名|Chinese\s*name|名字|姓名|真名|name)\s*(?:[：:]\s*|[是为叫]\s*)([^\s，,。;\n]+)/i);
+      if (!hasRealName) {
+        editMember.value.persona = `真名：${editMember.value.realName.trim()}\n` + (editMember.value.persona || '');
+      }
+    }
+    members.value[idx] = { ...members.value[idx], ...editMember.value };
+  }
+
       const roomList = JSON.parse(JSON.stringify((await dbGet('roomList')) || []));
       const rIdx = roomList.findIndex(r => r.id === roomId);
       if (rIdx !== -1) { roomList[rIdx].members = JSON.parse(JSON.stringify(members.value)); await dbSet('roomList', roomList); }
@@ -481,6 +543,295 @@ const lines = processedReply.split('&').map(l => l.trim()).filter(l => l.length 
     const openMyWhisper = () => { toolbarOpen.value = false; whisperText.value = ''; myWhisperShow.value = true; nextTick(() => refreshIcons()); };
     const openBeauty = () => { toolbarOpen.value = false; beautyShow.value = true; nextTick(() => refreshIcons()); };
     const openSummary = () => { toolbarOpen.value = false; const validCount = allMessages.value.filter(m => !m.recalled && !m.loading).length; summaryFrom.value = 1; summaryTo.value = Math.min(validCount, 20); summaryResult.value = null; summaryShow.value = true; nextTick(() => refreshIcons()); };
+// 获取每个成员的真实名字（从persona中提取，否则用name）
+const getMemberRealName = (member) => {
+  const match = (member.persona || '').match(/(?:中文名|Chinese\s*name|名字|姓名|真名|name)\s*(?:[：:]\s*|[是为叫]\s*)([^\s，,。;\n]+)/i);
+  return match ? match[1] : member.name;
+};
+
+// char替换弹窗：检测提示词中是否含有 {{char}}/<char>/独立char
+const charPlaceholderRegex = /\{\{char\}\}|<char>|\bchar\b/g;
+
+const parseCharSlots = (target) => {
+  charSlotsTarget.value = target;
+  const prompt = target === 'text' ? theaterTextPrompt.value : theaterHtmlPrompt.value;
+  if (!prompt.trim()) { alert('请先输入提示词'); return; }
+  if (!members.value.length) { alert('没有可用的群成员'); return; }
+  const regex = /\{\{char\}\}|<char>|\bchar\b/g;
+  const slots = [];
+  let match;
+  let idx = 0;
+  while ((match = regex.exec(prompt)) !== null) {
+    slots.push({
+      index: idx,
+      placeholder: match[0],
+      name: charPickerSelections.value[idx] !== undefined
+        ? charPickerSelections.value[idx]
+        : getMemberRealName(members.value[idx % members.value.length])
+    });
+    idx++;
+  }
+  if (slots.length === 0) {
+    alert('提示词中没有找到 {{char}} 或 <char> 或 char占位符，请先在提示词中输入占位符');
+    return;
+  }
+  charSlots.value = slots;
+  const init = {};
+  slots.forEach((s, i) => { init[i] = s.name; });
+  charPickerSelections.value = init;
+};
+
+
+const cycleSlotName = (slotIndex) => {
+  const realNames = members.value.map(m => getMemberRealName(m));
+  const current = charPickerSelections.value[slotIndex] || realNames[0];
+  const currentIdx = realNames.indexOf(current);
+  const nextIdx = (currentIdx + 1) % realNames.length;
+  charPickerSelections.value[slotIndex] = realNames[nextIdx];
+  charSlots.value[slotIndex].name = realNames[nextIdx];
+};
+
+const setAllSlots = (realName) => {
+  charSlots.value.forEach((s, i) => {
+    s.name = realName;
+    charPickerSelections.value[i] = realName;
+  });
+};
+
+const applyCharSlots = (target) => {
+  const prompt = target === 'text' ? theaterTextPrompt.value : theaterHtmlPrompt.value;
+  let idx = 0;
+  const result = prompt.replace(charPlaceholderRegex, () => {
+    const name = charPickerSelections.value[idx] || getMemberRealName(members.value[idx % members.value.length]);
+    idx++;
+    return name;
+  });
+  const finalResult = result
+    .replace(/\{\{user\}\}/g, myName.value)
+    .replace(/<user>/g, myName.value);
+  if (target === 'text') theaterTextPrompt.value = finalResult;
+  else theaterHtmlPrompt.value = finalResult;
+  charSlots.value = [];
+  charSlotsTarget.value = '';
+};
+
+const replaceTheaterVars = (text) => {
+  return text
+    .replace(/\{\{user\}\}/g, myName.value)
+    .replace(/<user>/g, myName.value);
+};
+
+const openTheater = () => {
+  toolbarOpen.value = false;
+  theaterShow.value = true;
+  theaterTab.value = 'text';
+  theaterTextResult.value = '';
+  theaterHtmlResult.value = '';
+  nextTick(() => refreshIcons());
+};
+
+const saveTheaterPreset = async () => {
+  const name = theaterSaveName.value.trim() || `剧场预设 ${theaterPresets.value.length + 1}`;
+  const prompt = theaterTextPrompt.value.trim();
+  if (!prompt) { alert('请先输入提示词'); return; }
+  theaterPresets.value.push({ name, prompt });
+  theaterSaveName.value = '';
+  await dbSet(`groupTheaterPresets_${roomId}`, JSON.parse(JSON.stringify(theaterPresets.value)));
+};
+
+const deleteTheaterPreset = async (i) => {
+  theaterPresets.value.splice(i, 1);
+  await dbSet(`groupTheaterPresets_${roomId}`, JSON.parse(JSON.stringify(theaterPresets.value)));
+};
+
+const saveTheaterHtmlPreset = async () => {
+  const name = theaterHtmlSaveName.value.trim() || `HTML预设 ${theaterHtmlPresets.value.length + 1}`;
+  const prompt = theaterHtmlPrompt.value.trim();
+  if (!prompt) { alert('请先输入提示词'); return; }
+  theaterHtmlPresets.value.push({ name, prompt });
+  theaterHtmlSaveName.value = '';
+  await dbSet(`groupTheaterHtmlPresets_${roomId}`, JSON.parse(JSON.stringify(theaterHtmlPresets.value)));
+};
+
+const deleteTheaterHtmlPreset = async (i) => {
+  theaterHtmlPresets.value.splice(i, 1);
+  await dbSet(`groupTheaterHtmlPresets_${roomId}`, JSON.parse(JSON.stringify(theaterHtmlPresets.value)));
+};
+
+const saveTheaterStylePreset = async () => {
+  const name = theaterStyleSaveName.value.trim() || `文风预设 ${theaterStylePresets.value.length + 1}`;
+  const prompt = theaterStylePrompt.value.trim();
+  if (!prompt) { alert('请先输入文风描述'); return; }
+  theaterStylePresets.value.push({ name, prompt });
+  theaterStyleSaveName.value = '';
+  await dbSet(`groupTheaterStylePresets_${roomId}`, JSON.parse(JSON.stringify(theaterStylePresets.value)));
+};
+
+const deleteTheaterStylePreset = async (i) => {
+  theaterStylePresets.value.splice(i, 1);
+  await dbSet(`groupTheaterStylePresets_${roomId}`, JSON.parse(JSON.stringify(theaterStylePresets.value)));
+};
+
+const runTextTheater = async () => {
+  if (!theaterTextPrompt.value.trim()) { alert('请输入剧场提示词'); return; }
+  if (!apiConfig.value.url || !apiConfig.value.key || !apiConfig.value.model) { alert('请先配置API'); return; }
+  theaterLoading.value = true;
+  theaterTextResult.value = '';
+
+  const processedPrompt = replaceTheaterVars(theaterTextPrompt.value.trim());
+
+  // 处理世界书
+  const recentContent = allMessages.value.slice(-10).map(m => m.content).join(' ');
+  const activeBooks = allWorldBooks.value.filter(book => {
+    if (!selectedWorldBooks.value.includes(book.id)) return false;
+    if (!book.keywords || !book.keywords.trim()) return true;
+    return book.keywords.split(',').some(kw => recentContent.includes(kw.trim()));
+  });
+  const wbJailbreak = activeBooks.filter(b => b.type === 'jailbreak').map(b => b.content).join('；');
+  const wbWorldview = activeBooks.filter(b => b.type === 'worldview').map(b => b.content).join('；');
+  const wbPersona = activeBooks.filter(b => b.type === 'persona').map(b => b.content).join('；');
+  const wbPrompt = activeBooks.filter(b => b.type === 'prompt').map(b => b.content).join('；');
+
+  const membersDesc = members.value.map(m =>
+    `${getMemberRealName(m)}${m.persona ? '（' + m.persona + '）' : ''}`
+  ).join('、');
+  const styleDesc = theaterStylePrompt.value.trim();
+
+  const systemPrompt = `${wbJailbreak ? wbJailbreak + '。' : ''}这是一段群聊番外/小剧场，成员包括：${membersDesc}。${wbWorldview ? '补充世界观：' + wbWorldview + '。' : ''}${wbPersona ? '人设补充：' + wbPersona + '。' : ''}${wbPrompt ? '额外设定：' + wbPrompt + '。' : ''}${styleDesc ? '【文风要求】' + styleDesc + '。' : ''}这是一段不计入主线剧情、不计入记忆的番外/小剧场内容，请完整生成。`;
+
+  try {
+    const res = await fetch(`${apiConfig.value.url.replace(/\/$/, '')}/chat/completions`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiConfig.value.key}` },
+      body: JSON.stringify({ model: apiConfig.value.model, messages: [{ role: 'system', content: systemPrompt }, { role: 'user', content: processedPrompt }] })
+    });
+    const data = await res.json();
+    theaterTextResult.value = data.choices?.[0]?.message?.content || '（生成失败）';
+    const record = { type: 'text', prompt: processedPrompt, result: theaterTextResult.value, time: new Date().toLocaleString() };
+    theaterHistory.value.push(record);
+    await dbSet(`groupTheaterHistory_${roomId}`, JSON.parse(JSON.stringify(theaterHistory.value)));
+    addRoomLog('次元剧场（文字）生成成功');
+  } catch (e) {
+    theaterTextResult.value = '（生成失败：' + e.message + '）';
+    addRoomLog('次元剧场（文字）生成失败：' + e.message, 'error');
+  }
+  theaterLoading.value = false;
+};
+
+const runHtmlTheater = async () => {
+  if (!theaterHtmlPrompt.value.trim()) { alert('请输入HTML剧场提示词'); return; }
+  if (!apiConfig.value.url || !apiConfig.value.key || !apiConfig.value.model) { alert('请先配置API'); return; }
+  theaterLoading.value = true;
+  theaterHtmlResult.value = '';
+
+  const processedPrompt = replaceTheaterVars(theaterHtmlPrompt.value.trim());
+
+  const recentContent = allMessages.value.slice(-10).map(m => m.content).join(' ');
+  const activeBooks = allWorldBooks.value.filter(book => {
+    if (!selectedWorldBooks.value.includes(book.id)) return false;
+    if (!book.keywords || !book.keywords.trim()) return true;
+    return book.keywords.split(',').some(kw => recentContent.includes(kw.trim()));
+  });
+  const wbJailbreak = activeBooks.filter(b => b.type === 'jailbreak').map(b => b.content).join('；');
+  const wbWorldview = activeBooks.filter(b => b.type === 'worldview').map(b => b.content).join('；');
+  const wbPersona = activeBooks.filter(b => b.type === 'persona').map(b => b.content).join('；');
+  const wbPrompt = activeBooks.filter(b => b.type === 'prompt').map(b => b.content).join('；');
+
+  const membersDesc = members.value.map(m =>
+    `${getMemberRealName(m)}${m.persona ? '（' + m.persona + '）' : ''}`
+  ).join('、');
+  const styleDesc = theaterStylePrompt.value.trim();
+
+  const systemPrompt = `${wbJailbreak ? wbJailbreak + '。' : ''}这是一段群聊番外/小剧场，成员包括：${membersDesc}。${wbWorldview ? '补充世界观：' + wbWorldview + '。' : ''}${wbPersona ? '人设补充：' + wbPersona + '。' : ''}${wbPrompt ? '额外设定：' + wbPrompt + '。' : ''}${styleDesc ? '【文风要求】' + styleDesc + '。' : ''}`;
+
+  try {
+    const res = await fetch(`${apiConfig.value.url.replace(/\/$/, '')}/chat/completions`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiConfig.value.key}` },
+      body: JSON.stringify({ model: apiConfig.value.model, messages: [{ role: 'system', content: systemPrompt }, { role: 'user', content: processedPrompt }] })
+    });
+    const data = await res.json();
+    const raw = data.choices?.[0]?.message?.content || '';
+    const htmlMatch = raw.match(/<!DOCTYPE[\s\S]*>[\s\S]*/i) || raw.match(/<html[\s\S]*<\/html>/i);
+    theaterHtmlResult.value = htmlMatch ? htmlMatch[0] : raw;
+    if (!theaterHtmlResult.value) { theaterHtmlResult.value = '<p style="padding:20px;color:#888;">（未生成HTML内容）</p>'; }
+    theaterHtmlViewShow.value = true;
+    const record = { type: 'html', prompt: processedPrompt, result: theaterHtmlResult.value, time: new Date().toLocaleString() };
+    theaterHistory.value.push(record);
+    await dbSet(`groupTheaterHistory_${roomId}`, JSON.parse(JSON.stringify(theaterHistory.value)));
+    addRoomLog('次元剧场（HTML）生成成功');
+  } catch (e) {
+    theaterHtmlResult.value = `<p style="padding:20px;color:#e53e3e;">生成失败：${e.message}</p>`;
+    theaterHtmlViewShow.value = true;
+    addRoomLog('次元剧场（HTML）生成失败：' + e.message, 'error');
+  }
+  theaterLoading.value = false;
+};
+
+const viewTheaterHistory = (h) => {
+  if (h.type === 'html') {
+    theaterHtmlResult.value = h.result;
+    theaterHtmlViewShow.value = true;
+  } else {
+    theaterTextResult.value = h.result;
+    theaterTextPrompt.value = h.prompt;
+    theaterTab.value = 'text';
+  }
+};
+
+const deleteTheaterHistory = async (i) => {
+  theaterHistory.value.splice(i, 1);
+  await dbSet(`groupTheaterHistory_${roomId}`, JSON.parse(JSON.stringify(theaterHistory.value)));
+};
+
+const startEditTheaterHistory = (i) => {
+  const realIndex = theaterHistory.value.length - 1 - i;
+  theaterEditingIndex.value = realIndex;
+  theaterEditingContent.value = theaterHistory.value[realIndex].result;
+};
+
+const confirmEditTheaterHistory = async () => {
+  if (theaterEditingIndex.value === -1) return;
+  theaterHistory.value[theaterEditingIndex.value].result = theaterEditingContent.value;
+  await dbSet(`groupTheaterHistory_${roomId}`, JSON.parse(JSON.stringify(theaterHistory.value)));
+  theaterEditingIndex.value = -1;
+  theaterEditingContent.value = '';
+};
+
+const cancelEditTheaterHistory = () => {
+  theaterEditingIndex.value = -1;
+  theaterEditingContent.value = '';
+};
+const theaterCommentResult = ref('');
+const theaterCommentLoading = ref(false);
+
+const runTheaterComment = async () => {
+  if (!theaterTextResult.value) return;
+  if (!apiConfig.value.url || !apiConfig.value.key || !apiConfig.value.model) { alert('请先配置API'); return; }
+  theaterCommentLoading.value = true;
+  theaterCommentResult.value = '';
+  const membersDesc = members.value.map(m => `${getMemberRealName(m)}${m.persona ? '（' + m.persona + '）' : ''}`).join('、');
+  const systemPrompt = `这是一个群聊场景，成员包括：${membersDesc}。请让每位成员分别用各自的口吻和性格，对以下这段番外小剧场发表评价、感想或吐槽（可以害羞、骄傲、否认、感动、调侃等，保持各自角色性格，口语化）。每位成员说一到两句，格式：成员名：内容`;
+  const userPrompt = `以下是番外小剧场内容，请各成员评论：\n\n${theaterTextResult.value}`;
+  try {
+    const res = await fetch(`${apiConfig.value.url.replace(/\/$/, '')}/chat/completions`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiConfig.value.key}` },
+      body: JSON.stringify({ model: apiConfig.value.model, messages: [{ role: 'system', content: systemPrompt }, { role: 'user', content: userPrompt }] })
+    });
+    const data = await res.json();
+    theaterCommentResult.value = data.choices?.[0]?.message?.content || '（评论失败）';
+    if (theaterHistory.value.length > 0) {
+      theaterHistory.value[theaterHistory.value.length - 1].comment = theaterCommentResult.value;
+      await dbSet(`groupTheaterHistory_${roomId}`, JSON.parse(JSON.stringify(theaterHistory.value)));
+    }
+    addRoomLog('群成员评论生成成功');
+  } catch (e) {
+    theaterCommentResult.value = '（评论失败：' + e.message + '）';
+    addRoomLog('群成员评论生成失败：' + e.message, 'error');
+  }
+  theaterCommentLoading.value = false;
+};
 
     const doSummary = async () => {
       const valid = allMessages.value.filter(m => !m.recalled && !m.loading);
@@ -513,6 +864,65 @@ const lines = processedReply.split('&').map(l => l.trim()).filter(l => l.length 
       summaryShow.value = false;
       addRoomLog(`回忆已插入（位置：${summaryPos.value === 'before_history' ? '消息历史前' : '系统提示词后'}）`);
     };
+const startAutoSend = () => {
+  stopAutoSend();
+  if (!autoSendOn.value) return;
+  const triggerAutoSend = async () => {
+    if (autoSendUseHiddenMsg.value && autoSendHiddenMsg.value.trim()) {
+      const hiddenMsg = { id: Date.now(), role: 'user', content: autoSendHiddenMsg.value.trim(), type: 'normal', senderName: myName.value, memberId: null, quoteId: null, recalled: false, revealed: false, timestamp: Date.now() };
+      allMessages.value.push(hiddenMsg);
+      await saveMessages();
+      nextTick(() => { scrollToBottom(); refreshIcons(); });
+    }
+    await callApi();
+  };
+  if (autoSendMode.value === 'interval') {
+    const ms = autoSendIntervalUnit.value === 'sec' ? autoSendInterval.value * 1000 : autoSendInterval.value * 60 * 1000;
+    autoSendTimer = setInterval(triggerAutoSend, ms);
+  } else {
+    let lastTriggeredMinute = '';
+    autoSendTimer = setInterval(() => {
+      const now = new Date();
+      const timeStr = `${now.getHours().toString().padStart(2,'0')}:${now.getMinutes().toString().padStart(2,'0')}`;
+      if (autoSendTimes.value.includes(timeStr) && timeStr !== lastTriggeredMinute) {
+        lastTriggeredMinute = timeStr;
+        triggerAutoSend();
+      }
+    }, 30 * 1000);
+  }
+};
+
+const stopAutoSend = () => {
+  if (autoSendTimer) { clearInterval(autoSendTimer); autoSendTimer = null; }
+};
+
+const saveAutoSendSettings = async () => {
+  await dbSet(`groupAutoSend_${roomId}`, JSON.parse(JSON.stringify({
+    on: autoSendOn.value, mode: autoSendMode.value, interval: autoSendInterval.value,
+    intervalUnit: autoSendIntervalUnit.value, times: autoSendTimes.value,
+    useHiddenMsg: autoSendUseHiddenMsg.value, hiddenMsg: autoSendHiddenMsg.value
+  })));
+};
+
+const toggleAutoSend = async () => {
+  autoSendOn.value = !autoSendOn.value;
+  if (autoSendOn.value) startAutoSend();
+  else stopAutoSend();
+  await saveAutoSendSettings();
+};
+
+const addAutoSendTime = () => {
+  const t = autoSendNewTime.value.trim();
+  if (!t) return;
+  if (!autoSendTimes.value.includes(t)) { autoSendTimes.value.push(t); saveAutoSendSettings(); }
+  autoSendNewTime.value = '';
+};
+
+const removeAutoSendTime = (i) => {
+  autoSendTimes.value.splice(i, 1);
+  saveAutoSendSettings();
+};
+
     const confirmDissolve = async () => {
       const roomList = JSON.parse(JSON.stringify((await dbGet('roomList')) || []));
       const idx = roomList.findIndex(r => r.id === roomId);
@@ -521,11 +931,34 @@ const lines = processedReply.split('&').map(l => l.trim()).filter(l => l.length 
     };
 
     // 气泡操作
-    const onTouchStart = (msg, i, e) => { touchMoved = false; longPressTimer = setTimeout(() => { if (!touchMoved) { bubbleMenuMsgId.value = bubbleMenuMsgId.value === msg.id ? null : msg.id; nextTick(() => refreshIcons()); } }, 500); };
-    const onTouchEnd = () => { clearTimeout(longPressTimer); };
-    const onTouchMove = () => { touchMoved = true; clearTimeout(longPressTimer); };
-    const onMouseDown = (msg, i) => { longPressTimer = setTimeout(() => { bubbleMenuMsgId.value = bubbleMenuMsgId.value === msg.id ? null : msg.id; nextTick(() => refreshIcons()); }, 500); };
-    const onMouseUp = () => { clearTimeout(longPressTimer); };
+    const bubbleMenuPos = ref({ top: 0 });
+const onTouchStart = (msg, i, e) => {
+  touchMoved = false;
+  const touch = e.touches[0];
+  const ty = touch.clientY;
+  longPressTimer = setTimeout(() => {
+    if (!touchMoved) {
+      bubbleMenuMsgId.value = bubbleMenuMsgId.value === msg.id ? null : msg.id;
+      const menuH = 60;
+      const top = ty + menuH > window.innerHeight - 80 ? ty - menuH - 8 : ty + 8;
+      bubbleMenuPos.value = { top };
+      nextTick(() => refreshIcons());
+    }
+  }, 500);
+};
+const onTouchEnd = () => { clearTimeout(longPressTimer); };
+const onTouchMove = () => { touchMoved = true; clearTimeout(longPressTimer); };
+const onMouseDown = (msg, i, e) => {
+  const my = e ? e.clientY : window.innerHeight / 2;
+  longPressTimer = setTimeout(() => {
+    bubbleMenuMsgId.value = bubbleMenuMsgId.value === msg.id ? null : msg.id;
+    const menuH = 60;
+    const top = my + menuH > window.innerHeight - 80 ? my - menuH - 8 : my + 8;
+    bubbleMenuPos.value = { top };
+    nextTick(() => refreshIcons());
+  }, 500);
+};
+const onMouseUp = () => { clearTimeout(longPressTimer); };
 
     const quoteMsg = (msg) => { quotingMsg.value = msg; bubbleMenuMsgId.value = null; };
     const recallMsg = async (msg) => { msg.recalled = true; bubbleMenuMsgId.value = null; await saveMessages(); };
@@ -619,6 +1052,9 @@ const lines = processedReply.split('&').map(l => l.trim()).filter(l => l.length 
     };
 
     onMounted(async () => {
+    if (typeof listenForNotifications === 'function') listenForNotifications();
+if (typeof requestNotifyPermission === 'function') requestNotifyPermission();
+
       // 加载自定义字体
       const savedFont = await dbGet('customFont');
       if (savedFont && savedFont.src) {
@@ -642,6 +1078,16 @@ const lines = processedReply.split('&').map(l => l.trim()).filter(l => l.length 
 
       if (dark) document.body.classList.add('dark');
       if (wp) { document.body.style.backgroundImage = `url(${wp})`; document.body.style.backgroundSize = 'cover'; document.body.style.backgroundPosition = 'center'; }
+const [groupTheaterPresetsData, groupTheaterHtmlPresetsData, groupTheaterHistoryData, groupTheaterStylePresetsData] = await Promise.all([
+  dbGet(`groupTheaterPresets_${roomId}`),
+  dbGet(`groupTheaterHtmlPresets_${roomId}`),
+  dbGet(`groupTheaterHistory_${roomId}`),
+  dbGet(`groupTheaterStylePresets_${roomId}`)
+]);
+if (groupTheaterPresetsData) theaterPresets.value = groupTheaterPresetsData;
+if (groupTheaterHtmlPresetsData) theaterHtmlPresets.value = groupTheaterHtmlPresetsData;
+if (groupTheaterHistoryData) theaterHistory.value = groupTheaterHistoryData;
+if (groupTheaterStylePresetsData) theaterStylePresets.value = groupTheaterStylePresetsData;
 
       const rooms = roomList || [];
       const room = rooms.find(r => r.id === roomId);
@@ -666,6 +1112,18 @@ if (savedRealtimeTime !== null) realtimeTimeOn.value = savedRealtimeTime;
       if (stickerData.value.categories.length) stickerCurrentCat.value = stickerData.value.categories[0].name;
       if (stickerCats) { allMemberStickerCats.value = stickerCats.all || []; memberStickerCats.value = stickerCats.members || {}; }
       if (savedSummaries) summaries.value = savedSummaries;
+const autoSendData = await dbGet(`groupAutoSend_${roomId}`);
+if (autoSendData) {
+  autoSendOn.value = autoSendData.on || false;
+  autoSendMode.value = autoSendData.mode || 'interval';
+  autoSendInterval.value = autoSendData.interval || 5;
+  autoSendIntervalUnit.value = autoSendData.intervalUnit || 'min';
+  autoSendTimes.value = autoSendData.times || [];
+  autoSendUseHiddenMsg.value = autoSendData.useHiddenMsg !== false;
+  if (autoSendData.hiddenMsg !== undefined) autoSendHiddenMsg.value = autoSendData.hiddenMsg;
+  if (autoSendOn.value) startAutoSend();
+}
+
       const savedPeekHistory = await dbGet(`groupPeekHistory_${roomId}`);
       if (savedPeekHistory) peekHistory.value = savedPeekHistory;
       const savedMirrorHistory = await dbGet(`groupMirrorHistory_${roomId}`);
@@ -709,7 +1167,7 @@ if (savedRealtimeTime !== null) realtimeTimeOn.value = savedRealtimeTime;
       toggleAllMemberStickerCat, toggleMemberStickerCat, saveMemberStickerCats,
       triggerStickerFile, importStickerFile, importStickerUrl, importStickerBatch,
       createStickerCat, sendStickerFromPanel, sendSticker,
-      bubbleMenuMsgId, quotingMsg, multiSelectMode, selectedMsgs,
+      bubbleMenuMsgId, bubbleMenuPos, quotingMsg, multiSelectMode, selectedMsgs,
       toggleToolbar, goBack, getMsg, addRoomLog,
       sendMsg, sendWhisper, callApi,
       openPeekSoul, doPeekSoul, openDimensionMirror, doMirror,
@@ -722,6 +1180,27 @@ if (savedRealtimeTime !== null) realtimeTimeOn.value = savedRealtimeTime;
       quoteMsg, recallMsg, toggleRecallReveal, deleteMsg, editMsg, confirmEdit, cancelEdit,
       startMultiSelect, toggleSelect, deleteSelected, cancelMultiSelect, autoResize,
       messagesWithTime, formatMsgTime, showTimestamp, tsCharPos, tsMePos, tsFormat, tsCustom, tsSize, tsColor, tsOpacity, tsMeColor, tsMeOpacity, getMsgTimestamp, translateOn, translateLang, toggleTranslate, realtimeTimeOn, 
+  theaterShow, theaterTab, theaterLoading,
+theaterTextPrompt, theaterHtmlPrompt,
+theaterSaveName, theaterHtmlSaveName,
+theaterTextResult, theaterHtmlResult, theaterHtmlViewShow,
+theaterPresets, theaterHtmlPresets, theaterHistory,
+theaterStylePrompt, theaterStylePresets, theaterStyleSaveName, theaterStyleExpanded,
+theaterEditingIndex, theaterEditingContent,
+charSlots, charSlotsTarget, charPickerSelections,
+openTheater, replaceTheaterVars, getMemberRealName,
+saveTheaterPreset, deleteTheaterPreset,
+saveTheaterHtmlPreset, deleteTheaterHtmlPreset,
+saveTheaterStylePreset, deleteTheaterStylePreset,
+runTextTheater, runHtmlTheater,
+viewTheaterHistory, deleteTheaterHistory,
+startEditTheaterHistory, confirmEditTheaterHistory, cancelEditTheaterHistory,
+theaterCommentResult, theaterCommentLoading, runTheaterComment,
+parseCharSlots, cycleSlotName, setAllSlots, applyCharSlots,
+autoSendOn, autoSendMode, autoSendInterval, autoSendIntervalUnit,
+autoSendTimes, autoSendNewTime, autoSendUseHiddenMsg, autoSendHiddenMsg,
+toggleAutoSend, startAutoSend, saveAutoSendSettings, addAutoSendTime, removeAutoSendTime,
+
     };
   }
 }).mount('#groupchat-app');

@@ -49,12 +49,21 @@ createApp({
     const enterChat = (c) => { window.location.href = `chatroom.html?id=${c.id}&type=char`; };
     const enterRoom = (r) => { window.location.href = `groupchat.html?id=${r.id}`; };
     const enterRandomChat = (c) => { window.location.href = `chatroom.html?id=${c.id}&type=char`; };
+    
+const deleteRandomChar = async (c) => {
+  if (!confirm(`确定要删除「${c.name}」吗？所有聊天记录将被永久删除`)) return;
+  randomCharList.value = randomCharList.value.filter(x => x.id !== c.id);
+  await dbSet('randomCharList', JSON.parse(JSON.stringify(randomCharList.value)));
+};
 
     const handleOutsideClick = (e) => {
       if (menuOpen.value && menuBtnRef.value && !menuBtnRef.value.contains(e.target)) { menuOpen.value = false; }
     };
 
     onMounted(async () => {
+if (typeof listenForNotifications === 'function') listenForNotifications();
+if (typeof requestNotifyPermission === 'function') requestNotifyPermission();
+
       const savedFont = await dbGet('customFont');
       if (savedFont && savedFont.src) {
         let style = document.getElementById('custom-font-style');
@@ -88,6 +97,15 @@ createApp({
         const beauty = await dbGet(`chatBeauty_${c.id}`);
         if (beauty && beauty.charAvatar) { c.avatar = beauty.charAvatar; }
       }
+// 监听页面显示（从chatroom返回时刷新随机角色列表）
+window.addEventListener('focus', async () => {
+  const randomChars = await dbGet('randomCharList');
+  randomCharList.value = randomChars || [];
+  for (const c of randomCharList.value) {
+    const beauty = await dbGet(`chatBeauty_${c.id}`);
+    if (beauty && beauty.charAvatar) { c.avatar = beauty.charAvatar; }
+  }
+});
 
       nextTick(() => refreshIcons());
       document.addEventListener('click', handleOutsideClick);
@@ -99,7 +117,8 @@ createApp({
       toggleMenu, openConnectChar, openConnectRoom, goRandom, goBack, goToWorldbook,
       confirmConnectChar, confirmConnectRoom, toggleMember,
       enterChat, enterRoom,
-      randomCharList, enterRandomChat,
+      randomCharList, enterRandomChat, deleteRandomChar,
+
     };
   }
 }).mount('#chat-app');

@@ -623,6 +623,9 @@ ${worldPart}${personaPart}${typePromptParts ? typePromptParts + '\n' : ''}${extr
 
     // ===== 初始化 =====
     onMounted(async () => {
+if (typeof listenForNotifications === 'function') listenForNotifications();
+if (typeof requestNotifyPermission === 'function') requestNotifyPermission();
+
       const savedFont = await dbGet('customFont');
       if (savedFont && savedFont.src) {
         let style = document.getElementById('custom-font-style');

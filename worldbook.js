@@ -62,6 +62,9 @@ createApp({
     };
 
     onMounted(async () => {
+if (typeof listenForNotifications === 'function') listenForNotifications();
+if (typeof requestNotifyPermission === 'function') requestNotifyPermission();
+
       // 加载自定义字体
       const savedFont = await dbGet('customFont');
       if (savedFont && savedFont.src) {
