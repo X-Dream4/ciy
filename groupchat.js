@@ -87,6 +87,11 @@ const theaterHtmlSaveName = ref('');
 const theaterTextResult = ref('');
 const theaterHtmlResult = ref('');
 const theaterHtmlViewShow = ref(false);
+const htmlViewWidth = ref(92);
+const htmlViewHeight = ref(80);
+const htmlViewRounded = ref(true);
+const htmlViewPanelOpen = ref(false);
+
 const theaterPresets = ref([]);
 const theaterHtmlPresets = ref([]);
 const theaterHistory = ref([]);
@@ -897,6 +902,8 @@ const runHtmlTheater = async () => {
     theaterHtmlResult.value = htmlMatch ? htmlMatch[0] : raw;
     if (!theaterHtmlResult.value) { theaterHtmlResult.value = '<p style="padding:20px;color:#888;">（未生成HTML内容）</p>'; }
     theaterHtmlViewShow.value = true;
+    nextTick(() => refreshIcons());
+
     const record = { type: 'html', prompt: processedPrompt, result: theaterHtmlResult.value, time: new Date().toLocaleString() };
     theaterHistory.value.push(record);
     await dbSet(`groupTheaterHistory_${roomId}`, JSON.parse(JSON.stringify(theaterHistory.value)));
@@ -904,6 +911,8 @@ const runHtmlTheater = async () => {
   } catch (e) {
     theaterHtmlResult.value = `<p style="padding:20px;color:#e53e3e;">生成失败：${e.message}</p>`;
     theaterHtmlViewShow.value = true;
+    nextTick(() => refreshIcons());
+
     addRoomLog('次元剧场（HTML）生成失败：' + e.message, 'error');
   }
   theaterLoading.value = false;
@@ -914,6 +923,7 @@ const viewTheaterHistory = (h) => {
   if (h.type === 'html') {
     theaterHtmlResult.value = h.result;
     theaterHtmlViewShow.value = true;
+    nextTick(() => refreshIcons());
   } else {
     theaterTextResult.value = h.result;
     theaterTextPrompt.value = h.prompt;
@@ -1343,7 +1353,8 @@ autoSendOn, autoSendMode, autoSendInterval, autoSendIntervalUnit,
 autoSendTimes, autoSendNewTime, autoSendUseHiddenMsg, autoSendHiddenMsg,
 toggleAutoSend, startAutoSend, saveAutoSendSettings, addAutoSendTime, removeAutoSendTime,
 collectMsg, collectPeekRoom, collectMirrorRoom, collectSummaryRoom, collectTheaterRoom,
-collectPeekHistory, collectMirrorHistory,
+collectPeekHistory, collectMirrorHistory, htmlViewWidth, htmlViewHeight, htmlViewRounded, htmlViewPanelOpen,
+
     };
   }
 }).mount('#groupchat-app');

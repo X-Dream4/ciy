@@ -19,7 +19,7 @@ createApp({
 
     const charGroups = computed(() => {
       const groups = {};
-      collects.value.filter(c => c.sourceType !== 'room').forEach(item => {
+      collects.value.filter(c => c.charId != null && c.sourceType !== 'room').forEach(item => {
         const key = item.charId;
         if (!groups[key]) {
           const char = allChars.value.find(c => c.id == key);

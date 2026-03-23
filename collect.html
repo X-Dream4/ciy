@@ -23,9 +23,13 @@
   <div class="collect-body" v-if="!currentChar && !currentRoom">
 
     <!-- 切换tab -->
-    <div class="type-tabs" style="margin-bottom:14px;">
-      <div class="type-tab" :class="{active: viewMode==='chars'}" @click="viewMode='chars'">角色</div>
-      <div class="type-tab" :class="{active: viewMode==='rooms'}" @click="viewMode='rooms'">聊天室</div>
+    <div style="display:flex;gap:0;margin-bottom:14px;border-radius:10px;overflow:hidden;border:1.5px solid #e5e5ea;">
+      <div style="flex:1;padding:9px 0;text-align:center;font-size:13px;font-weight:600;cursor:pointer;transition:all 0.15s;"
+        :style="viewMode==='chars'?'background:#111;color:#fff;':'background:#fff;color:#555;'"
+        @click="viewMode='chars'">角色</div>
+      <div style="flex:1;padding:9px 0;text-align:center;font-size:13px;font-weight:600;cursor:pointer;transition:all 0.15s;border-left:1.5px solid #e5e5ea;"
+        :style="viewMode==='rooms'?'background:#111;color:#fff;':'background:#fff;color:#555;'"
+        @click="viewMode='rooms'">聊天室</div>
     </div>
 
     <!-- 角色列表 -->
@@ -88,8 +92,9 @@
           <div class="collect-type-badge" :class="'type-'+item.type">{{ typeLabel(item.type) }}</div>
           <div class="collect-by" v-if="item.collectedBy==='char'">
             <i data-lucide="bookmark" style="width:11px;height:11px;"></i>
-            {{ item.senderName || '角色' }} 收藏
+            {{ item.charName || item.senderName || '角色' }} 收藏
           </div>
+
           <div class="collect-by" v-else>
             <i data-lucide="bookmark" style="width:11px;height:11px;"></i>
             我收藏

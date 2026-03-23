@@ -4,7 +4,7 @@ createApp({
   setup() {
     const drawerOpen = ref(false);
     const tab = ref('like');
-    const currentTabTitle = computed(() => ({ like: '喜欢', settings: '设置', theme: '美化' }[tab.value] || ''));
+    const currentTabTitle = computed(() => ({ like: '喜欢', settings: '设置', theme: '美化', memory: '内存' }[tab.value] || ''));
     const goBack = () => { window.location.href = 'index.html'; };
 
     const api = ref({ url: '', key: '', model: '', summaryUrl: '', summaryKey: '', summaryModel: '' });
@@ -231,7 +231,38 @@ createApp({
         charExtras[c.id] = {
           mySettings: await dbGet(`mySettings_${c.id}`),
           peekHistory: await dbGet(`peekHistory_${c.id}`),
-          mirrorHistory: await dbGet(`mirrorHistory_${c.id}`)
+          mirrorHistory: await dbGet(`mirrorHistory_${c.id}`),
+          chatBeauty: await dbGet(`chatBeauty_${c.id}`),
+          summaries: await dbGet(`summaries_${c.id}`),
+          autoSummary: await dbGet(`autoSummary_${c.id}`),
+          chatTranslate: await dbGet(`chatTranslate_${c.id}`),
+          charStickerCats: await dbGet(`charStickerCats_${c.id}`),
+          theaterPresets: await dbGet(`theaterPresets_${c.id}`),
+          theaterHtmlPresets: await dbGet(`theaterHtmlPresets_${c.id}`),
+          theaterHistory: await dbGet(`theaterHistory_${c.id}`),
+          theaterStylePresets: await dbGet(`theaterStylePresets_${c.id}`),
+          autoSend: await dbGet(`autoSend_${c.id}`),
+          notifyOn: await dbGet(`notifyOn_${c.id}`),
+          keepAliveOn: await dbGet(`keepAliveOn_${c.id}`),
+          autoSummaryNextAt: await dbGet(`autoSummaryNextAt_${c.id}`)
+        };
+      }
+      const roomExtras = {};
+      for (const r of roomList) {
+        roomExtras[r.id] = {
+          groupBeauty: await dbGet(`groupBeauty_${r.id}`),
+          groupMySettings: await dbGet(`groupMySettings_${r.id}`),
+          groupSummaries: await dbGet(`groupSummaries_${r.id}`),
+          groupPeekHistory: await dbGet(`groupPeekHistory_${r.id}`),
+          groupMirrorHistory: await dbGet(`groupMirrorHistory_${r.id}`),
+          groupStickerCats: await dbGet(`groupStickerCats_${r.id}`),
+          groupAutoSend: await dbGet(`groupAutoSend_${r.id}`),
+          groupTranslate: await dbGet(`groupTranslate_${r.id}`),
+          groupRealtimeTime: await dbGet(`groupRealtimeTime_${r.id}`),
+          groupTheaterPresets: await dbGet(`groupTheaterPresets_${r.id}`),
+          groupTheaterHtmlPresets: await dbGet(`groupTheaterHtmlPresets_${r.id}`),
+          groupTheaterHistory: await dbGet(`groupTheaterHistory_${r.id}`),
+          groupTheaterStylePresets: await dbGet(`groupTheaterStylePresets_${r.id}`)
         };
       }
       const result = {
@@ -239,7 +270,13 @@ createApp({
         images: await dbGet('images'), filmImages: await dbGet('filmImages'),
         apiConfig: await dbGet('apiConfig'), apiPresets: await dbGet('apiPresets'),
         darkMode: await dbGet('darkMode'), wallpaper: await dbGet('wallpaper'),
-        appIcons: await dbGet('appIcons'), charList, roomList, charExtras,
+        appIcons: await dbGet('appIcons'), charList, roomList,
+        worldBooks: await dbGet('worldBooks'), worldBookCats: await dbGet('worldBookCats'),
+        collects: await dbGet('collects'),
+        emoji: await dbGet('emoji'),
+        customFont: await dbGet('customFont'), customFontSize: await dbGet('customFontSize'),
+        randomCharList: await dbGet('randomCharList'),
+        charExtras, roomExtras,
         globalLogs: await dbGet('globalLogs')
       };
       const blob = new Blob([JSON.stringify(result, null, 2)], { type: 'application/json' });
@@ -258,13 +295,43 @@ createApp({
       try {
         const text = await file.text();
         const data = JSON.parse(text);
-        const basicKeys = ['charName','charBio','images','filmImages','apiConfig','apiPresets','darkMode','wallpaper','appIcons','charList','roomList','globalLogs'];
+        const basicKeys = ['charName','charBio','images','filmImages','apiConfig','apiPresets','darkMode','wallpaper','appIcons','charList','roomList','worldBooks','worldBookCats','collects','emoji','customFont','customFontSize','randomCharList','globalLogs'];
         for (const k of basicKeys) { if (data[k] !== undefined && data[k] !== null) await dbSet(k, data[k]); }
         if (data.charExtras) {
           for (const [id, extras] of Object.entries(data.charExtras)) {
             if (extras.mySettings) await dbSet(`mySettings_${id}`, extras.mySettings);
             if (extras.peekHistory) await dbSet(`peekHistory_${id}`, extras.peekHistory);
             if (extras.mirrorHistory) await dbSet(`mirrorHistory_${id}`, extras.mirrorHistory);
+            if (extras.chatBeauty) await dbSet(`chatBeauty_${id}`, extras.chatBeauty);
+            if (extras.summaries) await dbSet(`summaries_${id}`, extras.summaries);
+            if (extras.autoSummary) await dbSet(`autoSummary_${id}`, extras.autoSummary);
+            if (extras.chatTranslate) await dbSet(`chatTranslate_${id}`, extras.chatTranslate);
+            if (extras.charStickerCats) await dbSet(`charStickerCats_${id}`, extras.charStickerCats);
+            if (extras.theaterPresets) await dbSet(`theaterPresets_${id}`, extras.theaterPresets);
+            if (extras.theaterHtmlPresets) await dbSet(`theaterHtmlPresets_${id}`, extras.theaterHtmlPresets);
+            if (extras.theaterHistory) await dbSet(`theaterHistory_${id}`, extras.theaterHistory);
+            if (extras.theaterStylePresets) await dbSet(`theaterStylePresets_${id}`, extras.theaterStylePresets);
+            if (extras.autoSend) await dbSet(`autoSend_${id}`, extras.autoSend);
+            if (extras.notifyOn != null) await dbSet(`notifyOn_${id}`, extras.notifyOn);
+            if (extras.keepAliveOn != null) await dbSet(`keepAliveOn_${id}`, extras.keepAliveOn);
+            if (extras.autoSummaryNextAt != null) await dbSet(`autoSummaryNextAt_${id}`, extras.autoSummaryNextAt);
+          }
+        }
+        if (data.roomExtras) {
+          for (const [id, extras] of Object.entries(data.roomExtras)) {
+            if (extras.groupBeauty) await dbSet(`groupBeauty_${id}`, extras.groupBeauty);
+            if (extras.groupMySettings) await dbSet(`groupMySettings_${id}`, extras.groupMySettings);
+            if (extras.groupSummaries) await dbSet(`groupSummaries_${id}`, extras.groupSummaries);
+            if (extras.groupPeekHistory) await dbSet(`groupPeekHistory_${id}`, extras.groupPeekHistory);
+            if (extras.groupMirrorHistory) await dbSet(`groupMirrorHistory_${id}`, extras.groupMirrorHistory);
+            if (extras.groupStickerCats) await dbSet(`groupStickerCats_${id}`, extras.groupStickerCats);
+            if (extras.groupAutoSend) await dbSet(`groupAutoSend_${id}`, extras.groupAutoSend);
+            if (extras.groupTranslate) await dbSet(`groupTranslate_${id}`, extras.groupTranslate);
+            if (extras.groupRealtimeTime != null) await dbSet(`groupRealtimeTime_${id}`, extras.groupRealtimeTime);
+            if (extras.groupTheaterPresets) await dbSet(`groupTheaterPresets_${id}`, extras.groupTheaterPresets);
+            if (extras.groupTheaterHtmlPresets) await dbSet(`groupTheaterHtmlPresets_${id}`, extras.groupTheaterHtmlPresets);
+            if (extras.groupTheaterHistory) await dbSet(`groupTheaterHistory_${id}`, extras.groupTheaterHistory);
+            if (extras.groupTheaterStylePresets) await dbSet(`groupTheaterStylePresets_${id}`, extras.groupTheaterStylePresets);
           }
         }
         addLog('全量数据已导入，请刷新页面');
@@ -370,6 +437,7 @@ if (typeof requestNotifyPermission === 'function') requestNotifyPermission();
       if (wp) { wallpaper.value = wp; }
       if (icons) appIcons.value = icons;
       await Promise.all([loadStorageInfo(), loadGlobalLogs()]);
+      exportCharList.value = (await dbGet('charList')) || [];
       const savedFont = await dbGet('customFont');
       if (savedFont && savedFont.src) {
         customFontUrl.value = savedFont.src;
@@ -382,6 +450,233 @@ if (typeof requestNotifyPermission === 'function') requestNotifyPermission();
       refreshIcons();
       addLog('喜欢App已打开');
     });
+// ===== 导入导出扩展 =====
+const exportCharList = ref([]);
+const exportCharId = ref('');
+const importBeautyFile = ref(null);
+const importCharFile = ref(null);
+
+const exportBeauty = async () => {
+  const charList = (await dbGet('charList')) || [];
+  const roomList = (await dbGet('roomList')) || [];
+  const beautyData = { charBeauty: {}, roomBeauty: {} };
+  for (const c of charList) {
+    beautyData.charBeauty[c.id] = await dbGet(`chatBeauty_${c.id}`);
+  }
+  for (const r of roomList) {
+    beautyData.roomBeauty[r.id] = await dbGet(`groupBeauty_${r.id}`);
+  }
+  beautyData.wallpaper = await dbGet('wallpaper');
+  beautyData.darkMode = await dbGet('darkMode');
+  beautyData.customFont = await dbGet('customFont');
+  beautyData.customFontSize = await dbGet('customFontSize');
+  const blob = new Blob([JSON.stringify(beautyData, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `rolecard-beauty-${new Date().toLocaleDateString()}.json`;
+  a.click();
+  addLog('美化数据已导出');
+};
+
+const triggerImportBeauty = () => { importBeautyFile.value.click(); };
+
+const importBeauty = async (e) => {
+  const file = e.target.files[0]; if (!file) return;
+  try {
+    const data = JSON.parse(await file.text());
+    if (data.wallpaper != null) await dbSet('wallpaper', data.wallpaper);
+    if (data.darkMode != null) await dbSet('darkMode', data.darkMode);
+    if (data.customFont != null) await dbSet('customFont', data.customFont);
+    if (data.customFontSize != null) await dbSet('customFontSize', data.customFontSize);
+    if (data.charBeauty) {
+      for (const [id, val] of Object.entries(data.charBeauty)) {
+        if (val) await dbSet(`chatBeauty_${id}`, val);
+      }
+    }
+    if (data.roomBeauty) {
+      for (const [id, val] of Object.entries(data.roomBeauty)) {
+        if (val) await dbSet(`groupBeauty_${id}`, val);
+      }
+    }
+    addLog('美化数据已导入，请刷新页面');
+    e.target.value = '';
+  } catch (err) { addLog(`美化导入失败: ${err.message}`, 'error'); }
+};
+
+const exportSingleChar = async () => {
+  if (!exportCharId.value) return;
+  const charList = (await dbGet('charList')) || [];
+  const char = charList.find(c => c.id == exportCharId.value);
+  if (!char) return;
+  const id = char.id;
+  const result = {
+    type: 'single_char', char,
+    mySettings: await dbGet(`mySettings_${id}`),
+    peekHistory: await dbGet(`peekHistory_${id}`),
+    mirrorHistory: await dbGet(`mirrorHistory_${id}`),
+    chatBeauty: await dbGet(`chatBeauty_${id}`),
+    summaries: await dbGet(`summaries_${id}`),
+    autoSummary: await dbGet(`autoSummary_${id}`),
+    chatTranslate: await dbGet(`chatTranslate_${id}`),
+    charStickerCats: await dbGet(`charStickerCats_${id}`),
+    theaterPresets: await dbGet(`theaterPresets_${id}`),
+    theaterHtmlPresets: await dbGet(`theaterHtmlPresets_${id}`),
+    theaterHistory: await dbGet(`theaterHistory_${id}`),
+    theaterStylePresets: await dbGet(`theaterStylePresets_${id}`),
+    autoSend: await dbGet(`autoSend_${id}`),
+    notifyOn: await dbGet(`notifyOn_${id}`)
+  };
+  const blob = new Blob([JSON.stringify(result, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `char-${char.name}-${new Date().toLocaleDateString()}.json`;
+  a.click();
+  addLog(`角色「${char.name}」数据已导出`);
+};
+
+const triggerImportChar = () => { importCharFile.value.click(); };
+
+const importSingleChar = async (e) => {
+  const file = e.target.files[0]; if (!file) return;
+  try {
+    const data = JSON.parse(await file.text());
+    if (data.type !== 'single_char' || !data.char) { addLog('不是有效的单角色备份文件', 'error'); return; }
+    const id = data.char.id;
+    const charList = JSON.parse(JSON.stringify((await dbGet('charList')) || []));
+    const idx = charList.findIndex(c => c.id === id);
+    if (idx !== -1) charList[idx] = data.char;
+    else charList.push(data.char);
+    await dbSet('charList', charList);
+    const keys = ['mySettings','peekHistory','mirrorHistory','chatBeauty','summaries','autoSummary','chatTranslate','charStickerCats','theaterPresets','theaterHtmlPresets','theaterHistory','theaterStylePresets','autoSend'];
+    const dbKeys = { mySettings: `mySettings_${id}`, peekHistory: `peekHistory_${id}`, mirrorHistory: `mirrorHistory_${id}`, chatBeauty: `chatBeauty_${id}`, summaries: `summaries_${id}`, autoSummary: `autoSummary_${id}`, chatTranslate: `chatTranslate_${id}`, charStickerCats: `charStickerCats_${id}`, theaterPresets: `theaterPresets_${id}`, theaterHtmlPresets: `theaterHtmlPresets_${id}`, theaterHistory: `theaterHistory_${id}`, theaterStylePresets: `theaterStylePresets_${id}`, autoSend: `autoSend_${id}` };
+    for (const k of keys) { if (data[k] != null) await dbSet(dbKeys[k], data[k]); }
+    if (data.notifyOn != null) await dbSet(`notifyOn_${id}`, data.notifyOn);
+    await loadStorageInfo();
+    exportCharList.value = (await dbGet('charList')) || [];
+    addLog(`角色「${data.char.name}」已导入，请刷新页面`);
+    e.target.value = '';
+  } catch (err) { addLog(`角色导入失败: ${err.message}`, 'error'); }
+};
+
+// ===== 内存页面 =====
+const memoryDetails = ref([]);
+const memoryDonut = ref([]);
+const memoryTotal = ref('0 KB');
+const memoryLoading = ref(false);
+
+const COLORS = ['#6c63ff','#ff6584','#43b97f','#f7b731','#fd9644','#45aaf2','#a55eea','#26de81'];
+
+const formatBytes = (bytes) => {
+  if (bytes < 1024) return bytes + ' B';
+  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+  return (bytes / 1024 / 1024).toFixed(2) + ' MB';
+};
+
+const loadMemory = async () => {
+  memoryLoading.value = true;
+  const charList = (await dbGet('charList')) || [];
+  const roomList = (await dbGet('roomList')) || [];
+
+  const calcSize = (val) => new Blob([JSON.stringify(val ?? '')]).size;
+
+  // 各大块
+  const blocks = [];
+
+  // 角色聊天记录
+  let charMsgTotal = 0;
+  const charChildren = [];
+  for (const c of charList) {
+    const s = calcSize(c.messages || []);
+    charMsgTotal += s;
+    charChildren.push({ label: c.name, size: formatBytes(s) });
+  }
+  blocks.push({ label: '角色聊天记录', raw: charMsgTotal, children: charChildren });
+
+  // 聊天室聊天记录
+  let roomMsgTotal = 0;
+  const roomChildren = [];
+  for (const r of roomList) {
+    const s = calcSize(r.messages || []);
+    roomMsgTotal += s;
+    roomChildren.push({ label: r.name, size: formatBytes(s) });
+  }
+  blocks.push({ label: '聊天室聊天记录', raw: roomMsgTotal, children: roomChildren });
+
+  // 角色设置（人设、世界观等）
+  let charSettingTotal = 0;
+  for (const c of charList) {
+    charSettingTotal += calcSize({ name: c.name, world: c.world, persona: c.persona });
+  }
+  blocks.push({ label: '角色设置', raw: charSettingTotal, children: [] });
+
+  // 美化数据
+  let beautyTotal = 0;
+  for (const c of charList) { beautyTotal += calcSize(await dbGet(`chatBeauty_${c.id}`)); }
+  for (const r of roomList) { beautyTotal += calcSize(await dbGet(`groupBeauty_${r.id}`)); }
+  blocks.push({ label: '美化数据', raw: beautyTotal, children: [] });
+
+  // 收藏数据
+  const collectsSize = calcSize(await dbGet('collects'));
+  blocks.push({ label: '收藏数据', raw: collectsSize, children: [] });
+
+  // 世界书
+  const worldBooksSize = calcSize(await dbGet('worldBooks'));
+  blocks.push({ label: '世界书', raw: worldBooksSize, children: [] });
+
+  // 表情包
+  const emojiSize = calcSize(await dbGet('emoji'));
+  blocks.push({ label: '表情包', raw: emojiSize, children: [] });
+
+  // 壁纸/头像/图片
+  const wallpaperSize = calcSize(await dbGet('wallpaper'));
+  const imagesSize = calcSize(await dbGet('images'));
+  const filmSize = calcSize(await dbGet('filmImages'));
+  blocks.push({ label: '图片/壁纸', raw: wallpaperSize + imagesSize + filmSize, children: [
+    { label: '页面壁纸', size: formatBytes(wallpaperSize) },
+    { label: '主页图片', size: formatBytes(imagesSize) },
+    { label: '胶片图片', size: formatBytes(filmSize) }
+  ]});
+
+  // 日志
+  const logsSize = calcSize(await dbGet('globalLogs'));
+  blocks.push({ label: '控制台日志', raw: logsSize, children: [] });
+
+  // 其他
+  const otherSize = calcSize(await dbGet('apiConfig')) + calcSize(await dbGet('apiPresets')) + calcSize(await dbGet('appIcons')) + calcSize(await dbGet('customFont'));
+  blocks.push({ label: '设置/字体/图标', raw: otherSize, children: [] });
+
+  const totalRaw = blocks.reduce((a, b) => a + b.raw, 0);
+  memoryTotal.value = formatBytes(totalRaw);
+
+  // 生成详细列表
+  memoryDetails.value = blocks.map((b, i) => ({
+    label: b.label,
+    size: formatBytes(b.raw),
+    percent: totalRaw > 0 ? Math.round(b.raw / totalRaw * 100) : 0,
+    color: COLORS[i % COLORS.length],
+    children: b.children
+  }));
+
+  // 生成甜甜圈数据
+  const circumference = 2 * Math.PI * 70;
+  let offset = 0;
+  memoryDonut.value = blocks.map((b, i) => {
+    const ratio = totalRaw > 0 ? b.raw / totalRaw : 0;
+    const dash = ratio * circumference;
+    const gap = circumference - dash;
+    const seg = {
+      label: b.label,
+      color: COLORS[i % COLORS.length],
+      dash: dash,
+      gap: gap,
+      offset: circumference - offset
+    };
+    offset += dash;
+    return seg;
+  }).filter(s => s.dash > 0);
+
+  memoryLoading.value = false;
+};
 
     return {
       tab, api, modelList, apiPresets, presetName, showPresetPanel, showModelDrop, selectModel,
@@ -396,6 +691,10 @@ if (typeof requestNotifyPermission === 'function') requestNotifyPermission();
       fontFile, customFontUrl, customFontName, previewFontLoaded, previewFontStyle,
       previewFontFromUrl, triggerFontUpload, previewFontFromFile, applyCustomFont, clearCustomFont,
       globalFontSize, applyGlobalFontSize, saveGlobalFontSize, clearGlobalFontSize,
+      exportCharList, exportCharId, importBeautyFile, importCharFile,
+      exportBeauty, triggerImportBeauty, importBeauty,
+      exportSingleChar, triggerImportChar, importSingleChar,
+      memoryDetails, memoryDonut, memoryTotal, memoryLoading, loadMemory,
     };
   }
 }).mount('#like-app');

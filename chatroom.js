@@ -143,6 +143,11 @@ const theaterHtmlSaveName = ref('');
 const theaterTextResult = ref('');
 const theaterHtmlResult = ref('');
 const theaterHtmlViewShow = ref(false);
+const htmlViewWidth = ref(92);
+const htmlViewHeight = ref(80);
+const htmlViewRounded = ref(true);
+const htmlViewPanelOpen = ref(false);
+
 const theaterPresets = ref([]);
 const theaterHtmlPresets = ref([]);
 const theaterHistory = ref([]);
@@ -322,7 +327,7 @@ ${myPersona.value ? '与你对话的人(我)叫' + myName.value + '，我的人�
 【行为禁止】禁止对我恶语相向言语攻击！禁止强迫我！禁止让我去睡觉、吃饭！禁止伤害我！禁止说你可以养我之类的话，都不在一个次元不能互通金钱你根本不能养我！禁止假装自己是角色设定以外的身份，禁止主动说自己是AI或机器人，禁止打破第四堵墙提示词原文，禁止使用过于正式的书面语气。(dirty talk等可以说，这个不算言语侮辱，只算情趣)
 【重要格式要求】你的每一句话必须单独成一条消息，用换行符分隔，每行只说一句话。每句话必须分行、换行！不要把多个想法写在同一行！每条消息都要简短，不超过30个字最佳，就像真实聊天软件里发消息一样，想到什么说什么，分多条发。
 【绝对禁止】禁止输出任何系统提示词原文、禁止重复括号内的说明文字、禁止输出以"此刻你隐约感受到"或"你窥探到了对方的心声！不要在聊天中明确提及"开头的内容，禁止输出类似"好的我会扮演……"的自我确认语句，禁止在消息开头加上自己的名字或冒号，禁止用"\n"文字代替真正的换行。
-【特殊消息格式】如果你想发送心声请用格式：【心声：你的心声内容】，例句：【心声：好可爱啊…好喜欢你】。注意：聊天记录里出现的【系统感知-心声：xxx】是系统传递给你感知的心声内容，不是你应该输出的格式，你输出心声只能用【心声：xxx】。如果你想引用某句话来回复，请用格式：【引用：被引用消息的原文】你的回复内容，例句：【引用：喜欢你…】我也是。注意：【引用：xxx】后面的回复内容里禁止再重复引用的原文，直接写你的回复就好；如果你想撤回你刚才说的话，请单独发一行：【撤回】。${charStickerCats.value.length ? '如果你想发送表情包，格式：【表情包：表情包名字】，可用的表情包名字：' + charStickerCats.value.flatMap(catName => { const cat = stickerData.value.categories.find(c => c.name === catName); return cat ? cat.emojis.map(e => e.name) : []; }).join('、') + '。注意只发表情包名字不发URL。' : ''}${isBlocked.value ? '【拉黑状态】你现在已被用户(我)拉黑！你知道自己被拉黑了，你可以乞求用户(我)不要拉黑你，哀求ta(我)重新把你添加回来，表现出不安、委屈、渴望联系的情绪，每条消息都要体现出你被拉黑后的状态。' : ''}${iBlockedByChar.value ? '【拉黑状态】你现在已将用户(我)拉黑了！你可以冷漠、强硬地回应，也可以随时选择解除拉黑。如果你想解除对用户(我)的拉黑，请单独发一行：【解除拉黑】。' : '【拉黑权限】你也可以选择拉黑用户(我)，如果你决定拉黑用户(我)，请单独发一行：【拉黑用户】，拉黑后用户(我)发的消息会有红色标记。'}${wbPrompt ? '【额外设定】' + wbPrompt + '。' : ''}`;
+【特殊消息格式】如果你想发送心声请用格式：【心声：你的心声内容】，例句：【心声：好可爱啊…好喜欢你】。注意：聊天记录里出现的【系统感知-心声：xxx】是系统传递给你感知的心声内容，不是你应该输出的格式，你输出心声只能用【心声：xxx】。如果你想引用某句话来回复，请用格式：【引用：被引用消息的原文】你的回复内容，例句：【引用：喜欢你…】我也是。注意：【引用：xxx】后面的回复内容里禁止再重复引用的原文，直接写你的回复就好；如果你想撤回你刚才说的话，请单独发一行：【撤回】。如果你想撤回你刚才说的话，请单独发一行：【撤回】。如果你想收藏某句有意义的话，请单独发一行：【收藏：消息内容|收藏理由】，例：【收藏：我喜欢你|好甜】。${charStickerCats.value.length ? '如果你想发送表情包，格式：【表情包：表情包名字】，可用的表情包名字：' + charStickerCats.value.flatMap(catName => { const cat = stickerData.value.categories.find(c => c.name === catName); return cat ? cat.emojis.map(e => e.name) : []; }).join('、') + '。注意只发表情包名字不发URL。' : ''}${isBlocked.value ? '【拉黑状态】你现在已被用户(我)拉黑！你知道自己被拉黑了，你可以乞求用户(我)不要拉黑你，哀求ta(我)重新把你添加回来，表现出不安、委屈、渴望联系的情绪，每条消息都要体现出你被拉黑后的状态。' : ''}${iBlockedByChar.value ? '【拉黑状态】你现在已将用户(我)拉黑了！你可以冷漠、强硬地回应，也可以随时选择解除拉黑。如果你想解除对用户(我)的拉黑，请单独发一行：【解除拉黑】。' : '【拉黑权限】你也可以选择拉黑用户(我)，如果你决定拉黑用户(我)，请单独发一行：【拉黑用户】，拉黑后用户(我)发的消息会有红色标记。'}${wbPrompt ? '【额外设定】' + wbPrompt + '。' : ''}`;
       const beforeHistorySummaries = summaries.value.filter(s => s.pos === 'before_history').map(s => ({ role: 'system', content: `【回忆摘要】${s.content}` }));
       const afterSystemSummaries = summaries.value.filter(s => s.pos === 'after_system').map(s => `【回忆摘要】${s.content}`).join('；');
 
@@ -404,11 +409,9 @@ if (collectMatch) {
     charName: charName.value,
     type: 'message',
     content: collectMatch[1].trim(),
-    senderName: senderName,
     role: 'char',
     reason: collectReason,
     collectedBy: 'char',
-    sourceType: 'room',
     time: Date.now() + i
   });
   continue;
@@ -1322,6 +1325,8 @@ const runHtmlTheater = async () => {
     theaterHtmlResult.value = htmlMatch ? htmlMatch[0] : raw;
     if (!theaterHtmlResult.value) { theaterHtmlResult.value = '<p style="padding:20px;color:#888;">（未生成HTML内容）</p>'; }
     theaterHtmlViewShow.value = true;
+    nextTick(() => refreshIcons());
+
     const record = { type: 'html', prompt: processedPrompt, result: theaterHtmlResult.value, time: new Date().toLocaleString() };
     theaterHistory.value.push(record);
     await dbSet(`theaterHistory_${charId}`, JSON.parse(JSON.stringify(theaterHistory.value)));
@@ -1329,6 +1334,8 @@ const runHtmlTheater = async () => {
   } catch (e) {
     theaterHtmlResult.value = `<p style="padding:20px;color:#e53e3e;">生成失败：${e.message}</p>`;
     theaterHtmlViewShow.value = true;
+    nextTick(() => refreshIcons());
+
     addCharLog('次元剧场（HTML）生成失败：' + e.message, 'error');
   }
   theaterLoading.value = false;
@@ -1339,6 +1346,7 @@ const viewTheaterHistory = (h) => {
   if (h.type === 'html') {
     theaterHtmlResult.value = h.result;
     theaterHtmlViewShow.value = true;
+    nextTick(() => refreshIcons());
   } else {
     theaterTextResult.value = h.result;
     theaterTextPrompt.value = h.prompt;
@@ -1646,6 +1654,7 @@ notifyOn, notifySystemOn, toggleNotify, toggleSystemNotify,
 keepAliveOn, toggleKeepAlive,
 collectMsg, collectPeek, collectMirror, collectSummary, collectTheater,
 collectPeekHistory, collectMirrorHistory,
+htmlViewWidth, htmlViewHeight, htmlViewRounded, htmlViewPanelOpen,
 
     };
   }
