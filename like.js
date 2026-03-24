@@ -570,7 +570,7 @@ const memoryDonut = ref([]);
 const memoryTotal = ref('0 KB');
 const memoryLoading = ref(false);
 
-const COLORS = ['#c2d9ff','#b89aff','#89d171','#ffca59','#ff7337','#61bdff','#debdff','#54ffee','#d4d4d4','#73d7ff','#e979ff','#8f8f8f'];
+const COLORS = ['#89b8fe','#b89aff','#89d171','#ffca59','#ff7337','#61bdff','#debdff','#54ffee','#d4d4d4','#73d7ff','#e979ff','#8f8f8f'];
 
 const formatBytes = (bytes) => {
   if (bytes < 1024) return bytes + ' B';

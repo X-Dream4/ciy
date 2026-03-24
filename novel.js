@@ -237,7 +237,7 @@ createApp({
       } else {
         sourceText = n.content.slice(0, 5000);
       }
-      const prompt = `请根据以下小说内容，写一段吸引人的简介，100-200字，不剧透结局，突出亮点和看点，语言生动，风格类似网络小说简介。\n\n${sourceText}`;
+      const prompt = `请根据以下小说内容，写一段吸引人的简介，500-100字，不剧透结局，突出亮点和看点，语言生动，风格类似网络小说简介。只需要输出一段简介即可！不要输出任何不相干的文字！\n\n${sourceText}`;
       try {
         const res = await fetch(`${apiConfig.value.url.replace(/\/$/, '')}/chat/completions`, {
           method: 'POST',
