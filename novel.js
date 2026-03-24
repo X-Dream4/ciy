@@ -71,14 +71,32 @@ createApp({
         matches.push({ title: match[0].trim(), index: match.index });
       }
       if (matches.length < 2) return null;
-      return matches.map((m, i) => {
+      const chapters = [];
+      // 第一个章节标题之前的内容
+      if (matches[0].index > 0) {
+        const preContent = content.slice(0, matches[0].index).trim();
+        if (preContent) {
+          chapters.push({ title: '未命名段落', content: preContent, summary: '', comments: [] });
+        }
+      }
+      // 正式章节
+      matches.forEach((m, i) => {
         const start = m.index;
         const end = i + 1 < matches.length ? matches[i + 1].index : content.length;
         const chapterContent = content.slice(start, end);
-      const firstNewline = chapterContent.indexOf('\n');
-      const bodyContent = firstNewline !== -1 ? chapterContent.slice(firstNewline + 1).trim() : chapterContent.trim();
-      return { title: m.title, content: bodyContent, summary: '', comments: [] };
+        const firstNewline = chapterContent.indexOf('\n');
+        const bodyContent = firstNewline !== -1 ? chapterContent.slice(firstNewline + 1).trim() : chapterContent.trim();
+        chapters.push({ title: m.title, content: bodyContent, summary: '', comments: [] });
+        // 两个章节之间的游离内容（正常情况没有，但保险处理）
+        if (i + 1 < matches.length) {
+          const nextStart = matches[i + 1].index;
+          const between = content.slice(start + chapterContent.length, nextStart).trim();
+          if (between) {
+            chapters.push({ title: '未命名段落', content: between, summary: '', comments: [] });
+          }
+        }
       });
+      return chapters;
     };
 
     const doImportNovel = async (title, content) => {
@@ -154,7 +172,7 @@ createApp({
     };
 
     // ===== 手写创作 =====
-    const editForm = ref({ id: null, title: '', type: 'original', cover: '', coverUrl: '', content: '', tags: [], chars: [], charRelations: '', chapters: [] });
+    const editForm = ref({ id: null, title: '', type: 'original', cover: '', coverUrl: '', content: '', synopsis: '', tags: [], chars: [], charRelations: '', chapters: [] });
     const tagInput = ref('');
     const editingChapterIndex = ref(-1);
     const editingSummary = ref(false);
@@ -173,11 +191,72 @@ createApp({
     };
 
     const startWriteEdit = (n) => {
-      editForm.value = JSON.parse(JSON.stringify({ ...n, coverUrl: n.cover || '' }));
+      editForm.value = JSON.parse(JSON.stringify({ ...n, coverUrl: n.cover || '', synopsis: n.synopsis || '' }));
       editingChapterIndex.value = -1;
       view.value = 'write';
       nextTick(() => refreshIcons());
     };
+    // ===== 简介生成 =====
+    const synopsisGenShow = ref(false);
+    const synopsisGenMode = ref('summary'); // 'summary' | 'content'
+    const synopsisGenFrom = ref(1);
+    const synopsisGenTo = ref(5);
+    const synopsisGenLoading = ref(false);
+    const synopsisGenResult = ref('');
+
+    const openSynopsisGen = () => {
+      synopsisGenResult.value = '';
+      synopsisGenMode.value = 'summary';
+      const total = editForm.value.chapters ? editForm.value.chapters.length : 0;
+      synopsisGenFrom.value = 1;
+      synopsisGenTo.value = Math.min(total, 5);
+      synopsisGenShow.value = true;
+    };
+
+    const runSynopsisGen = async () => {
+      if (!apiConfig.value.url || !apiConfig.value.key || !apiConfig.value.model) { alert('请先配置API'); return; }
+      const n = editForm.value;
+      const total = n.chapters ? n.chapters.length : 0;
+      if (!total && !n.content) { alert('没有可用的内容'); return; }
+      synopsisGenLoading.value = true;
+      synopsisGenResult.value = '';
+      const from = Math.max(1, parseInt(synopsisGenFrom.value) || 1);
+      const to = Math.min(total || 1, parseInt(synopsisGenTo.value) || 1);
+      let sourceText = '';
+      if (total > 0) {
+        const selectedChapters = n.chapters.slice(from - 1, to);
+        if (synopsisGenMode.value === 'summary') {
+          sourceText = selectedChapters.map((ch, i) => {
+            return ch.summary ? `第${from + i}章《${ch.title}》：${ch.summary}` : `第${from + i}章《${ch.title}》：（暂无总结）`;
+          }).join('\n');
+        } else {
+          sourceText = selectedChapters.map((ch, i) => {
+            return `第${from + i}章《${ch.title}》\n${ch.content.slice(0, 2000)}`;
+          }).join('\n\n');
+        }
+      } else {
+        sourceText = n.content.slice(0, 5000);
+      }
+      const prompt = `请根据以下小说内容，写一段吸引人的简介，100-200字，不剧透结局，突出亮点和看点，语言生动，风格类似网络小说简介。\n\n${sourceText}`;
+      try {
+        const res = await fetch(`${apiConfig.value.url.replace(/\/$/, '')}/chat/completions`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiConfig.value.key}` },
+          body: JSON.stringify({ model: apiConfig.value.model, messages: [{ role: 'user', content: prompt }] })
+        });
+        const data = await res.json();
+        synopsisGenResult.value = data.choices?.[0]?.message?.content || '（生成失败）';
+      } catch (e) {
+        synopsisGenResult.value = '（生成失败：' + e.message + '）';
+      }
+      synopsisGenLoading.value = false;
+    };
+
+    const applySynopsis = () => {
+      editForm.value.synopsis = synopsisGenResult.value.trim();
+      synopsisGenShow.value = false;
+    };
+
 const chapterAddShow = ref(false);
 const newChapterTitle = ref('');
 const aiNextChapterShow = ref(false);
@@ -1356,7 +1435,10 @@ searchQuery, searchResults, doSearch, jumpToSearchResult,
 paraMenuShow, paraMenuChapterIndex, paraMenuParaIndex, paraMenuText,
 onParaTouchStart, onParaTouchEnd, onParaMouseDown, onParaMouseUp, confirmAddBookmark,
 highlightParaIndex, highlightChapterIndex, aiTagInput, addAiTag,
-chapterAddShow, newChapterTitle, openAddChapter, confirmAddChapter, convertToChapters,
+      chapterAddShow, newChapterTitle, openAddChapter, confirmAddChapter, convertToChapters,
+      synopsisGenShow, synopsisGenMode, synopsisGenFrom, synopsisGenTo,
+      synopsisGenLoading, synopsisGenResult,
+      openSynopsisGen, runSynopsisGen, applySynopsis,
 aiNextChapterShow, aiNextChapterLoading, aiNextChapterResult,
 aiNextChapterPlot, aiNextChapterStyle, aiNextChapterMinWords, aiNextChapterMaxWords,
 appendMode, openAiNextChapter, runAiNextChapter, saveAiNextChapter,

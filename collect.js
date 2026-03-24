@@ -107,7 +107,9 @@ createApp({
       allRooms.value = roomList || [];
       if (savedCollects) collects.value = savedCollects;
 
-      setTimeout(() => lucide.createIcons(), 50);
+      setTimeout(() => { lucide.createIcons(); }, 50);
+      setTimeout(() => { lucide.createIcons(); }, 250);
+      setTimeout(() => { lucide.createIcons(); }, 500);
     });
 
     return {

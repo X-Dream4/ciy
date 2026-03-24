@@ -8,7 +8,7 @@ createApp({
     const apiConfig = ref({ url: '', key: '', model: '' });
 
     let lucideTimer = null;
-    const refreshIcons = () => { clearTimeout(lucideTimer); lucideTimer = setTimeout(() => lucide.createIcons(), 50); };
+    const refreshIcons = () => { clearTimeout(lucideTimer); lucideTimer = setTimeout(() => { lucide.createIcons(); setTimeout(() => lucide.createIcons(), 200); }, 50); };
 
     const goBack = () => { window.location.href = 'chat.html'; };
 
@@ -668,10 +668,12 @@ if (typeof requestNotifyPermission === 'function') requestNotifyPermission();
 
       setTimeout(() => {
         try { refreshIcons(); } catch(e) {}
+        try { lucide.createIcons(); } catch(e) {}
         appReady.value = true;
         const mask = document.getElementById('loadingMask');
         if (mask) { mask.classList.add('hide'); setTimeout(() => mask.remove(), 400); }
       }, 100);
+      setTimeout(() => { try { lucide.createIcons(); } catch(e) {} }, 500);
     });
 
     return {

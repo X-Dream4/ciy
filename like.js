@@ -147,7 +147,7 @@ createApp({
     };
 
     let lucideTimer = null;
-    const refreshIcons = () => { clearTimeout(lucideTimer); lucideTimer = setTimeout(() => lucide.createIcons(), 50); };
+    const refreshIcons = () => { clearTimeout(lucideTimer); lucideTimer = setTimeout(() => { lucide.createIcons(); setTimeout(() => lucide.createIcons(), 200); }, 50); };
 
     const wallpaperStyle = computed(() => ({ backgroundImage: wallpaper.value ? `url(${wallpaper.value})` : 'none' }));
 
@@ -453,6 +453,8 @@ if (typeof requestNotifyPermission === 'function') requestNotifyPermission();
 
       refreshIcons();
       addLog('喜欢App已打开');
+      setTimeout(() => { lucide.createIcons(); refreshIcons(); }, 100);
+      setTimeout(() => { lucide.createIcons(); }, 500);
     });
 // ===== 导入导出扩展 =====
 const exportCharList = ref([]);

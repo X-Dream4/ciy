@@ -86,6 +86,8 @@ if (typeof requestNotifyPermission === 'function') requestNotifyPermission();
       const cats = await dbGet('worldBookCats');
       if (cats) categories.value = cats;
       lucide.createIcons();
+      setTimeout(() => { lucide.createIcons(); }, 200);
+      setTimeout(() => { lucide.createIcons(); }, 500);
     });
 
     return {

@@ -218,7 +218,9 @@ createApp({
       if (api) apiConfig.value = api;
       if (savedPosts) posts.value = savedPosts;
 
-      setTimeout(() => lucide.createIcons(), 50);
+      setTimeout(() => { lucide.createIcons(); }, 50);
+      setTimeout(() => { lucide.createIcons(); }, 250);
+      setTimeout(() => { lucide.createIcons(); }, 500);
     });
 
     return {

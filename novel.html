@@ -57,7 +57,7 @@
               <span class="novel-card-words">{{ n.wordCount || 0 }} 字</span>
               <span v-if="n.chapters && n.chapters.length" style="font-size:10px;color:#aaa;">{{ n.chapters.length }} 章</span>
             </div>
-            <div class="novel-card-summary" v-if="n.content">{{ n.content.slice(0,60) }}{{ n.content.length>60?'...':'' }}</div>
+            <div class="novel-card-summary" v-if="n.synopsis || n.content">{{ n.synopsis ? n.synopsis.slice(0,60)+(n.synopsis.length>60?'...':'') : n.content.slice(0,60)+(n.content.length>60?'...':'') }}</div>
             <div class="novel-card-tags" v-if="n.tags && n.tags.length">
               <span class="novel-tag-small" v-for="t in n.tags" :key="t">{{ t }}</span>
             </div>
@@ -110,6 +110,12 @@
           </div>
         </div>
       </div>
+      <div class="novel-field">
+        <label>简介</label>
+        <textarea class="novel-textarea" v-model="editForm.synopsis" placeholder="输入小说简介..." style="min-height:80px;"></textarea>
+        <button class="novel-small-btn" style="margin-top:6px;" @click="openSynopsisGen">AI生成简介</button>
+      </div>
+
       <div class="novel-field">
         <label>标签</label>
         <div class="novel-tag-input-row">
@@ -203,6 +209,51 @@
 
     </div>
   </div>
+  <!-- 简介生成弹窗 -->
+  <transition name="novel-modal">
+    <div class="novel-modal-mask" v-if="synopsisGenShow" @click.self="synopsisGenShow=false">
+      <div class="novel-modal-box">
+        <div class="novel-modal-title">生成简介</div>
+        <div class="novel-field">
+          <label>生成模式</label>
+          <div class="novel-type-row">
+            <div class="novel-type-btn" :class="{active: synopsisGenMode==='summary'}" @click="synopsisGenMode='summary'">从章节总结</div>
+            <div class="novel-type-btn" :class="{active: synopsisGenMode==='content'}" @click="synopsisGenMode='content'">从原文内容</div>
+          </div>
+          <div style="font-size:11px;color:#aaa;margin-top:4px;">
+            {{ synopsisGenMode==='summary' ? '读取指定章节的已有总结来生成简介，需要先生成章节总结' : '直接读取指定章节的原文内容来生成简介，消耗token较多' }}
+          </div>
+        </div>
+        <div class="novel-field" v-if="editForm.chapters && editForm.chapters.length">
+          <label>章节范围</label>
+          <div style="display:flex;align-items:center;gap:8px;font-size:13px;color:#555;">
+            <span>第</span>
+            <input class="novel-input" type="number" v-model="synopsisGenFrom" min="1" :max="editForm.chapters.length" style="width:60px;text-align:center;padding:6px;" />
+            <span>章 至 第</span>
+            <input class="novel-input" type="number" v-model="synopsisGenTo" :min="synopsisGenFrom" :max="editForm.chapters.length" style="width:60px;text-align:center;padding:6px;" />
+            <span>章</span>
+          </div>
+        </div>
+        <button class="novel-generate-btn" @click="runSynopsisGen" :disabled="synopsisGenLoading">
+          {{ synopsisGenLoading ? '生成中...' : '开始生成' }}
+        </button>
+        <div class="novel-loading" v-if="synopsisGenLoading"><span></span><span></span><span></span></div>
+        <div v-if="synopsisGenResult" style="display:flex;flex-direction:column;gap:8px;margin-top:8px;">
+          <div class="novel-field">
+            <label>生成结果（可编辑）</label>
+            <textarea class="novel-textarea" v-model="synopsisGenResult" style="min-height:100px;"></textarea>
+          </div>
+          <div style="display:flex;gap:8px;">
+            <button class="novel-modal-btn cancel" @click="synopsisGenShow=false">取消</button>
+            <button class="novel-modal-btn confirm" @click="applySynopsis">使用此简介</button>
+          </div>
+        </div>
+        <div v-else class="novel-modal-btns">
+          <button class="novel-modal-btn cancel" @click="synopsisGenShow=false">关闭</button>
+        </div>
+      </div>
+    </div>
+  </transition>
 
   <!-- 添加新章节弹窗 -->
   <transition name="novel-modal">

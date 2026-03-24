@@ -29,6 +29,8 @@ if (typeof requestNotifyPermission === 'function') requestNotifyPermission();
       const wp = await dbGet('wallpaper');
       if (wp) { document.body.style.backgroundImage = `url(${wp})`; document.body.style.backgroundSize = 'cover'; document.body.style.backgroundPosition = 'center'; }
       lucide.createIcons();
+      setTimeout(() => { lucide.createIcons(); }, 200);
+      setTimeout(() => { lucide.createIcons(); }, 500);
     });
 
     return { goBack, goForum, goNovel };

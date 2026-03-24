@@ -266,7 +266,7 @@ const charPickerSelections = ref({});
     let touchMoved = false;
 
     let lucideTimer = null;
-    const refreshIcons = () => { clearTimeout(lucideTimer); lucideTimer = setTimeout(() => lucide.createIcons(), 50); };
+    const refreshIcons = () => { clearTimeout(lucideTimer); lucideTimer = setTimeout(() => { lucide.createIcons(); setTimeout(() => lucide.createIcons(), 200); }, 50); };
 
     const toggleToolbar = () => { toolbarOpen.value = !toolbarOpen.value; nextTick(() => refreshIcons()); };
     const goBack = () => { window.location.href = 'chat.html'; };

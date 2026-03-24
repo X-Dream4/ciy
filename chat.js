@@ -13,7 +13,7 @@ createApp({
     const newRoom = ref({ name: '', members: [] });
 
     let lucideTimer = null;
-    const refreshIcons = () => { clearTimeout(lucideTimer); lucideTimer = setTimeout(() => lucide.createIcons(), 50); };
+    const refreshIcons = () => { clearTimeout(lucideTimer); lucideTimer = setTimeout(() => { lucide.createIcons(); setTimeout(() => lucide.createIcons(), 200); }, 50); };
 
     const toggleMenu = () => { menuOpen.value = !menuOpen.value; };
     const openConnectChar = () => { menuOpen.value = false; newChar.value = { name: '', world: '', persona: '', avatar: '' }; connectCharShow.value = true; nextTick(() => refreshIcons()); };
@@ -109,6 +109,8 @@ window.addEventListener('focus', async () => {
 
       nextTick(() => refreshIcons());
       document.addEventListener('click', handleOutsideClick);
+      setTimeout(() => { lucide.createIcons(); refreshIcons(); }, 100);
+      setTimeout(() => { lucide.createIcons(); }, 500);
     });
 
     return {
