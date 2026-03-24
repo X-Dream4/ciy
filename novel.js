@@ -537,6 +537,151 @@ const loadReadSettings = async () => {
     const companionLoading = ref(false);
     const companionCommentsByChapter = ref({});
     const tocOpen = ref(false);
+const tocTab = ref('toc');
+const bookmarks = ref([]);
+const searchQuery = ref('');
+const searchResults = ref([]);
+const searchLoading = ref(false);
+const highlightParaIndex = ref(-1);
+const highlightChapterIndex = ref(-1);
+let highlightTimer = null;
+
+const currentBookmarks = computed(() => {
+  const n = currentNovel.value;
+  if (!n.id) return [];
+  return (n.bookmarks || []).sort((a, b) => b.time - a.time);
+});
+
+const addBookmark = async (chapterIndex, paraIndex, text) => {
+  const n = currentNovel.value;
+  if (!n.bookmarks) n.bookmarks = [];
+  const exists = n.bookmarks.find(b => b.chapterIndex === chapterIndex && b.paraIndex === paraIndex);
+  if (exists) { alert('该段落已有书签'); return; }
+  const ch = n.chapters?.[chapterIndex];
+  n.bookmarks.push({
+    id: Date.now(),
+    chapterIndex,
+    chapterTitle: ch?.title || n.title,
+    paraIndex,
+    text: text.slice(0, 60),
+    time: Date.now()
+  });
+  const idx = novels.value.findIndex(nv => nv.id === n.id);
+  if (idx !== -1) novels.value[idx] = JSON.parse(JSON.stringify(n));
+  await saveNovels();
+  alert('已加入书签');
+};
+
+const deleteBookmark = async (id) => {
+  const n = currentNovel.value;
+  n.bookmarks = (n.bookmarks || []).filter(b => b.id !== id);
+  const idx = novels.value.findIndex(nv => nv.id === n.id);
+  if (idx !== -1) novels.value[idx] = JSON.parse(JSON.stringify(n));
+  await saveNovels();
+};
+
+const jumpToBookmark = (bm) => {
+  jumpToChapter(bm.chapterIndex);
+  tocOpen.value = false;
+  nextTick(() => {
+    highlightChapterIndex.value = bm.chapterIndex;
+    highlightParaIndex.value = bm.paraIndex;
+    clearTimeout(highlightTimer);
+    highlightTimer = setTimeout(() => {
+      highlightParaIndex.value = -1;
+      highlightChapterIndex.value = -1;
+    }, 2000);
+    setTimeout(() => {
+      const el = document.getElementById(`para-${bm.paraIndex}`);
+      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, 100);
+  });
+};
+
+const doSearch = () => {
+  const q = searchQuery.value.trim();
+  if (!q) { searchResults.value = []; return; }
+  const n = currentNovel.value;
+  const results = [];
+  if (n.chapters && n.chapters.length) {
+    n.chapters.forEach((ch, ci) => {
+      const paras = (ch.content || '').split('\n');
+      paras.forEach((para, pi) => {
+        if (para.includes(q)) {
+          const idx = para.indexOf(q);
+          const preview = para.slice(Math.max(0, idx - 10), idx + q.length + 30);
+          results.push({ chapterIndex: ci, chapterTitle: ch.title, paraIndex: pi, preview, highlight: q });
+        }
+      });
+    });
+  } else {
+    const paras = (n.content || '').split('\n');
+    paras.forEach((para, pi) => {
+      if (para.includes(q)) {
+        const idx = para.indexOf(q);
+        const preview = para.slice(Math.max(0, idx - 10), idx + q.length + 30);
+        results.push({ chapterIndex: -1, chapterTitle: n.title, paraIndex: pi, preview, highlight: q });
+      }
+    });
+  }
+  searchResults.value = results;
+};
+
+const jumpToSearchResult = (r) => {
+  if (r.chapterIndex >= 0) jumpToChapter(r.chapterIndex);
+  tocOpen.value = false;
+  nextTick(() => {
+    highlightChapterIndex.value = r.chapterIndex;
+    highlightParaIndex.value = r.paraIndex;
+    clearTimeout(highlightTimer);
+    highlightTimer = setTimeout(() => {
+      highlightParaIndex.value = -1;
+      highlightChapterIndex.value = -1;
+    }, 2000);
+    setTimeout(() => {
+      const el = document.getElementById(`para-${r.paraIndex}`);
+      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, 100);
+  });
+};
+
+const paraLongPressTimer = ref(null);
+const paraMenuShow = ref(false);
+const paraMenuChapterIndex = ref(-1);
+const paraMenuParaIndex = ref(-1);
+const paraMenuText = ref('');
+
+const onParaTouchStart = (chapterIndex, paraIndex, text, e) => {
+  paraLongPressTimer.value = setTimeout(() => {
+    paraMenuChapterIndex.value = chapterIndex;
+    paraMenuParaIndex.value = paraIndex;
+    paraMenuText.value = text;
+    paraMenuShow.value = true;
+  }, 500);
+};
+
+const onParaTouchEnd = () => {
+  clearTimeout(paraLongPressTimer.value);
+};
+
+const onParaMouseDown = (chapterIndex, paraIndex, text) => {
+  paraLongPressTimer.value = setTimeout(() => {
+    paraMenuChapterIndex.value = chapterIndex;
+    paraMenuParaIndex.value = paraIndex;
+    paraMenuText.value = text;
+    paraMenuShow.value = true;
+  }, 500);
+};
+
+const onParaMouseUp = () => {
+  clearTimeout(paraLongPressTimer.value);
+};
+
+const confirmAddBookmark = async () => {
+  await addBookmark(paraMenuChapterIndex.value, paraMenuParaIndex.value, paraMenuText.value);
+  paraMenuShow.value = false;
+};
+
     const currentChapterIndex = ref(0);
     const summaryPanelOpen = ref(false);
     const summaryRangeFrom = ref(1);
@@ -641,6 +786,13 @@ const loadReadSettings = async () => {
       commentReplyTo.value = null;
       commentCharSelectOpen.value = false;
       selectedCommentChars.value = [];
+      tocTab.value = 'toc';
+      bookmarks.value = [];
+      searchQuery.value = '';
+      searchResults.value = [];
+      highlightParaIndex.value = -1;
+      highlightChapterIndex.value = -1;
+      paraMenuShow.value = false;
       view.value = 'read';
       nextTick(() => refreshIcons());
     };
@@ -908,7 +1060,18 @@ const saveSummaryEdit = async () => {
     };
 
     let lucideTimer = null;
-    const refreshIcons = () => { clearTimeout(lucideTimer); lucideTimer = setTimeout(() => lucide.createIcons(), 50); };
+    const refreshIcons = () => {
+      clearTimeout(lucideTimer);
+      lucideTimer = setTimeout(() => {
+        lucide.createIcons();
+        setTimeout(() => lucide.createIcons(), 200);
+      }, 50);
+    };
+Vue.watch(() => view.value, () => {
+  nextTick(() => {
+    lucide.createIcons();
+  });
+});
 
     onMounted(async () => {
       const dark = await dbGet('darkMode');
@@ -945,7 +1108,11 @@ const saveSummaryEdit = async () => {
 
       await loadReadSettings();
 
-      setTimeout(() => { refreshIcons(); }, 100);
+      setTimeout(() => {
+        lucide.createIcons();
+        refreshIcons();
+      }, 100);
+      setTimeout(() => { lucide.createIcons(); }, 500);
     });
 
     return {
@@ -981,6 +1148,11 @@ readIndent, readFontOptions, readTextStyle, readParaStyle, readContentStyle,
 loadReadFont, triggerReadFontUpload, handleReadFontUpload, applyReadFontUrl,
 triggerReadWallpaperUpload, handleReadWallpaperUpload, applyReadWallpaperUrl,
 saveReadSettings,
+tocTab, currentBookmarks, addBookmark, deleteBookmark, jumpToBookmark,
+searchQuery, searchResults, doSearch, jumpToSearchResult,
+paraMenuShow, paraMenuChapterIndex, paraMenuParaIndex, paraMenuText,
+onParaTouchStart, onParaTouchEnd, onParaMouseDown, onParaMouseUp, confirmAddBookmark,
+highlightParaIndex, highlightChapterIndex,
 
     };
   }

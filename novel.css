@@ -233,3 +233,6 @@ body.dark .novel-toc-item.active { background:#333; color:#eee; }
 /* 段落样式 */
 .novel-read-text p { margin: 0; }
 .novel-read-empty-para { height: 0.5em; }
+
+/* ===== 书签高亮 ===== */
+.novel-read-text p { transition: background 0.3s; }
