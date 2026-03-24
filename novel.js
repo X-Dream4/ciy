@@ -11,31 +11,7 @@ createApp({
     const settingsShow = ref(false);
     const chatChars = ref([]);
     const allWorldBooks = ref([]);
-    const apiConfig = ref({ url: '', key: '', model: '' });
-    const uploadFile = ref(null);
-const uploadUrlShow = ref(false);
-const uploadUrlTitle = ref('');
-const uploadUrlContent = ref('');
-
-const confirmUploadUrl = async () => {
-  if (!uploadUrlTitle.value.trim()) { alert('请输入标题'); return; }
-  if (!uploadUrlContent.value.trim()) { alert('请粘贴文本内容'); return; }
-  const now = Date.now();
-  novels.value.unshift({
-    id: now, title: uploadUrlTitle.value.trim(),
-    content: uploadUrlContent.value.trim(), cover: '', type: 'upload',
-    tags: [], chars: [], charRelations: '',
-    wordCount: uploadUrlContent.value.trim().length,
-    createTime: now, updateTime: now
-  });
-  await saveNovels();
-  uploadUrlShow.value = false;
-  uploadUrlTitle.value = '';
-  uploadUrlContent.value = '';
-  alert('导入成功');
-};
-
-    const writeCoverFile = ref(null);
+    const apiConfig = ref({ url: '', key: '', model: '', summaryUrl: '', summaryKey: '', summaryModel: '' });
     const readContent = ref(null);
     const companionComments = ref(null);
 
@@ -77,6 +53,68 @@ const confirmUploadUrl = async () => {
       await saveNovels();
     };
 
+    // ===== 导入 =====
+    const importShow = ref(false);
+    const importTab = ref('url');
+    const importTitle = ref('');
+    const importUrl = ref('');
+    const importContent = ref('');
+    const importLoading = ref(false);
+
+    const parseChapters = (content) => {
+      const chapterRegex = /^(第[零一二三四五六七八九十百千\d]+[章节卷回集部][^\n]*|Chapter\s*\d+[^\n]*|【[^】]+】[^\n]*)/gm;
+      const matches = [];
+      let match;
+      while ((match = chapterRegex.exec(content)) !== null) {
+        matches.push({ title: match[0].trim(), index: match.index });
+      }
+      if (matches.length < 2) return null;
+      return matches.map((m, i) => {
+        const start = m.index;
+        const end = i + 1 < matches.length ? matches[i + 1].index : content.length;
+        return { title: m.title, content: content.slice(start, end).trim(), summary: '', comments: [] };
+      });
+    };
+
+    const doImportNovel = async (title, content) => {
+      const now = Date.now();
+      const chapters = parseChapters(content);
+      novels.value.unshift({
+        id: now, title: title.trim(), content, cover: '', type: 'upload',
+        tags: [], chars: [], charRelations: '',
+        chapters: chapters || [],
+        wordCount: content.length,
+        createTime: now, updateTime: now
+      });
+      await saveNovels();
+      importShow.value = false;
+      importTitle.value = '';
+      importUrl.value = '';
+      importContent.value = '';
+      alert(chapters ? `导入成功，已自动识别 ${chapters.length} 个章节` : '导入成功');
+    };
+
+    const confirmImportUrl = async () => {
+      if (!importTitle.value.trim()) { alert('请输入标题'); return; }
+      if (!importUrl.value.trim()) { alert('请输入文件直链URL'); return; }
+      importLoading.value = true;
+      try {
+        const res = await fetch(importUrl.value.trim());
+        if (!res.ok) { alert('获取失败，状态码：' + res.status); importLoading.value = false; return; }
+        const text = await res.text();
+        await doImportNovel(importTitle.value, text);
+      } catch (e) {
+        alert('获取失败：' + e.message + '\n提示：部分网站有跨域限制，可改用粘贴文本方式');
+      }
+      importLoading.value = false;
+    };
+
+    const confirmImportPaste = async () => {
+      if (!importTitle.value.trim()) { alert('请输入标题'); return; }
+      if (!importContent.value.trim()) { alert('请粘贴文本内容'); return; }
+      await doImportNovel(importTitle.value, importContent.value.trim());
+    };
+
     // ===== 上传小说 =====
     const triggerUpload = () => {
       openNewMenu.value = false;
@@ -93,28 +131,45 @@ const confirmUploadUrl = async () => {
 
     const handleUpload = async (e) => {
       const file = e.target.files[0]; if (!file) return;
-      const text = await file.text();
       const title = file.name.replace(/\.(txt|md)$/i, '');
+      const tryDecode = (buffer, encoding) => {
+        try {
+          const decoder = new TextDecoder(encoding, { fatal: true });
+          return decoder.decode(buffer);
+        } catch { return null; }
+      };
+      const buffer = await file.arrayBuffer();
+      let text = tryDecode(buffer, 'utf-8');
+      if (!text || /\ufffd/.test(text.slice(0, 500))) text = tryDecode(buffer, 'gbk');
+      if (!text || /\ufffd/.test(text.slice(0, 500))) text = tryDecode(buffer, 'gb2312');
+      if (!text) text = tryDecode(buffer, 'big5');
+      if (!text) { const decoder = new TextDecoder('gbk'); text = decoder.decode(buffer); }
       await doImportNovel(title, text);
       e.target.value = '';
     };
 
-
     // ===== 手写创作 =====
-    const editForm = ref({ id: null, title: '', type: 'original', cover: '', coverUrl: '', content: '', tags: [], chars: [], charRelations: '' });
+    const editForm = ref({ id: null, title: '', type: 'original', cover: '', coverUrl: '', content: '', tags: [], chars: [], charRelations: '', chapters: [] });
     const tagInput = ref('');
+    const editingChapterIndex = ref(-1);
+    const editingSummary = ref(false);
+    const editingSummaryText = ref('');
+
+    const editingChapter = ref({ title: '', content: '' });
 
     const writeWordCount = computed(() => editForm.value.content.length);
 
     const startWrite = () => {
       openNewMenu.value = false;
-      editForm.value = { id: null, title: '', type: 'original', cover: '', coverUrl: '', content: '', tags: [], chars: [], charRelations: '' };
+      editForm.value = { id: null, title: '', type: 'original', cover: '', coverUrl: '', content: '', tags: [], chars: [], charRelations: '', chapters: [] };
+      editingChapterIndex.value = -1;
       view.value = 'write';
       nextTick(() => refreshIcons());
     };
 
     const startWriteEdit = (n) => {
       editForm.value = JSON.parse(JSON.stringify({ ...n, coverUrl: n.cover || '' }));
+      editingChapterIndex.value = -1;
       view.value = 'write';
       nextTick(() => refreshIcons());
     };
@@ -139,16 +194,34 @@ const confirmUploadUrl = async () => {
 
     const removeTag = (i) => { editForm.value.tags.splice(i, 1); };
 
+    const openChapterEdit = (i) => {
+      editingChapterIndex.value = i;
+      editingChapter.value = {
+        title: editForm.value.chapters[i].title,
+        content: editForm.value.chapters[i].content
+      };
+    };
+
+    const saveChapterEdit = async () => {
+      if (editingChapterIndex.value === -1) return;
+      editForm.value.chapters[editingChapterIndex.value].title = editingChapter.value.title;
+      editForm.value.chapters[editingChapterIndex.value].content = editingChapter.value.content;
+      editingChapterIndex.value = -1;
+    };
+
+    const cancelChapterEdit = () => { editingChapterIndex.value = -1; };
+
     const saveWrite = async () => {
       if (!editForm.value.title.trim()) { alert('请输入标题'); return; }
       const now = Date.now();
+      const wordCount = editForm.value.chapters && editForm.value.chapters.length
+        ? editForm.value.chapters.reduce((a, c) => a + c.content.length, 0)
+        : editForm.value.content.length;
       if (editForm.value.id) {
         const idx = novels.value.findIndex(n => n.id === editForm.value.id);
-        if (idx !== -1) {
-          novels.value[idx] = { ...editForm.value, wordCount: editForm.value.content.length, updateTime: now };
-        }
+        if (idx !== -1) novels.value[idx] = { ...editForm.value, wordCount, updateTime: now };
       } else {
-        novels.value.unshift({ ...editForm.value, id: now, wordCount: editForm.value.content.length, createTime: now, updateTime: now });
+        novels.value.unshift({ ...editForm.value, id: now, wordCount, createTime: now, updateTime: now });
       }
       await saveNovels();
       view.value = 'list';
@@ -235,9 +308,7 @@ const confirmUploadUrl = async () => {
         });
         const data = await res.json();
         aiResult.value = data.choices?.[0]?.message?.content || '（生成失败）';
-      } catch (e) {
-        aiResult.value = '（生成失败：' + e.message + '）';
-      }
+      } catch (e) { aiResult.value = '（生成失败：' + e.message + '）'; }
       aiLoading.value = false;
     };
 
@@ -262,7 +333,7 @@ const confirmUploadUrl = async () => {
       aiLoading.value = true; aiComment.value = '';
       try {
         const charsDesc = aiForm.value.chars.map(c => `${c.role==='其他'?c.customRole:c.role}：${c.name}`).join('、');
-        const prompt = `以下是一段小说内容，其中的角色有：${charsDesc}。请让每位角色用各自的性格和口吻，对这段内容发表真实的评价或感想（可以害羞、骄傲、感动、吐槽等，保持各自性格，口语化）。每位角色说一到两句，格式：角色名：内容。\n\n${aiResult.value}`;
+        const prompt = `以下是一段小说内容，其中的角色有：${charsDesc}。请让每位角色用各自的性格和口吻，对这段内容发表真实的评价或感想。每位角色说一到两句，格式：角色名：内容。\n\n${aiResult.value}`;
         const res = await fetch(`${apiConfig.value.url.replace(/\/$/, '')}/chat/completions`, {
           method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiConfig.value.key}` },
           body: JSON.stringify({ model: apiConfig.value.model, messages: [{ role: 'user', content: prompt }] })
@@ -282,6 +353,7 @@ const confirmUploadUrl = async () => {
         cover: '', type: aiForm.value.type,
         tags: [], chars: JSON.parse(JSON.stringify(aiForm.value.chars)),
         charRelations: aiForm.value.charRelations,
+        chapters: [],
         wordCount: aiResult.value.length,
         createTime: now, updateTime: now
       };
@@ -296,6 +368,166 @@ const confirmUploadUrl = async () => {
     const currentNovel = ref({});
     const readSettingOpen = ref(false);
     const readBg = ref('white');
+const readLetterSpacing = ref(0);
+const readParaSpacing = ref(0.8);
+const readTextColor = ref('');
+const readCustomBg = ref('');
+const readWallpaper = ref('');
+const readWallpaperUrl = ref('');
+const readPageAnim = ref('scroll');
+const readFont = ref('default');
+const readCustomFont = ref('');
+const readCustomFontName = ref('');
+const readCustomFontLoaded = ref(false);
+const readIndent = ref(true);
+const readFontUploadUrl = ref('');
+const pageAnimating = ref(false);
+const pageAnimDir = ref('next');
+
+const readFontOptions = [
+  { key: 'default', label: '默认字体', css: '' },
+  { key: 'songti', label: '宋体', css: "'SimSun', '宋体', serif" },
+  { key: 'kaiti', label: '楷体', css: "'KaiTi', '楷体', cursive" },
+  { key: 'fangsong', label: '仿宋', css: "'FangSong', '仿宋', serif" },
+  { key: 'heiti', label: '黑体', css: "'SimHei', '黑体', sans-serif" },
+  { key: 'georgia', label: 'Georgia', css: "Georgia, 'Times New Roman', serif" },
+];
+
+const readTextStyle = computed(() => {
+  const n = currentNovel.value;
+  let fontFamily = '';
+  if (readFont.value === 'custom' && readCustomFont.value) {
+    fontFamily = "'NovelReadFont', sans-serif";
+  } else {
+    const f = readFontOptions.find(o => o.key === readFont.value);
+    fontFamily = f?.css || '';
+  }
+  return {
+    fontSize: `${readFontSize.value}px`,
+    lineHeight: readLineHeight.value,
+    letterSpacing: `${readLetterSpacing.value}px`,
+    color: readTextColor.value || undefined,
+    fontFamily: fontFamily || undefined,
+    textIndent: readIndent.value ? '2em' : undefined,
+  };
+});
+
+const readParaStyle = computed(() => ({
+  marginBottom: `${readParaSpacing.value}em`,
+}));
+
+const readContentStyle = computed(() => {
+  const bg = readBgOptions.find(b => b.key === readBg.value);
+  let background = '';
+  if (readBg.value === 'custom') {
+    background = readCustomBg.value || '#ffffff';
+  } else if (readBg.value === 'wallpaper') {
+    background = readWallpaper.value ? `url(${readWallpaper.value}) center/cover` : '#f2f2f7';
+  } else {
+    background = bg?.color || '#ffffff';
+  }
+  return {
+    background,
+    color: readTextColor.value || bg?.text || '#111111',
+    minHeight: '100vh'
+  };
+});
+
+const loadReadFont = async (src, name) => {
+  try {
+    const font = new FontFace('NovelReadFont', `url(${src})`);
+    await font.load();
+    document.fonts.add(font);
+    readCustomFont.value = src;
+    readCustomFontName.value = name;
+    readCustomFontLoaded.value = true;
+    await saveReadSettings();
+  } catch (e) { alert('字体加载失败：' + e.message); }
+};
+
+const triggerReadFontUpload = () => {
+  const el = document.getElementById('novel-read-font-file');
+  if (el) el.click();
+};
+
+const handleReadFontUpload = async (e) => {
+  const file = e.target.files[0]; if (!file) return;
+  const reader = new FileReader();
+  reader.onload = async (evt) => {
+    await loadReadFont(evt.target.result, file.name);
+    e.target.value = '';
+  };
+  reader.readAsDataURL(file);
+};
+
+const applyReadFontUrl = async () => {
+  if (!readFontUploadUrl.value.trim()) return;
+  await loadReadFont(readFontUploadUrl.value.trim(), readFontUploadUrl.value.trim().split('/').pop());
+};
+
+const triggerReadWallpaperUpload = () => {
+  const el = document.getElementById('novel-read-wallpaper-file');
+  if (el) el.click();
+};
+
+const handleReadWallpaperUpload = async (e) => {
+  const file = e.target.files[0]; if (!file) return;
+  const reader = new FileReader();
+  reader.onload = async (evt) => {
+    readWallpaper.value = evt.target.result;
+    readBg.value = 'wallpaper';
+    await saveReadSettings();
+    e.target.value = '';
+  };
+  reader.readAsDataURL(file);
+};
+
+const applyReadWallpaperUrl = async () => {
+  if (!readWallpaperUrl.value.trim()) return;
+  readWallpaper.value = readWallpaperUrl.value.trim();
+  readBg.value = 'wallpaper';
+  await saveReadSettings();
+};
+
+const saveReadSettings = async () => {
+  await dbSet('novelReadSettings', JSON.parse(JSON.stringify({
+    readBg: readBg.value, readCustomBg: readCustomBg.value,
+    readWallpaper: readWallpaper.value,
+    readFontSize: readFontSize.value, readLineHeight: readLineHeight.value,
+    readLetterSpacing: readLetterSpacing.value, readParaSpacing: readParaSpacing.value,
+    readTextColor: readTextColor.value,
+    readPageAnim: readPageAnim.value,
+    readFont: readFont.value, readCustomFont: readCustomFont.value, readCustomFontName: readCustomFontName.value,
+    readIndent: readIndent.value,
+  })));
+};
+
+const loadReadSettings = async () => {
+  const s = await dbGet('novelReadSettings');
+  if (!s) return;
+  if (s.readBg) readBg.value = s.readBg;
+  if (s.readCustomBg) readCustomBg.value = s.readCustomBg;
+  if (s.readWallpaper) readWallpaper.value = s.readWallpaper;
+  if (s.readFontSize) readFontSize.value = s.readFontSize;
+  if (s.readLineHeight) readLineHeight.value = s.readLineHeight;
+  if (s.readLetterSpacing !== undefined) readLetterSpacing.value = s.readLetterSpacing;
+  if (s.readParaSpacing !== undefined) readParaSpacing.value = s.readParaSpacing;
+  if (s.readTextColor) readTextColor.value = s.readTextColor;
+  if (s.readPageAnim) readPageAnim.value = s.readPageAnim;
+  if (s.readFont) readFont.value = s.readFont;
+  if (s.readCustomFont) {
+    readCustomFont.value = s.readCustomFont;
+    readCustomFontName.value = s.readCustomFontName || '';
+    try {
+      const font = new FontFace('NovelReadFont', `url(${s.readCustomFont})`);
+      await font.load();
+      document.fonts.add(font);
+      readCustomFontLoaded.value = true;
+    } catch {}
+  }
+  if (s.readIndent !== undefined) readIndent.value = s.readIndent;
+};
+
     const readFontSize = ref(16);
     const readLineHeight = ref(1.8);
     const readProgress = ref(0);
@@ -303,23 +535,111 @@ const confirmUploadUrl = async () => {
     const companionChars = ref([]);
     const companionHistory = ref([]);
     const companionLoading = ref(false);
+    const companionCommentsByChapter = ref({});
+    const tocOpen = ref(false);
+    const currentChapterIndex = ref(0);
+    const summaryPanelOpen = ref(false);
+    const summaryRangeFrom = ref(1);
+    const summaryRangeTo = ref(5);
+    const summaryGenerating = ref(false);
+    const summaryOverwrite = ref(false);
+    const summaryProgress = ref('');
+    let summaryAbort = false;
+
+    const commentInput = ref('');
+    const commentReplyTo = ref(null);
+    const commentCharSelectOpen = ref(false);
+    const commentLoading = ref(false);
+    const selectedCommentChars = ref([]);
 
     const readBgOptions = [
       { key: 'white', label: '白', color: '#ffffff', text: '#111111' },
       { key: 'cream', label: '米', color: '#f5f0e8', text: '#333333' },
+      { key: 'green', label: '护眼', color: '#e8f5e8', text: '#2d4a2d' },
+      { key: 'blue', label: '淡蓝', color: '#e8f0f8', text: '#1a2d4a' },
+      { key: 'leather', label: '牛皮', color: '#f4e4c1', text: '#4a3010' },
       { key: 'dark', label: '暗', color: '#2a2a2a', text: '#cccccc' },
-      { key: 'black', label: '黑', color: '#111111', text: '#eeeeee' }
+      { key: 'black', label: '黑', color: '#111111', text: '#eeeeee' },
+      { key: 'custom', label: '自定义', color: '#ffffff', text: '#111111' },
+      { key: 'wallpaper', label: '壁纸', color: 'transparent', text: '#111111' },
     ];
 
-    const readBgStyle = computed(() => {
-      const bg = readBgOptions.find(b => b.key === readBg.value) || readBgOptions[0];
-      return { background: bg.color, color: bg.text, minHeight: '100vh' };
-    });
+    const readBgStyle = computed(() => readContentStyle.value);
 
     const readUiStyle = computed(() => {
       const bg = readBgOptions.find(b => b.key === readBg.value) || readBgOptions[0];
-      return { background: `${bg.color}ee`, color: bg.text };
+      const color = readTextColor.value || bg.text;
+      let bgColor = bg.color;
+      if (readBg.value === 'custom') bgColor = readCustomBg.value || '#ffffff';
+      else if (readBg.value === 'wallpaper') bgColor = 'rgba(255,255,255,0.85)';
+      return { background: `${bgColor}ee`, color };
     });
+
+    const currentChapterContent = computed(() => {
+      const n = currentNovel.value;
+      if (n.chapters && n.chapters.length > 0) {
+        return n.chapters[currentChapterIndex.value]?.content || '';
+      }
+      return n.content || '';
+    });
+
+    const currentChapterTitle = computed(() => {
+      const n = currentNovel.value;
+      if (n.chapters && n.chapters.length > 0) {
+        return n.chapters[currentChapterIndex.value]?.title || n.title;
+      }
+      return n.title;
+    });
+
+    const currentChapterComments = computed(() => {
+      const n = currentNovel.value;
+      if (!n.chapters || !n.chapters.length) return n.comments || [];
+      return n.chapters[currentChapterIndex.value]?.comments || [];
+    });
+const doPageTurn = async (dir, action) => {
+  if (readPageAnim.value === 'none' || readPageAnim.value === 'scroll') {
+    action();
+    return;
+  }
+  pageAnimDir.value = dir;
+  pageAnimating.value = true;
+  await nextTick();
+  action();
+  await new Promise(r => setTimeout(r, 50));
+  pageAnimating.value = false;
+};
+
+    const jumpToChapter = (i) => {
+  currentChapterIndex.value = i;
+  tocOpen.value = false;
+  editingSummary.value = false;
+  editingSummaryText.value = '';
+  nextTick(() => { if (readContent.value) readContent.value.scrollTop = 0; });
+};
+
+
+    const prevChapter = () => {
+      if (currentChapterIndex.value > 0) {
+        doPageTurn('prev', () => {
+          currentChapterIndex.value--;
+          editingSummary.value = false;
+          editingSummaryText.value = '';
+          nextTick(() => { if (readContent.value) readContent.value.scrollTop = 0; });
+        });
+      }
+    };
+
+    const nextChapter = () => {
+      const n = currentNovel.value;
+      if (n.chapters && currentChapterIndex.value < n.chapters.length - 1) {
+        doPageTurn('next', () => {
+          currentChapterIndex.value++;
+          editingSummary.value = false;
+          editingSummaryText.value = '';
+          nextTick(() => { if (readContent.value) readContent.value.scrollTop = 0; });
+        });
+      }
+    };
 
     const openRead = (n) => {
       currentNovel.value = n;
@@ -327,6 +647,16 @@ const confirmUploadUrl = async () => {
       readSettingOpen.value = false;
       companionOpen.value = false;
       companionHistory.value = [];
+      companionCommentsByChapter.value = {};
+      currentChapterIndex.value = 0;
+      tocOpen.value = false;
+      summaryPanelOpen.value = false;
+      commentInput.value = '';
+      editingSummary.value = false;
+      editingSummaryText.value = '';
+      commentReplyTo.value = null;
+      commentCharSelectOpen.value = false;
+      selectedCommentChars.value = [];
       view.value = 'read';
       nextTick(() => refreshIcons());
     };
@@ -339,9 +669,7 @@ const confirmUploadUrl = async () => {
       readProgress.value = Math.round((el.scrollTop / total) * 100);
     };
 
-    const openCompanion = () => {
-      companionOpen.value = true;
-    };
+    const openCompanion = () => { companionOpen.value = true; };
 
     const toggleCompanionChar = (id) => {
       const idx = companionChars.value.indexOf(id);
@@ -353,118 +681,242 @@ const confirmUploadUrl = async () => {
       if (!companionChars.value.length) { alert('请先选择角色'); return; }
       if (!apiConfig.value.url || !apiConfig.value.key || !apiConfig.value.model) { alert('请先配置API'); return; }
       companionLoading.value = true;
+      const n = currentNovel.value;
+      const ch = n.chapters?.[currentChapterIndex.value];
+      const chapterContent = ch?.content || n.content || '';
+      const prevSummaries = n.chapters
+        ? n.chapters.slice(0, currentChapterIndex.value).filter(c => c.summary).map((c, i) => `第${i+1}章（${c.title}）：${c.summary}`).join('\n')
+        : '';
       const selectedChars = chatChars.value.filter(c => companionChars.value.includes(c.id));
-      const el = readContent.value;
-      let currentParagraph = '';
-      if (el) {
-        const scrollPos = el.scrollTop;
-        const content = currentNovel.value.content || '';
-        const paragraphs = content.split('\n').filter(p => p.trim());
-        const approxIndex = Math.floor((scrollPos / el.scrollHeight) * paragraphs.length);
-        currentParagraph = paragraphs.slice(Math.max(0, approxIndex - 1), approxIndex + 3).join('\n');
-      }
-      for (const ch of selectedChars) {
-        try {
-          const persona = ch.persona || '';
-          const prompt = `你现在扮演角色${ch.name}。${persona ? '人设：' + persona + '。' : ''}以下是正在阅读的小说片段，请以${ch.name}的口吻和性格，对这段内容发表简短的评论或感想（可以感动、吐槽、害羞、联想等，保持角色性格，口语化，30字以内）：\n\n${currentParagraph || currentNovel.value.content.slice(0, 200)}`;
-          const res = await fetch(`${apiConfig.value.url.replace(/\/$/, '')}/chat/completions`, {
-            method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiConfig.value.key}` },
-            body: JSON.stringify({ model: apiConfig.value.model, messages: [{ role: 'user', content: prompt }] })
-          });
-          const data = await res.json();
-          const text = data.choices?.[0]?.message?.content || '...';
-          companionHistory.value.push({ name: ch.name, text });
-          await nextTick();
-          if (companionComments.value) companionComments.value.scrollTop = companionComments.value.scrollHeight;
-        } catch (e) {
-          companionHistory.value.push({ name: ch.name, text: '（评论失败）' });
+      const charsDesc = selectedChars.map(c => `${c.name}${c.persona ? '（人设：' + c.persona.slice(0, 50) + '）' : ''}`).join('、');
+
+      let prompt = `你现在扮演以下角色，正在和用户一起阅读小说：${charsDesc}。\n`;
+      if (prevSummaries) prompt += `\n【前情提要（已读章节总结）】\n${prevSummaries}\n`;
+      prompt += `\n【当前阅读章节】${ch?.title || ''}\n${chapterContent.slice(0, 4000)}\n`;
+      prompt += `\n请以各自角色性格，分享阅读这一章的感受（可以感动、紧张、吐槽、猜测后续等），口语化，每人一到两句。格式：\n角色名：评论内容\n每人一行。`;
+
+      try {
+        const res = await fetch(`${apiConfig.value.url.replace(/\/$/, '')}/chat/completions`, {
+          method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiConfig.value.key}` },
+          body: JSON.stringify({ model: apiConfig.value.model, messages: [{ role: 'user', content: prompt }] })
+        });
+        const data = await res.json();
+        const reply = data.choices?.[0]?.message?.content || '';
+        const lines = reply.split('\n').map(l => l.trim()).filter(l => l);
+        const chapterKey = currentChapterIndex.value;
+        if (!companionCommentsByChapter.value[chapterKey]) companionCommentsByChapter.value[chapterKey] = [];
+        for (const line of lines) {
+          const colonIdx = line.indexOf('：') !== -1 ? line.indexOf('：') : line.indexOf(':');
+          if (colonIdx <= 0) continue;
+          const name = line.slice(0, colonIdx).trim();
+          const text = line.slice(colonIdx + 1).trim();
+          if (!name || !text) continue;
+          companionCommentsByChapter.value[chapterKey].push({ name, text });
+          companionHistory.value.push({ name, text });
         }
+        await nextTick();
+        if (companionComments.value) companionComments.value.scrollTop = companionComments.value.scrollHeight;
+      } catch (e) {
+        companionHistory.value.push({ name: '系统', text: '评论失败：' + e.message });
       }
       companionLoading.value = false;
+    };
+const saveSummaryEdit = async () => {
+  if (!currentNovel.value.chapters || !currentNovel.value.chapters[currentChapterIndex.value]) return;
+  currentNovel.value.chapters[currentChapterIndex.value].summary = editingSummaryText.value.trim();
+  const idx = novels.value.findIndex(nv => nv.id === currentNovel.value.id);
+  if (idx !== -1) novels.value[idx] = JSON.parse(JSON.stringify(currentNovel.value));
+  await saveNovels();
+  editingSummary.value = false;
+};
+
+    // ===== 章节总结 =====
+    const openSummaryPanel = () => {
+      const n = currentNovel.value;
+      if (!n.chapters || !n.chapters.length) return;
+      summaryRangeFrom.value = 1;
+      summaryRangeTo.value = Math.min(5, n.chapters.length);
+      summaryPanelOpen.value = true;
+    };
+
+    const runChapterSummary = async () => {
+      if (!apiConfig.value.url || !apiConfig.value.key || !apiConfig.value.model) { alert('请先配置API'); return; }
+      const n = currentNovel.value;
+      if (!n.chapters || !n.chapters.length) return;
+      const from = Math.max(1, parseInt(summaryRangeFrom.value) || 1);
+      const to = Math.min(n.chapters.length, parseInt(summaryRangeTo.value) || n.chapters.length);
+      if (from > to) { alert('起始章节不能大于结束章节'); return; }
+      const chapters = n.chapters.slice(from - 1, to);
+      console.log(`总结范围：第${from}章 到 第${to}章，共${chapters.length}章，slice(${from-1}, ${to})`);
+      summaryGenerating.value = true;
+      summaryAbort = false;
+
+      const sUrl = (apiConfig.value.summaryUrl && apiConfig.value.summaryUrl.trim()) ? apiConfig.value.summaryUrl.trim() : apiConfig.value.url;
+      const sKey = (apiConfig.value.summaryKey && apiConfig.value.summaryKey.trim()) ? apiConfig.value.summaryKey.trim() : apiConfig.value.key;
+      const sModel = (apiConfig.value.summaryModel && apiConfig.value.summaryModel.trim()) ? apiConfig.value.summaryModel.trim() : apiConfig.value.model;
+
+      for (let i = 0; i < chapters.length; i++) {
+        if (summaryAbort) break;
+        const ch = chapters[i];
+        const realIndex = from - 1 + i;
+        summaryProgress.value = `正在总结第 ${realIndex + 1} 章（${i + 1}/${chapters.length}）...`;
+        if (ch.summary && !summaryOverwrite.value) {
+        summaryProgress.value = `第 ${realIndex + 1} 章已有总结，跳过`;
+        await new Promise(r => setTimeout(r, 200));
+        continue;
+       }
+        try {
+          const prompt = `请对以下小说章节进行总结，要求如下：
+            1. 用2-4句话概括本章核心情节和重要事件
+            2. 提及本章出现的关键人物及其行动
+            3. 说明本章对剧情推进的意义或伏笔
+            4. 语言简洁，不超过30字
+            5. 描述本章的情感基调和氛围
+            只输出总结内容，不要有标题、序号或其他多余内容。
+
+            章节标题：${ch.title}
+
+            章节内容：${ch.content.slice(0, 3000)}`;
+
+          const res = await fetch(`${sUrl.replace(/\/$/, '')}/chat/completions`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${sKey}` },
+            body: JSON.stringify({ model: sModel, messages: [{ role: 'user', content: prompt }] })
+          });
+          const data = await res.json();
+          const summary = data.choices?.[0]?.message?.content?.trim() || '';
+          currentNovel.value.chapters[realIndex].summary = summary;
+          const idx = novels.value.findIndex(nv => nv.id === currentNovel.value.id);
+          if (idx !== -1) novels.value[idx] = JSON.parse(JSON.stringify(currentNovel.value));
+          await saveNovels();
+        } catch (e) {
+          summaryProgress.value = `第 ${from + i} 章总结失败：${e.message}`;
+          await new Promise(r => setTimeout(r, 1000));
+        }
+        await new Promise(r => setTimeout(r, 300));
+      }
+      summaryGenerating.value = false;
+      summaryProgress.value = summaryAbort ? '已中断' : '全部完成';
+      setTimeout(() => { if (!summaryGenerating.value) summaryProgress.value = ''; }, 2000);
+    };
+
+    const stopSummary = () => { summaryAbort = true; };
+
+    // ===== 评论区 =====
+    const addMyComment = async () => {
+      if (!commentInput.value.trim()) return;
+      const comment = {
+        id: Date.now(), type: 'me', name: '我',
+        text: commentInput.value.trim(),
+        replyTo: commentReplyTo.value ? { id: commentReplyTo.value.id, name: commentReplyTo.value.name, text: commentReplyTo.value.text.slice(0, 20) } : null,
+        time: Date.now()
+      };
+      const n = currentNovel.value;
+      if (n.chapters && n.chapters.length) {
+        if (!n.chapters[currentChapterIndex.value].comments) n.chapters[currentChapterIndex.value].comments = [];
+        n.chapters[currentChapterIndex.value].comments.push(comment);
+      } else {
+        if (!n.comments) n.comments = [];
+        n.comments.push(comment);
+      }
+      const idx = novels.value.findIndex(nv => nv.id === n.id);
+      if (idx !== -1) novels.value[idx] = JSON.parse(JSON.stringify(n));
+      commentInput.value = '';
+      commentReplyTo.value = null;
+      await saveNovels();
+    };
+
+    const addCharComments = async () => {
+      if (!selectedCommentChars.value.length) { alert('请选择角色'); return; }
+      if (!apiConfig.value.url || !apiConfig.value.key || !apiConfig.value.model) { alert('请先配置API'); return; }
+      commentLoading.value = true;
+      commentCharSelectOpen.value = false;
+      const n = currentNovel.value;
+      const ch = n.chapters?.[currentChapterIndex.value];
+      const chapterContent = ch?.content || n.content || '';
+      const existingComments = currentChapterComments.value.map(c => `${c.name}：${c.text}`).join('\n');
+      const prevSummaries = n.chapters
+        ? n.chapters.slice(0, currentChapterIndex.value).filter(c => c.summary).map((c, i) => `第${i+1}章（${c.title}）：${c.summary}`).join('\n')
+        : '';
+      const selectedChars = chatChars.value.filter(c => selectedCommentChars.value.includes(c.id));
+      const charsDesc = selectedChars.map(c => `${c.name}${c.persona ? '（人设：' + c.persona.slice(0, 50) + '）' : ''}`).join('、');
+
+      let prompt = `你现在需要扮演以下角色，对这一章节内容发表评论：${charsDesc}。\n`;
+      if (prevSummaries) prompt += `\n【前情提要】\n${prevSummaries}\n`;
+      prompt += `\n【当前章节】${ch?.title || ''}\n${chapterContent.slice(0, 4000)}\n`;
+      if (existingComments) prompt += `\n【已有评论】\n${existingComments}\n`;
+      if (commentReplyTo.value) prompt += `\n【正在回复】${commentReplyTo.value.name}：${commentReplyTo.value.text}\n`;
+      prompt += `\n请每位角色用各自性格口吻发表评论，口语化，每人一到两句。格式：\n角色名：评论内容\n每人一行，不要有其他内容。`;
+
+      try {
+        const res = await fetch(`${apiConfig.value.url.replace(/\/$/, '')}/chat/completions`, {
+          method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiConfig.value.key}` },
+          body: JSON.stringify({ model: apiConfig.value.model, messages: [{ role: 'user', content: prompt }] })
+        });
+        const data = await res.json();
+        const reply = data.choices?.[0]?.message?.content || '';
+        const lines = reply.split('\n').map(l => l.trim()).filter(l => l);
+        for (const line of lines) {
+          const colonIdx = line.indexOf('：') !== -1 ? line.indexOf('：') : line.indexOf(':');
+          if (colonIdx <= 0) continue;
+          const name = line.slice(0, colonIdx).trim();
+          const text = line.slice(colonIdx + 1).trim();
+          if (!name || !text) continue;
+          const comment = {
+            id: Date.now() + Math.random(), type: 'char', name, text,
+            replyTo: commentReplyTo.value ? { id: commentReplyTo.value.id, name: commentReplyTo.value.name, text: commentReplyTo.value.text.slice(0, 20) } : null,
+            time: Date.now()
+          };
+          if (n.chapters && n.chapters.length) {
+            if (!n.chapters[currentChapterIndex.value].comments) n.chapters[currentChapterIndex.value].comments = [];
+            n.chapters[currentChapterIndex.value].comments.push(comment);
+          } else {
+            if (!n.comments) n.comments = [];
+            n.comments.push(comment);
+          }
+        }
+        commentReplyTo.value = null;
+        const idx = novels.value.findIndex(nv => nv.id === n.id);
+        if (idx !== -1) novels.value[idx] = JSON.parse(JSON.stringify(n));
+        await saveNovels();
+      } catch (e) { alert('评论失败：' + e.message); }
+      commentLoading.value = false;
+    };
+
+    const deleteComment = async (commentId) => {
+      const n = currentNovel.value;
+      if (n.chapters && n.chapters.length) {
+        n.chapters[currentChapterIndex.value].comments = (n.chapters[currentChapterIndex.value].comments || []).filter(c => c.id !== commentId);
+      } else {
+        n.comments = (n.comments || []).filter(c => c.id !== commentId);
+      }
+      const idx = novels.value.findIndex(nv => nv.id === n.id);
+      if (idx !== -1) novels.value[idx] = JSON.parse(JSON.stringify(n));
+      await saveNovels();
     };
 
     // ===== 设置 =====
     const apiPresets = ref([]);
-const modelList = ref([]);
-const showModelDrop = ref(false);
+    const modelList = ref([]);
+    const showModelDrop = ref(false);
 
-const fetchModels = async () => {
-  if (!apiConfig.value.url || !apiConfig.value.key) { alert('请先填写API网址和密钥'); return; }
-  try {
-    const res = await fetch(`${apiConfig.value.url.replace(/\/$/, '')}/models`, {
-      headers: { Authorization: `Bearer ${apiConfig.value.key}` }
-    });
-    const data = await res.json();
-    modelList.value = (data.data || []).map(m => m.id);
-    showModelDrop.value = true;
-  } catch (e) { alert('获取模型失败：' + e.message); }
-};
+    const fetchModels = async () => {
+      if (!apiConfig.value.url || !apiConfig.value.key) { alert('请先填写API网址和密钥'); return; }
+      try {
+        const res = await fetch(`${apiConfig.value.url.replace(/\/$/, '')}/models`, {
+          headers: { Authorization: `Bearer ${apiConfig.value.key}` }
+        });
+        const data = await res.json();
+        modelList.value = (data.data || []).map(m => m.id);
+        showModelDrop.value = true;
+      } catch (e) { alert('获取模型失败：' + e.message); }
+    };
 
     const openSettings = () => { settingsShow.value = true; openNewMenu.value = false; };
     const saveSettings = async () => {
-      await dbSet('apiConfig', JSON.parse(JSON.stringify(apiConfig.value)));
+      await dbSet('novelApiConfig', JSON.parse(JSON.stringify(apiConfig.value)));
       settingsShow.value = false;
     };
-    const importShow = ref(false);
-const importTab = ref('url');
-const importTitle = ref('');
-const importUrl = ref('');
-const importContent = ref('');
-const importLoading = ref(false);
-
-const parseChapters = (content) => {
-  const chapterRegex = /^(第[零一二三四五六七八九十百千\d]+[章节卷回集部][^\n]*|Chapter\s*\d+[^\n]*|【[^】]+】[^\n]*)/gm;
-  const matches = [];
-  let match;
-  while ((match = chapterRegex.exec(content)) !== null) {
-    matches.push({ title: match[0].trim(), index: match.index });
-  }
-  if (matches.length < 2) return null;
-  return matches.map((m, i) => {
-    const start = m.index;
-    const end = i + 1 < matches.length ? matches[i + 1].index : content.length;
-    return { title: m.title, content: content.slice(start, end).trim() };
-  });
-};
-
-const doImportNovel = async (title, content) => {
-  const now = Date.now();
-  const chapters = parseChapters(content);
-  novels.value.unshift({
-    id: now, title: title.trim(), content, cover: '', type: 'upload',
-    tags: [], chars: [], charRelations: '',
-    chapters: chapters || [],
-    wordCount: content.length,
-    createTime: now, updateTime: now
-  });
-  await saveNovels();
-  importShow.value = false;
-  importTitle.value = '';
-  importUrl.value = '';
-  importContent.value = '';
-  alert(chapters ? `导入成功，已自动识别 ${chapters.length} 个章节` : '导入成功');
-};
-
-const confirmImportUrl = async () => {
-  if (!importTitle.value.trim()) { alert('请输入标题'); return; }
-  if (!importUrl.value.trim()) { alert('请输入文件直链URL'); return; }
-  importLoading.value = true;
-  try {
-    const res = await fetch(importUrl.value.trim());
-    if (!res.ok) { alert('获取失败，状态码：' + res.status); importLoading.value = false; return; }
-    const text = await res.text();
-    await doImportNovel(importTitle.value, text);
-  } catch (e) {
-    alert('获取失败：' + e.message + '\n提示：部分网站有跨域限制，可改用粘贴文本方式');
-  }
-  importLoading.value = false;
-};
-
-const confirmImportPaste = async () => {
-  if (!importTitle.value.trim()) { alert('请输入标题'); return; }
-  if (!importContent.value.trim()) { alert('请粘贴文本内容'); return; }
-  await doImportNovel(importTitle.value, importContent.value.trim());
-};
 
     const goBack = () => { window.location.href = 'world.html'; };
 
@@ -493,15 +945,19 @@ const confirmImportPaste = async () => {
         fsStyle.textContent = `* { font-size: ${savedFontSize}px !important; }`;
       }
 
-      const [savedNovels, savedChars, savedRandomChars, savedWorldBooks, savedApi, savedStylePresets, savedApiPresets] = await Promise.all([
-      dbGet('novels'), dbGet('charList'), dbGet('randomCharList'), dbGet('worldBooks'), dbGet('apiConfig'), dbGet('novelStylePresets'), dbGet('apiPresets')
-    ]);
+      const [savedNovels, savedChars, savedRandomChars, savedWorldBooks, savedApi, savedNovelApi, savedStylePresets, savedApiPresets] = await Promise.all([
+        dbGet('novels'), dbGet('charList'), dbGet('randomCharList'), dbGet('worldBooks'),
+        dbGet('apiConfig'), dbGet('novelApiConfig'), dbGet('novelStylePresets'), dbGet('apiPresets')
+      ]);
 
       novels.value = savedNovels || [];
-      const allChars = [...(savedChars || []), ...(savedRandomChars || [])];
-      chatChars.value = allChars;
+      chatChars.value = [...(savedChars || []), ...(savedRandomChars || [])];
       allWorldBooks.value = savedWorldBooks || [];
-      if (savedApi) apiConfig.value = { url: '', key: '', model: '', ...savedApi };
+      if (savedNovelApi) {
+        apiConfig.value = { url: '', key: '', model: '', summaryUrl: '', summaryKey: '', summaryModel: '', ...savedNovelApi };
+      } else if (savedApi) {
+        apiConfig.value = { url: '', key: '', model: '', summaryUrl: '', summaryKey: '', summaryModel: '', ...savedApi };
+      }
       if (savedApiPresets) apiPresets.value = savedApiPresets;
       if (savedStylePresets) stylePresets.value = savedStylePresets;
 
@@ -510,22 +966,38 @@ const confirmImportPaste = async () => {
 
     return {
       view, novels, listTab, searchText, filterTag, openNewMenu, settingsShow,
-      chatChars, allWorldBooks, apiConfig, uploadFile, writeCoverFile, readContent, companionComments,
+      chatChars, allWorldBooks, apiConfig, readContent, companionComments,
       allTags, filteredNovels, typeLabel, formatTime, deleteNovel,
       triggerUpload, handleUpload,
+      importShow, importTab, importTitle, importUrl, importContent, importLoading,
+      confirmImportUrl, confirmImportPaste,
       editForm, tagInput, writeWordCount,
       startWrite, startWriteEdit, applyWriteCoverUrl, triggerWriteCover, uploadWriteCover,
       addTag, removeTag, saveWrite,
+      editingChapterIndex, editingChapter, openChapterEdit, saveChapterEdit, cancelChapterEdit,
       aiForm, aiResult, aiComment, aiLoading, stylePresets, stylePresetName,
       startAi, toggleAiWorldBook, saveStylePreset, saveStylePresetsDb,
       runAiGenerate, runAiContinue, runAiComment, saveAiResult,
       currentNovel, readSettingOpen, readBg, readFontSize, readLineHeight, readProgress,
       readBgOptions, readBgStyle, readUiStyle,
-      companionOpen, companionChars, companionHistory, companionLoading,
+      companionOpen, companionChars, companionHistory, companionLoading, companionCommentsByChapter,
+      tocOpen, currentChapterIndex, currentChapterContent, currentChapterTitle, currentChapterComments,
+      jumpToChapter, prevChapter, nextChapter,
+      summaryPanelOpen, summaryRangeFrom, summaryRangeTo, summaryGenerating, summaryProgress,
+      openSummaryPanel, runChapterSummary, stopSummary,
+      commentInput, commentReplyTo, commentCharSelectOpen, commentLoading, selectedCommentChars,
+      addMyComment, addCharComments, deleteComment,
       openRead, onReadScroll, openCompanion, toggleCompanionChar, triggerCompanionComment,
-      openSettings, saveSettings, backToList, refreshIcons, apiPresets, modelList, showModelDrop, fetchModels, goBack,
-      importShow, importTab, importTitle, importUrl, importContent, importLoading,
-      confirmImportUrl, confirmImportPaste,
+      openSettings, saveSettings, backToList, refreshIcons,
+      apiPresets, modelList, showModelDrop, fetchModels, goBack, editingSummary, editingSummaryText, saveSummaryEdit, summaryOverwrite,
+readLetterSpacing, readParaSpacing, readTextColor, readCustomBg,
+readWallpaper, readWallpaperUrl, readFontUploadUrl,
+readPageAnim, readFont, readCustomFont, readCustomFontName, readCustomFontLoaded,
+readIndent, readFontOptions, readTextStyle, readParaStyle, readContentStyle,
+pageAnimating, pageAnimDir,
+loadReadFont, triggerReadFontUpload, handleReadFontUpload, applyReadFontUrl,
+triggerReadWallpaperUpload, handleReadWallpaperUpload, applyReadWallpaperUrl,
+saveReadSettings,
 
     };
   }

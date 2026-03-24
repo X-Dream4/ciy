@@ -24,34 +24,27 @@
         <div class="novel-new-menu-item" @click="startWrite"><i data-lucide="pen-line"></i> 手写创作</div>
         <div class="novel-new-menu-item" @click="startAi"><i data-lucide="sparkles"></i> AI创作</div>
         <div class="novel-new-menu-item" @click="triggerUpload"><i data-lucide="upload"></i> 上传本地文件</div>
-        <div class="novel-new-menu-item" @click="importShow=true; openNewMenu=false"><i data-lucide="import"></i> 导入小说</div>
+        <div class="novel-new-menu-item" @click="importShow=true; openNewMenu=false"><i data-lucide="file-input"></i> 导入小说</div>
       </div>
     </div>
 
     <div class="novel-list-body">
-      <!-- 类型tab -->
       <div class="novel-tabs">
         <div class="novel-tab" :class="{active: listTab==='all'}" @click="listTab='all'">全部</div>
         <div class="novel-tab" :class="{active: listTab==='original'}" @click="listTab='original'">原创</div>
         <div class="novel-tab" :class="{active: listTab==='fanfic'}" @click="listTab='fanfic'">同人</div>
         <div class="novel-tab" :class="{active: listTab==='upload'}" @click="listTab='upload'">上传</div>
       </div>
-
-      <!-- 搜索 -->
       <div class="novel-search-row">
         <div class="novel-search-wrap">
           <i data-lucide="search" style="width:14px;height:14px;color:#aaa;flex-shrink:0;"></i>
           <input class="novel-search-input" v-model="searchText" placeholder="搜索标题..." />
         </div>
       </div>
-
-      <!-- 标签筛选 -->
       <div class="novel-tag-filter" v-if="allTags.length">
         <div class="novel-tag-chip" :class="{active: filterTag===''}" @click="filterTag=''">全部</div>
         <div class="novel-tag-chip" v-for="t in allTags" :key="t" :class="{active: filterTag===t}" @click="filterTag=t">{{ t }}</div>
       </div>
-
-      <!-- 卡片列表 -->
       <div class="novel-card-list" v-if="filteredNovels.length">
         <div class="novel-card" v-for="n in filteredNovels" :key="n.id" @click="openRead(n)">
           <div class="novel-card-cover" :style="n.cover?`background-image:url(${n.cover})`:''">
@@ -62,6 +55,7 @@
             <div class="novel-card-meta">
               <span class="novel-type-badge" :class="'type-'+n.type">{{ typeLabel(n.type) }}</span>
               <span class="novel-card-words">{{ n.wordCount || 0 }} 字</span>
+              <span v-if="n.chapters && n.chapters.length" style="font-size:10px;color:#aaa;">{{ n.chapters.length }} 章</span>
             </div>
             <div class="novel-card-summary" v-if="n.content">{{ n.content.slice(0,60) }}{{ n.content.length>60?'...':'' }}</div>
             <div class="novel-card-tags" v-if="n.tags && n.tags.length">
@@ -93,10 +87,7 @@
       </div>
     </div>
     <div class="novel-write-body">
-      <!-- 标题 -->
       <input class="novel-write-title-input" v-model="editForm.title" placeholder="输入标题..." />
-
-      <!-- 类型 -->
       <div class="novel-field">
         <label>类型</label>
         <div class="novel-type-row">
@@ -104,8 +95,6 @@
           <div class="novel-type-btn" :class="{active: editForm.type==='fanfic'}" @click="editForm.type='fanfic'">同人</div>
         </div>
       </div>
-
-      <!-- 封面 -->
       <div class="novel-field">
         <label>封面图</label>
         <div class="novel-cover-row">
@@ -121,8 +110,6 @@
           </div>
         </div>
       </div>
-
-      <!-- 标签 -->
       <div class="novel-field">
         <label>标签</label>
         <div class="novel-tag-input-row">
@@ -135,30 +122,22 @@
           </div>
         </div>
       </div>
-
-      <!-- 角色 -->
       <div class="novel-field">
         <label>登场角色</label>
         <div class="novel-chars-list">
           <div class="novel-char-row" v-for="(c,i) in editForm.chars" :key="i">
             <div class="novel-char-role-wrap">
               <select class="novel-input" v-model="c.role" style="flex:1;">
-                <option value="女主">女主</option>
-                <option value="男主">男主</option>
-                <option value="女二">女二</option>
-                <option value="男二">男二</option>
-                <option value="女三">女三</option>
-                <option value="男三">男三</option>
-                <option value="配角">配角</option>
-                <option value="反派">反派</option>
+                <option value="女主">女主</option><option value="男主">男主</option>
+                <option value="女二">女二</option><option value="男二">男二</option>
+                <option value="配角">配角</option><option value="反派">反派</option>
                 <option value="其他">其他</option>
               </select>
               <input class="novel-input" v-model="c.customRole" placeholder="自定义地位..." v-if="c.role==='其他'" style="flex:1;" />
             </div>
             <div style="display:flex;gap:6px;flex:1;">
               <select class="novel-input" v-model="c.fromChat" style="width:80px;">
-                <option value="chat">角色库</option>
-                <option value="custom">自定义</option>
+                <option value="chat">角色库</option><option value="custom">自定义</option>
               </select>
               <select class="novel-input" v-model="c.name" v-if="c.fromChat==='chat'" style="flex:1;">
                 <option value="">选择角色...</option>
@@ -171,17 +150,38 @@
         </div>
         <button class="novel-small-btn" style="margin-top:6px;" @click="editForm.chars.push({role:'配角',name:'',fromChat:'chat',customRole:'',persona:''})">+ 添加角色</button>
       </div>
-
-      <!-- 角色关系 -->
       <div class="novel-field" v-if="editForm.chars.length">
         <label>角色关系</label>
-        <textarea class="novel-textarea" v-model="editForm.charRelations" placeholder="描述角色之间的关系，如：A暗恋B，B不知情..."></textarea>
+        <textarea class="novel-textarea" v-model="editForm.charRelations" placeholder="描述角色之间的关系..."></textarea>
       </div>
 
-      <!-- 正文 -->
+      <!-- 正文/章节目录 -->
       <div class="novel-field">
-        <label>正文</label>
-        <textarea class="novel-write-content" v-model="editForm.content" placeholder="开始写作..."></textarea>
+        <label>{{ editForm.chapters && editForm.chapters.length ? '章节目录' : '正文' }}</label>
+        <div v-if="editForm.chapters && editForm.chapters.length" style="display:flex;flex-direction:column;gap:6px;">
+          <div v-for="(ch, i) in editForm.chapters" :key="i">
+            <div style="display:flex;align-items:center;gap:8px;background:#f9f9f9;border-radius:10px;padding:10px 12px;">
+              <span style="font-size:13px;color:#333;flex:1;">{{ i+1 }}. {{ ch.title }}</span>
+              <span v-if="ch.summary" style="font-size:11px;color:#aaa;flex:2;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ ch.summary }}</span>
+              <button class="novel-small-btn" @click="openChapterEdit(i)">编辑</button>
+            </div>
+            <div v-if="editingChapterIndex===i" style="display:flex;flex-direction:column;gap:8px;background:#fff;border-radius:12px;padding:12px;border:1.5px solid #e5e5ea;margin-top:4px;">
+              <div class="novel-field" style="margin:0;">
+                <label>章节标题</label>
+                <input class="novel-input" v-model="editingChapter.title" />
+              </div>
+              <div class="novel-field" style="margin:0;">
+                <label>章节正文</label>
+                <textarea class="novel-write-content" v-model="editingChapter.content" style="min-height:300px;"></textarea>
+              </div>
+              <div style="display:flex;gap:8px;">
+                <button class="novel-small-btn" @click="cancelChapterEdit">取消</button>
+                <button class="novel-save-btn" @click="saveChapterEdit">保存</button>
+              </div>
+            </div>
+          </div>
+        </div>
+        <textarea v-else class="novel-write-content" v-model="editForm.content" placeholder="开始写作..."></textarea>
       </div>
     </div>
   </div>
@@ -194,8 +194,6 @@
       <button class="novel-save-btn" @click="saveAiResult" v-if="aiResult">保存</button>
     </div>
     <div class="novel-write-body">
-
-      <!-- 类型 -->
       <div class="novel-field">
         <label>类型</label>
         <div class="novel-type-row">
@@ -203,36 +201,26 @@
           <div class="novel-type-btn" :class="{active: aiForm.type==='fanfic'}" @click="aiForm.type='fanfic'">同人</div>
         </div>
       </div>
-
-      <!-- 标题 -->
       <div class="novel-field">
         <label>标题（可选）</label>
         <input class="novel-input" v-model="aiForm.title" placeholder="留空则由AI生成..." />
       </div>
-
-      <!-- 角色设置 -->
       <div class="novel-field">
         <label>登场角色</label>
         <div class="novel-chars-list">
           <div class="novel-char-row" v-for="(c,i) in aiForm.chars" :key="i">
             <div class="novel-char-role-wrap">
               <select class="novel-input" v-model="c.role" style="flex:1;">
-                <option value="女主">女主</option>
-                <option value="男主">男主</option>
-                <option value="女二">女二</option>
-                <option value="男二">男二</option>
-                <option value="女三">女三</option>
-                <option value="男三">男三</option>
-                <option value="配角">配角</option>
-                <option value="反派">反派</option>
+                <option value="女主">女主</option><option value="男主">男主</option>
+                <option value="女二">女二</option><option value="男二">男二</option>
+                <option value="配角">配角</option><option value="反派">反派</option>
                 <option value="其他">其他</option>
               </select>
               <input class="novel-input" v-model="c.customRole" placeholder="自定义地位..." v-if="c.role==='其他'" style="flex:1;" />
             </div>
             <div style="display:flex;gap:6px;flex:1;">
               <select class="novel-input" v-model="c.fromChat" style="width:80px;">
-                <option value="chat">角色库</option>
-                <option value="custom">自定义</option>
+                <option value="chat">角色库</option><option value="custom">自定义</option>
               </select>
               <select class="novel-input" v-model="c.name" v-if="c.fromChat==='chat'" style="flex:1;">
                 <option value="">选择角色...</option>
@@ -245,14 +233,10 @@
         </div>
         <button class="novel-small-btn" style="margin-top:6px;" @click="aiForm.chars.push({role:'配角',name:'',fromChat:'chat',customRole:'',persona:''})">+ 添加角色</button>
       </div>
-
-      <!-- 角色关系 -->
       <div class="novel-field" v-if="aiForm.chars.length">
         <label>角色关系</label>
         <textarea class="novel-textarea" v-model="aiForm.charRelations" placeholder="描述角色之间的关系..."></textarea>
       </div>
-
-      <!-- 世界观 -->
       <div class="novel-field">
         <label>世界观 / 背景</label>
         <div v-if="allWorldBooks.length" style="margin-bottom:6px;">
@@ -263,8 +247,6 @@
         </div>
         <textarea class="novel-textarea" v-model="aiForm.worldDesc" placeholder="手动输入世界观背景..."></textarea>
       </div>
-
-      <!-- 时代背景 -->
       <div class="novel-field">
         <label>时代背景</label>
         <div class="novel-type-row" style="flex-wrap:wrap;">
@@ -272,8 +254,6 @@
         </div>
         <input class="novel-input" v-if="aiForm.era==='其他'" v-model="aiForm.eraCustom" placeholder="自定义时代背景..." style="margin-top:6px;" />
       </div>
-
-      <!-- 基调 -->
       <div class="novel-field">
         <label>基调</label>
         <div class="novel-type-row" style="flex-wrap:wrap;">
@@ -281,19 +261,15 @@
         </div>
         <input class="novel-input" v-if="aiForm.tone==='其他'" v-model="aiForm.toneCustom" placeholder="自定义基调..." style="margin-top:6px;" />
       </div>
-
-      <!-- 视角 -->
       <div class="novel-field">
         <label>叙述视角</label>
         <div class="novel-type-row">
           <div class="novel-type-btn" v-for="pov in ['第一人称','第三人称','第二人称']" :key="pov" :class="{active: aiForm.pov===pov}" @click="aiForm.pov=pov">{{ pov }}</div>
         </div>
       </div>
-
-      <!-- 文风设置 -->
       <div class="novel-field">
         <label>文风设置</label>
-        <textarea class="novel-textarea" v-model="aiForm.writingStyle" placeholder="描述文风要求，例如：文笔细腻深情，大量心理描写，节奏舒缓..."></textarea>
+        <textarea class="novel-textarea" v-model="aiForm.writingStyle" placeholder="描述文风要求..."></textarea>
         <div style="display:flex;gap:6px;margin-top:6px;">
           <input class="novel-input" v-model="stylePresetName" placeholder="文风预设名称..." style="flex:1;" />
           <button class="novel-small-btn" @click="saveStylePreset">存档</button>
@@ -306,32 +282,22 @@
           </div>
         </div>
       </div>
-
-      <!-- 剧情走向 -->
       <div class="novel-field">
         <label>剧情走向 / 大纲</label>
         <textarea class="novel-textarea" v-model="aiForm.plot" placeholder="描述故事大概走向、关键情节..."></textarea>
       </div>
-
-      <!-- 开头设定 -->
       <div class="novel-field">
         <label>开头设定（可选）</label>
         <textarea class="novel-textarea" v-model="aiForm.opening" placeholder="规定开头内容或场景..." style="min-height:60px;"></textarea>
       </div>
-
-      <!-- 结局设定 -->
       <div class="novel-field">
         <label>结局设定（可选）</label>
         <textarea class="novel-textarea" v-model="aiForm.ending" placeholder="规定结局走向..." style="min-height:60px;"></textarea>
       </div>
-
-      <!-- 特殊要求 -->
       <div class="novel-field">
         <label>特殊要求</label>
-        <textarea class="novel-textarea" v-model="aiForm.special" placeholder="其他特殊要求，如：要有雨夜场景、要有对话..."></textarea>
+        <textarea class="novel-textarea" v-model="aiForm.special" placeholder="其他特殊要求..."></textarea>
       </div>
-
-      <!-- 字数范围 -->
       <div class="novel-field">
         <label>字数范围</label>
         <div style="display:flex;align-items:center;gap:8px;">
@@ -341,8 +307,6 @@
           <span style="font-size:13px;color:#888;">字</span>
         </div>
       </div>
-
-      <!-- 章节模式 -->
       <div class="novel-field">
         <div style="display:flex;align-items:center;justify-content:space-between;">
           <label style="margin:0;">章节模式</label>
@@ -350,14 +314,10 @@
         </div>
         <div style="font-size:11px;color:#aaa;margin-top:2px;">开启后生成带章节的长文</div>
       </div>
-
-      <!-- 生成按钮 -->
       <button class="novel-generate-btn" @click="runAiGenerate" :disabled="aiLoading">
         {{ aiLoading ? '生成中...' : 'AI生成' }}
       </button>
       <div class="novel-loading" v-if="aiLoading"><span></span><span></span><span></span></div>
-
-      <!-- 生成结果 -->
       <div v-if="aiResult" style="display:flex;flex-direction:column;gap:10px;margin-top:8px;">
         <div class="novel-field">
           <label>生成结果（可编辑）</label>
@@ -374,54 +334,264 @@
           <div style="font-size:13px;color:#333;line-height:1.7;white-space:pre-wrap;">{{ aiComment }}</div>
         </div>
       </div>
-
     </div>
   </div>
 
   <!-- ===== 阅读模式 ===== -->
-  <div v-if="view==='read'" class="novel-read-page" :style="readBgStyle">
+  <div v-if="view==='read'" class="novel-read-page" :style="readContentStyle">
     <div class="novel-read-topbar" :style="readUiStyle">
       <button class="novel-icon-btn" @click="backToList" :style="readUiStyle"><i data-lucide="arrow-left"></i></button>
       <div class="novel-read-title" :style="readUiStyle">{{ currentNovel.title }}</div>
       <div style="display:flex;gap:6px;">
+        <button class="novel-icon-btn" :style="readUiStyle" @click="tocOpen=!tocOpen; $nextTick(refreshIcons)" v-if="currentNovel.chapters && currentNovel.chapters.length"><i data-lucide="list"></i></button>
+        <button class="novel-icon-btn" :style="readUiStyle" @click="openSummaryPanel" v-if="currentNovel.chapters && currentNovel.chapters.length"><i data-lucide="book-marked"></i></button>
         <button class="novel-icon-btn" :style="readUiStyle" @click="readSettingOpen=!readSettingOpen"><i data-lucide="sliders-horizontal"></i></button>
         <button class="novel-icon-btn" :style="readUiStyle" @click="openCompanion"><i data-lucide="message-circle"></i></button>
       </div>
     </div>
 
     <!-- 阅读设置面板 -->
-    <div class="novel-read-setting-panel" v-if="readSettingOpen">
+    <div class="novel-read-setting-panel" v-if="readSettingOpen" style="max-height:80vh;overflow-y:auto;">
+
+      <!-- 背景 -->
       <div class="novel-field" style="margin:0;">
         <label>背景</label>
-        <div class="novel-type-row">
-          <div class="novel-read-bg-btn" v-for="bg in readBgOptions" :key="bg.key" :class="{active: readBg===bg.key}" :style="`background:${bg.color};color:${bg.text};`" @click="readBg=bg.key">{{ bg.label }}</div>
+        <div style="display:flex;flex-wrap:wrap;gap:6px;">
+          <div class="novel-read-bg-btn" v-for="bg in readBgOptions" :key="bg.key"
+            :class="{active: readBg===bg.key}"
+            :style="bg.key==='wallpaper'?'background:#f0f0f5;':bg.key==='custom'?'background:'+readCustomBg+';':'background:'+bg.color+';color:'+bg.text+';'"
+            @click="readBg=bg.key; saveReadSettings()">{{ bg.label }}</div>
+        </div>
+        <div v-if="readBg==='custom'" style="display:flex;align-items:center;gap:8px;margin-top:4px;">
+          <input type="color" :value="readCustomBg||'#ffffff'" @change="e=>{readCustomBg=e.target.value; saveReadSettings()}" style="width:36px;height:30px;border:none;border-radius:6px;cursor:pointer;" />
+          <input class="novel-input" v-model="readCustomBg" @change="saveReadSettings()" placeholder="#ffffff" style="flex:1;" />
+        </div>
+        <div v-if="readBg==='wallpaper'" style="display:flex;flex-direction:column;gap:6px;margin-top:4px;">
+          <input class="novel-input" v-model="readWallpaperUrl" placeholder="壁纸URL..." />
+          <div style="display:flex;gap:6px;">
+            <button class="novel-small-btn" style="flex:1;" @click="applyReadWallpaperUrl">确认URL</button>
+            <button class="novel-small-btn" style="flex:1;" @click="triggerReadWallpaperUpload">本地上传</button>
+          </div>
         </div>
       </div>
+
+      <!-- 字体颜色 -->
+      <div class="novel-field" style="margin:0;">
+        <label>字体颜色</label>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <input type="color" :value="readTextColor||'#111111'" @change="e=>{readTextColor=e.target.value; saveReadSettings()}" style="width:36px;height:30px;border:none;border-radius:6px;cursor:pointer;" />
+          <input class="novel-input" v-model="readTextColor" @change="saveReadSettings()" placeholder="留空跟随背景" style="flex:1;" />
+          <button class="novel-small-btn" @click="readTextColor=''; saveReadSettings()">重置</button>
+        </div>
+      </div>
+
+      <!-- 字体大小 -->
       <div class="novel-field" style="margin:0;">
         <label>字体大小</label>
         <div style="display:flex;align-items:center;gap:8px;">
-          <button class="novel-small-btn" @click="readFontSize=Math.max(12,readFontSize-1)">A-</button>
+          <button class="novel-small-btn" @click="readFontSize=Math.max(12,readFontSize-1); saveReadSettings()">A-</button>
           <span style="font-size:13px;min-width:30px;text-align:center;">{{ readFontSize }}px</span>
-          <button class="novel-small-btn" @click="readFontSize=Math.min(24,readFontSize+1)">A+</button>
+          <button class="novel-small-btn" @click="readFontSize=Math.min(24,readFontSize+1); saveReadSettings()">A+</button>
         </div>
       </div>
+
+      <!-- 行距 -->
       <div class="novel-field" style="margin:0;">
-        <label>行距</label>
-        <div style="display:flex;align-items:center;gap:8px;">
-          <button class="novel-small-btn" @click="readLineHeight=Math.max(1.4,+(readLineHeight-0.1).toFixed(1))">-</button>
-          <span style="font-size:13px;min-width:30px;text-align:center;">{{ readLineHeight }}</span>
-          <button class="novel-small-btn" @click="readLineHeight=Math.min(3.0,+(readLineHeight+0.1).toFixed(1))">+</button>
+        <label>行距 {{ readLineHeight }}</label>
+        <input type="range" min="1.4" max="3.0" step="0.1" v-model="readLineHeight" @change="saveReadSettings()" style="width:100%;accent-color:#111;" />
+      </div>
+
+      <!-- 字距 -->
+      <div class="novel-field" style="margin:0;">
+        <label>字距 {{ readLetterSpacing }}px</label>
+        <input type="range" min="0" max="5" step="0.5" v-model="readLetterSpacing" @change="saveReadSettings()" style="width:100%;accent-color:#111;" />
+      </div>
+
+      <!-- 段距 -->
+      <div class="novel-field" style="margin:0;">
+        <label>段距 {{ readParaSpacing }}em</label>
+        <input type="range" min="0" max="3" step="0.2" v-model="readParaSpacing" @change="saveReadSettings()" style="width:100%;accent-color:#111;" />
+      </div>
+
+      <!-- 首行缩进 -->
+      <div class="novel-field" style="margin:0;">
+        <div style="display:flex;align-items:center;justify-content:space-between;">
+          <label style="margin:0;">首行缩进</label>
+          <div class="novel-toggle" :class="{on: readIndent}" @click="readIndent=!readIndent; saveReadSettings()"></div>
+        </div>
+      </div>
+
+      <!-- 翻页动画 -->
+      <div class="novel-field" style="margin:0;">
+        <label>翻页动画</label>
+        <div style="display:flex;flex-wrap:wrap;gap:6px;">
+          <div v-for="anim in [{key:'scroll',label:'滚动'},{key:'slide',label:'滑动'},{key:'cover',label:'覆盖'},{key:'flip',label:'仿真'},{key:'none',label:'无动画'}]"
+            :key="anim.key"
+            class="novel-type-btn"
+            :class="{active: readPageAnim===anim.key}"
+            @click="readPageAnim=anim.key; saveReadSettings()">{{ anim.label }}</div>
+        </div>
+      </div>
+
+      <!-- 字体 -->
+      <div class="novel-field" style="margin:0;">
+        <label>正文字体</label>
+        <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:6px;">
+          <div v-for="f in readFontOptions" :key="f.key"
+            class="novel-type-btn"
+            :class="{active: readFont===f.key}"
+            @click="readFont=f.key; saveReadSettings()">{{ f.label }}</div>
+          <div class="novel-type-btn" :class="{active: readFont==='custom'}" @click="readFont='custom'; saveReadSettings()">自定义</div>
+        </div>
+        <div v-if="readFont==='custom'" style="display:flex;flex-direction:column;gap:6px;">
+          <div style="font-size:11px;color:#aaa;">{{ readCustomFontName || '未上传字体' }}</div>
+          <input class="novel-input" v-model="readFontUploadUrl" placeholder="字体URL（.ttf/.woff/.woff2）..." />
+          <div style="display:flex;gap:6px;">
+            <button class="novel-small-btn" style="flex:1;" @click="applyReadFontUrl">确认URL</button>
+            <button class="novel-small-btn" style="flex:1;" @click="triggerReadFontUpload">本地上传</button>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- 目录面板 -->
+    <div class="novel-toc-panel" v-if="tocOpen && currentNovel.chapters && currentNovel.chapters.length">
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;border-bottom:1px solid #f0f0f0;flex-shrink:0;">
+        <span style="font-size:13px;font-weight:700;color:#333;">目录（{{ currentNovel.chapters.length }}章）</span>
+        <button class="novel-icon-btn" style="width:28px;height:28px;" @click="tocOpen=false"><i data-lucide="x"></i></button>
+      </div>
+      <div style="flex:1;overflow-y:auto;padding:6px 0;">
+        <div v-for="(ch, i) in currentNovel.chapters" :key="i" class="novel-toc-item" :class="{active: currentChapterIndex===i}" @click="jumpToChapter(i)">
+          <div style="display:flex;justify-content:space-between;align-items:center;">
+            <span>{{ ch.title }}</span>
+            <i data-lucide="check-circle" style="width:12px;height:12px;color:#27ae60;flex-shrink:0;" v-if="ch.summary"></i>
+          </div>
+          <div v-if="ch.summary" style="font-size:11px;color:#aaa;margin-top:2px;">{{ ch.summary }}</div>
         </div>
       </div>
     </div>
 
+    <!-- 章节总结面板 -->
+    <div v-if="summaryPanelOpen" style="position:fixed;top:52px;right:16px;background:rgba(255,255,255,0.96);backdrop-filter:blur(16px);border-radius:16px;padding:14px 16px;box-shadow:0 4px 20px rgba(0,0,0,0.12);display:flex;flex-direction:column;gap:10px;min-width:240px;z-index:200;">
+      <div style="display:flex;align-items:center;justify-content:space-between;">
+        <span style="font-size:13px;font-weight:700;color:#333;">生成章节总结</span>
+        <button class="novel-icon-btn" style="width:28px;height:28px;" @click="summaryPanelOpen=false"><i data-lucide="x"></i></button>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;font-size:13px;color:#555;">
+        <span>第</span>
+        <input class="novel-input" type="number" v-model="summaryRangeFrom" min="1" :max="currentNovel.chapters.length" style="width:60px;text-align:center;padding:6px;" />
+        <span>章 至 第</span>
+        <input class="novel-input" type="number" v-model="summaryRangeTo" :min="summaryRangeFrom" :max="currentNovel.chapters.length" style="width:60px;text-align:center;padding:6px;" />
+        <span>章</span>
+      </div>
+      <div style="font-size:11px;color:#aaa;">共 {{ currentNovel.chapters.length }} 章，每章单独调用一次API，使用总结专用API（如已配置）</div>
+      <div style="display:flex;align-items:center;justify-content:space-between;font-size:12px;color:#555;">
+        <span>覆盖已有总结</span>
+        <div class="novel-toggle" style="width:36px;height:22px;" :class="{on: summaryOverwrite}" @click="summaryOverwrite=!summaryOverwrite"></div>
+      </div>
+      <div style="font-size:11px;color:#aaa;">关闭时跳过已有总结的章节</div>
+      <div v-if="summaryProgress" style="font-size:12px;color:#888;">{{ summaryProgress }}</div>
+      <div class="novel-loading" v-if="summaryGenerating"><span></span><span></span><span></span></div>
+      <div style="display:flex;gap:8px;">
+        <button class="novel-small-btn" style="flex:1;" @click="summaryPanelOpen=false" v-if="!summaryGenerating">关闭</button>
+        <button class="novel-small-btn" style="flex:1;color:#e53e3e;" @click="stopSummary" v-if="summaryGenerating">中断</button>
+        <button class="novel-generate-btn" style="flex:2;padding:8px;font-size:13px;" @click="runChapterSummary" :disabled="summaryGenerating">{{ summaryGenerating ? '生成中...' : '开始生成' }}</button>
+      </div>
+    </div>
+
     <!-- 正文 -->
-    <div class="novel-read-content" ref="readContent" :style="`font-size:${readFontSize}px;line-height:${readLineHeight};`" @scroll="onReadScroll">
-      <div class="novel-read-chapter-title">{{ currentNovel.title }}</div>
+    <div class="novel-read-content" ref="readContent" @scroll="onReadScroll"
+      :class="[pageAnimating ? 'page-anim-' + readPageAnim + '-' + pageAnimDir : '']">
+      <div class="novel-read-chapter-title">{{ currentChapterTitle }}</div>
       <div v-if="currentNovel.chars && currentNovel.chars.length" class="novel-read-chars-info">
         <span v-for="c in currentNovel.chars" :key="c.name" class="novel-read-char-badge">{{ c.role }} · {{ c.name }}</span>
       </div>
-      <div class="novel-read-text" :style="`font-size:${readFontSize}px;line-height:${readLineHeight};`">{{ currentNovel.content }}</div>
+
+      <div class="novel-read-text">
+        <p v-for="(para, pi) in currentChapterContent.split('\n')" :key="pi"
+          :style="readTextStyle"
+          :class="para.trim() ? '' : 'novel-read-empty-para'">{{ para || '\u00a0' }}</p>
+      </div>
+      <!-- 本章总结 -->
+      <div v-if="currentNovel.chapters && currentNovel.chapters[currentChapterIndex]" style="margin-top:32px;padding:14px 16px;border-radius:12px;background:rgba(0,0,0,0.04);">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+          <span style="font-size:12px;font-weight:700;color:#aaa;">本章总结</span>
+          <button style="background:transparent;border:none;cursor:pointer;font-size:11px;color:#888;display:flex;align-items:center;gap:3px;" @click="editingSummary=true; editingSummaryText=currentNovel.chapters[currentChapterIndex].summary||''">
+            <i data-lucide="pencil" style="width:11px;height:11px;"></i> 编辑
+          </button>
+        </div>
+        <div v-if="!editingSummary">
+          <div v-if="currentNovel.chapters[currentChapterIndex].summary" style="font-size:13px;color:#888;line-height:1.7;font-style:italic;">{{ currentNovel.chapters[currentChapterIndex].summary }}</div>
+          <div v-else style="font-size:12px;color:#ccc;">暂无总结，可点击右上角编辑添加，或使用顶部总结按钮生成</div>
+        </div>
+        <div v-else style="display:flex;flex-direction:column;gap:8px;">
+          <textarea class="novel-textarea" v-model="editingSummaryText" style="min-height:80px;font-size:13px;" placeholder="输入本章总结..."></textarea>
+          <div style="display:flex;gap:8px;">
+            <button class="novel-small-btn" @click="editingSummary=false">取消</button>
+            <button class="novel-small-btn" style="flex:1;" @click="saveSummaryEdit">保存</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 章节翻页 -->
+      <div v-if="currentNovel.chapters && currentNovel.chapters.length > 1" style="display:flex;justify-content:space-between;align-items:center;margin-top:40px;padding-top:20px;border-top:1px solid rgba(0,0,0,0.08);">
+        <button class="novel-small-btn" @click="prevChapter" :style="currentChapterIndex===0?'opacity:0.3;cursor:not-allowed;':''">上一章</button>
+        <span style="font-size:12px;color:#aaa;">{{ currentChapterIndex+1 }} / {{ currentNovel.chapters.length }}</span>
+        <button class="novel-small-btn" @click="nextChapter" :style="currentChapterIndex===currentNovel.chapters.length-1?'opacity:0.3;cursor:not-allowed;':''">下一章</button>
+      </div>
+
+      <!-- ===== 评论区 ===== -->
+      <div style="margin-top:40px;padding-top:20px;border-top:1px solid rgba(0,0,0,0.08);">
+        <div style="font-size:14px;font-weight:700;margin-bottom:12px;">评论区</div>
+
+        <!-- 已有评论 -->
+        <div v-if="currentChapterComments.length" style="display:flex;flex-direction:column;gap:12px;margin-bottom:16px;">
+          <div v-for="c in currentChapterComments" :key="c.id" style="display:flex;flex-direction:column;gap:4px;">
+            <div style="display:flex;align-items:center;justify-content:space-between;">
+              <div style="display:flex;align-items:center;gap:6px;">
+                <span style="font-size:12px;font-weight:700;" :style="c.type==='char'?'color:#6c63ff;':'color:#43b97f;'">{{ c.name }}</span>
+                <span style="font-size:10px;color:#ccc;">{{ formatTime(c.time) }}</span>
+              </div>
+              <button style="background:transparent;border:none;color:#e53e3e;cursor:pointer;font-size:11px;" @click="deleteComment(c.id)">删除</button>
+            </div>
+            <div v-if="c.replyTo" style="font-size:11px;color:#aaa;background:rgba(0,0,0,0.04);border-radius:6px;padding:4px 8px;margin-bottom:2px;">
+              回复 {{ c.replyTo.name }}：{{ c.replyTo.text }}...
+            </div>
+            <div style="font-size:13px;line-height:1.6;">{{ c.text }}</div>
+            <button style="background:transparent;border:none;cursor:pointer;font-size:11px;color:#aaa;text-align:left;padding:0;width:fit-content;" @click="commentReplyTo=c">回复</button>
+          </div>
+        </div>
+        <div v-else style="font-size:13px;color:#aaa;text-align:center;padding:16px 0;">还没有评论</div>
+
+        <!-- 回复预览 -->
+        <div v-if="commentReplyTo" style="display:flex;align-items:center;gap:8px;padding:6px 10px;background:rgba(0,0,0,0.04);border-radius:8px;margin-bottom:8px;font-size:12px;color:#888;">
+          <span>回复 {{ commentReplyTo.name }}：{{ commentReplyTo.text.slice(0,20) }}...</span>
+          <button style="background:transparent;border:none;color:#e53e3e;cursor:pointer;font-size:12px;" @click="commentReplyTo=null">×</button>
+        </div>
+
+        <!-- 输入框 -->
+        <div style="display:flex;gap:8px;align-items:flex-end;">
+          <textarea class="novel-textarea" v-model="commentInput" placeholder="发表评论..." style="min-height:60px;flex:1;font-size:13px;" @keydown.enter.exact.prevent="addMyComment"></textarea>
+          <div style="display:flex;flex-direction:column;gap:6px;">
+            <button class="novel-small-btn" @click="addMyComment">发送</button>
+            <button class="novel-small-btn" @click="commentCharSelectOpen=!commentCharSelectOpen">角色评</button>
+          </div>
+        </div>
+
+        <!-- 选角色评论 -->
+        <div v-if="commentCharSelectOpen" style="margin-top:8px;background:rgba(255,255,255,0.95);border-radius:12px;padding:10px 12px;display:flex;flex-direction:column;gap:8px;box-shadow:0 2px 12px rgba(0,0,0,0.08);">
+          <div style="font-size:12px;color:#888;">选择评论角色：</div>
+          <div style="display:flex;flex-wrap:wrap;gap:6px;">
+            <div v-for="ch in chatChars" :key="ch.id" class="novel-companion-char-btn" :class="{active: selectedCommentChars.includes(ch.id)}" @click="selectedCommentChars.includes(ch.id)?selectedCommentChars.splice(selectedCommentChars.indexOf(ch.id),1):selectedCommentChars.push(ch.id)">{{ ch.name }}</div>
+          </div>
+          <div style="display:flex;gap:8px;">
+            <button class="novel-small-btn" @click="commentCharSelectOpen=false">取消</button>
+            <button class="novel-small-btn" style="flex:1;" @click="addCharComments" :disabled="commentLoading">{{ commentLoading?'生成中...':'让角色评论' }}</button>
+          </div>
+          <div class="novel-loading" v-if="commentLoading"><span></span><span></span><span></span></div>
+        </div>
+      </div>
     </div>
 
     <!-- 进度条 -->
@@ -434,7 +604,7 @@
       <div class="novel-companion-header">
         <span style="font-size:13px;font-weight:600;color:#333;">角色陪读</span>
         <div style="display:flex;gap:6px;align-items:center;">
-          <button class="novel-small-btn" @click="triggerCompanionComment">评论当前段落</button>
+          <button class="novel-small-btn" @click="triggerCompanionComment" :disabled="companionLoading">{{ companionLoading ? '评论中...' : '评论本章' }}</button>
           <button class="novel-icon-btn" style="width:28px;height:28px;" @click="companionOpen=false"><i data-lucide="x"></i></button>
         </div>
       </div>
@@ -442,7 +612,7 @@
         <div v-for="ch in chatChars" :key="ch.id" class="novel-companion-char-btn" :class="{active: companionChars.includes(ch.id)}" @click="toggleCompanionChar(ch.id)">{{ ch.name }}</div>
       </div>
       <div class="novel-companion-comments" ref="companionComments">
-        <div v-if="!companionHistory.length" style="text-align:center;color:#bbb;font-size:12px;padding:20px 0;">选择角色后点击评论</div>
+        <div v-if="!companionHistory.length" style="text-align:center;color:#bbb;font-size:12px;padding:20px 0;">选择角色后点击评论本章</div>
         <div v-for="(c,i) in companionHistory" :key="i" class="novel-companion-msg">
           <div class="novel-companion-msg-name">{{ c.name }}</div>
           <div class="novel-companion-msg-text">{{ c.text }}</div>
@@ -452,12 +622,11 @@
     </div>
   </div>
 
+  <!-- ===== 导入弹窗 ===== -->
   <transition name="novel-modal">
     <div class="novel-modal-mask" v-if="importShow" @click.self="importShow=false">
       <div class="novel-modal-box">
         <div class="novel-modal-title">导入小说</div>
-
-        <!-- 三种方式tab -->
         <div style="display:flex;gap:0;border-radius:10px;overflow:hidden;border:1.5px solid #e5e5ea;">
           <div style="flex:1;padding:8px 0;text-align:center;font-size:13px;font-weight:600;cursor:pointer;transition:all 0.15s;"
             :style="importTab==='url'?'background:#111;color:#fff;':'background:#fff;color:#555;'"
@@ -466,8 +635,6 @@
             :style="importTab==='paste'?'background:#111;color:#fff;':'background:#fff;color:#555;'"
             @click="importTab='paste'">粘贴文本</div>
         </div>
-
-        <!-- URL导入 -->
         <div v-if="importTab==='url'" style="display:flex;flex-direction:column;gap:10px;">
           <div class="novel-field">
             <label>小说标题</label>
@@ -476,7 +643,7 @@
           <div class="novel-field">
             <label>文件直链URL</label>
             <input class="novel-input" v-model="importUrl" placeholder="粘贴猫箱/Telegraph等文件直链..." />
-            <div style="font-size:11px;color:#aaa;">支持返回纯文本的文件直链，如猫箱、GitHub raw、Telegraph等</div>
+            <div style="font-size:11px;color:#aaa;">支持返回纯文本的文件直链，如猫箱、GitHub raw等</div>
           </div>
           <div class="novel-loading" v-if="importLoading"><span></span><span></span><span></span></div>
           <div class="novel-modal-btns">
@@ -484,8 +651,6 @@
             <button class="novel-modal-btn confirm" @click="confirmImportUrl" :disabled="importLoading">{{ importLoading ? '获取中...' : '导入' }}</button>
           </div>
         </div>
-
-        <!-- 粘贴文本 -->
         <div v-if="importTab==='paste'" style="display:flex;flex-direction:column;gap:10px;">
           <div class="novel-field">
             <label>小说标题</label>
@@ -500,7 +665,6 @@
             <button class="novel-modal-btn confirm" @click="confirmImportPaste">导入</button>
           </div>
         </div>
-
       </div>
     </div>
   </transition>
@@ -528,6 +692,19 @@
             <div v-for="m in modelList" :key="m" style="padding:9px 12px;font-size:13px;color:#333;cursor:pointer;border-bottom:1px solid #f0f0f0;" @click="apiConfig.model=m; showModelDrop=false">{{ m }}</div>
           </div>
         </div>
+        <div style="font-size:12px;font-weight:700;color:#aaa;margin-top:4px;">总结专用API（章节总结使用，不填则用主API）</div>
+        <div class="novel-field">
+          <label>总结API网址</label>
+          <input class="novel-input" v-model="apiConfig.summaryUrl" placeholder="不填则使用主API网址..." />
+        </div>
+        <div class="novel-field">
+          <label>总结API密钥</label>
+          <input class="novel-input" type="password" v-model="apiConfig.summaryKey" placeholder="不填则使用主API密钥..." />
+        </div>
+        <div class="novel-field">
+          <label>总结模型</label>
+          <input class="novel-input" v-model="apiConfig.summaryModel" placeholder="不填则使用主模型..." />
+        </div>
         <div class="novel-field" v-if="apiPresets.length">
           <label>从预设加载</label>
           <div style="display:flex;flex-direction:column;gap:4px;background:#f9f9f9;border-radius:10px;padding:8px;">
@@ -548,6 +725,8 @@
 
   <input type="file" id="novel-upload-file" accept=".txt,.md" style="display:none" @change="handleUpload" />
   <input type="file" id="novel-write-cover-file" accept="image/*" style="display:none" @change="uploadWriteCover" />
+  <input type="file" id="novel-read-font-file" accept=".ttf,.otf,.woff,.woff2" style="display:none" @change="handleReadFontUpload" />
+  <input type="file" id="novel-read-wallpaper-file" accept="image/*" style="display:none" @change="handleReadWallpaperUpload" />
 </div>
 <script src="db.js"></script>
 <script src="novel.js"></script>

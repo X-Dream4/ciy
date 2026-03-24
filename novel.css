@@ -220,3 +220,37 @@ body.dark .novel-modal-btn.cancel { background: #333; color: #aaa; }
 /* ===== 过渡动画 ===== */
 .novel-modal-enter-active, .novel-modal-leave-active { transition: opacity 0.2s, transform 0.2s; }
 .novel-modal-enter-from, .novel-modal-leave-to { opacity: 0; transform: scale(0.95); }
+
+.novel-toc-panel { position: fixed; top: 52px; left: 0; bottom: 3px; width: 260px; background: rgba(255,255,255,0.97); backdrop-filter: blur(16px); box-shadow: 4px 0 20px rgba(0,0,0,0.08); z-index: 200; display: flex; flex-direction: column; }
+body.dark .novel-toc-panel { background: rgba(30,30,30,0.97); }
+.novel-toc-item { padding: 10px 16px; font-size:13px; color:#333; cursor:pointer; border-bottom:1px solid #f5f5f5; transition:background 0.15s; line-height:1.5; }
+.novel-toc-item:hover { background:#f5f5f5; }
+.novel-toc-item.active { color:#111; font-weight:700; background:#f2f2f7; }
+body.dark .novel-toc-item { color:#ccc; border-bottom-color:#333; }
+body.dark .novel-toc-item:hover { background:#2a2a2a; }
+body.dark .novel-toc-item.active { background:#333; color:#eee; }
+
+/* ===== 翻页动画 ===== */
+.novel-read-content { transition: none; }
+
+/* 滑动 */
+@keyframes slideInFromRight { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+@keyframes slideInFromLeft { from { transform: translateX(-100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+.page-anim-slide-next { animation: slideInFromRight 0.32s cubic-bezier(.4,0,.2,1); }
+.page-anim-slide-prev { animation: slideInFromLeft 0.32s cubic-bezier(.4,0,.2,1); }
+
+/* 覆盖 */
+@keyframes coverInFromRight { from { transform: translateX(30%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+@keyframes coverInFromLeft { from { transform: translateX(-30%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+.page-anim-cover-next { animation: coverInFromRight 0.28s cubic-bezier(.4,0,.2,1); }
+.page-anim-cover-prev { animation: coverInFromLeft 0.28s cubic-bezier(.4,0,.2,1); }
+
+/* 仿真翻书 */
+@keyframes flipInNext { from { transform: perspective(800px) rotateY(-12deg); opacity: 0; } to { transform: perspective(800px) rotateY(0deg); opacity: 1; } }
+@keyframes flipInPrev { from { transform: perspective(800px) rotateY(12deg); opacity: 0; } to { transform: perspective(800px) rotateY(0deg); opacity: 1; } }
+.page-anim-flip-next { animation: flipInNext 0.35s cubic-bezier(.4,0,.2,1); transform-origin: left center; }
+.page-anim-flip-prev { animation: flipInPrev 0.35s cubic-bezier(.4,0,.2,1); transform-origin: right center; }
+
+/* 段落样式 */
+.novel-read-text p { margin: 0; }
+.novel-read-empty-para { height: 0.5em; }
