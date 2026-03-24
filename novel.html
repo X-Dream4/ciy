@@ -415,22 +415,8 @@
 
       <!-- 首行缩进 -->
       <div class="novel-field" style="margin:0;">
-        <div style="display:flex;align-items:center;justify-content:space-between;">
-          <label style="margin:0;">首行缩进</label>
-          <div class="novel-toggle" :class="{on: readIndent}" @click="readIndent=!readIndent; saveReadSettings()"></div>
-        </div>
-      </div>
-
-      <!-- 翻页动画 -->
-      <div class="novel-field" style="margin:0;">
-        <label>翻页动画</label>
-        <div style="display:flex;flex-wrap:wrap;gap:6px;">
-          <div v-for="anim in [{key:'scroll',label:'滚动'},{key:'slide',label:'滑动'},{key:'cover',label:'覆盖'},{key:'flip',label:'仿真'},{key:'none',label:'无动画'}]"
-            :key="anim.key"
-            class="novel-type-btn"
-            :class="{active: readPageAnim===anim.key}"
-            @click="readPageAnim=anim.key; saveReadSettings()">{{ anim.label }}</div>
-        </div>
+        <label>首行缩进 {{ readIndent }}em</label>
+        <input type="range" min="0" max="4" step="0.5" v-model="readIndent" @change="saveReadSettings()" style="width:100%;accent-color:#111;" />
       </div>
 
       <!-- 字体 -->
@@ -501,8 +487,7 @@
     </div>
 
     <!-- 正文 -->
-    <div class="novel-read-content" ref="readContent" @scroll="onReadScroll"
-      :class="[pageAnimating ? 'page-anim-' + readPageAnim + '-' + pageAnimDir : '']">
+    <div class="novel-read-content" ref="readContent" @scroll="onReadScroll">
       <div class="novel-read-chapter-title">{{ currentChapterTitle }}</div>
       <div v-if="currentNovel.chars && currentNovel.chars.length" class="novel-read-chars-info">
         <span v-for="c in currentNovel.chars" :key="c.name" class="novel-read-char-badge">{{ c.role }} · {{ c.name }}</span>
@@ -510,7 +495,7 @@
 
       <div class="novel-read-text">
         <p v-for="(para, pi) in currentChapterContent.split('\n')" :key="pi"
-          :style="readTextStyle"
+          :style="[readTextStyle, para.trim() ? readParaStyle : {}]"
           :class="para.trim() ? '' : 'novel-read-empty-para'">{{ para || '\u00a0' }}</p>
       </div>
       <!-- 本章总结 -->

@@ -44,6 +44,8 @@ createApp({
     };
 
     const saveNovels = async () => {
+      const idx = novels.value.findIndex(nv => nv.id === currentNovel.value?.id);
+      if (idx !== -1) novels.value[idx] = JSON.parse(JSON.stringify(currentNovel.value));
       await dbSet('novels', JSON.parse(JSON.stringify(novels.value)));
     };
 
@@ -72,7 +74,10 @@ createApp({
       return matches.map((m, i) => {
         const start = m.index;
         const end = i + 1 < matches.length ? matches[i + 1].index : content.length;
-        return { title: m.title, content: content.slice(start, end).trim(), summary: '', comments: [] };
+        const chapterContent = content.slice(start, end);
+      const firstNewline = chapterContent.indexOf('\n');
+      const bodyContent = firstNewline !== -1 ? chapterContent.slice(firstNewline + 1).trim() : chapterContent.trim();
+      return { title: m.title, content: bodyContent, summary: '', comments: [] };
       });
     };
 
@@ -374,15 +379,12 @@ const readTextColor = ref('');
 const readCustomBg = ref('');
 const readWallpaper = ref('');
 const readWallpaperUrl = ref('');
-const readPageAnim = ref('scroll');
 const readFont = ref('default');
 const readCustomFont = ref('');
 const readCustomFontName = ref('');
 const readCustomFontLoaded = ref(false);
-const readIndent = ref(true);
+const readIndent = ref(2);
 const readFontUploadUrl = ref('');
-const pageAnimating = ref(false);
-const pageAnimDir = ref('next');
 
 const readFontOptions = [
   { key: 'default', label: '默认字体', css: '' },
@@ -408,7 +410,7 @@ const readTextStyle = computed(() => {
     letterSpacing: `${readLetterSpacing.value}px`,
     color: readTextColor.value || undefined,
     fontFamily: fontFamily || undefined,
-    textIndent: readIndent.value ? '2em' : undefined,
+    textIndent: readIndent.value > 0 ? `${readIndent.value}em` : undefined,
   };
 });
 
@@ -496,7 +498,6 @@ const saveReadSettings = async () => {
     readFontSize: readFontSize.value, readLineHeight: readLineHeight.value,
     readLetterSpacing: readLetterSpacing.value, readParaSpacing: readParaSpacing.value,
     readTextColor: readTextColor.value,
-    readPageAnim: readPageAnim.value,
     readFont: readFont.value, readCustomFont: readCustomFont.value, readCustomFontName: readCustomFontName.value,
     readIndent: readIndent.value,
   })));
@@ -513,7 +514,6 @@ const loadReadSettings = async () => {
   if (s.readLetterSpacing !== undefined) readLetterSpacing.value = s.readLetterSpacing;
   if (s.readParaSpacing !== undefined) readParaSpacing.value = s.readParaSpacing;
   if (s.readTextColor) readTextColor.value = s.readTextColor;
-  if (s.readPageAnim) readPageAnim.value = s.readPageAnim;
   if (s.readFont) readFont.value = s.readFont;
   if (s.readCustomFont) {
     readCustomFont.value = s.readCustomFont;
@@ -596,18 +596,6 @@ const loadReadSettings = async () => {
       if (!n.chapters || !n.chapters.length) return n.comments || [];
       return n.chapters[currentChapterIndex.value]?.comments || [];
     });
-const doPageTurn = async (dir, action) => {
-  if (readPageAnim.value === 'none' || readPageAnim.value === 'scroll') {
-    action();
-    return;
-  }
-  pageAnimDir.value = dir;
-  pageAnimating.value = true;
-  await nextTick();
-  action();
-  await new Promise(r => setTimeout(r, 50));
-  pageAnimating.value = false;
-};
 
     const jumpToChapter = (i) => {
   currentChapterIndex.value = i;
@@ -620,24 +608,20 @@ const doPageTurn = async (dir, action) => {
 
     const prevChapter = () => {
       if (currentChapterIndex.value > 0) {
-        doPageTurn('prev', () => {
-          currentChapterIndex.value--;
-          editingSummary.value = false;
-          editingSummaryText.value = '';
-          nextTick(() => { if (readContent.value) readContent.value.scrollTop = 0; });
-        });
+        currentChapterIndex.value--;
+        editingSummary.value = false;
+        editingSummaryText.value = '';
+        nextTick(() => { if (readContent.value) readContent.value.scrollTop = 0; });
       }
     };
 
     const nextChapter = () => {
       const n = currentNovel.value;
       if (n.chapters && currentChapterIndex.value < n.chapters.length - 1) {
-        doPageTurn('next', () => {
-          currentChapterIndex.value++;
-          editingSummary.value = false;
-          editingSummaryText.value = '';
-          nextTick(() => { if (readContent.value) readContent.value.scrollTop = 0; });
-        });
+        currentChapterIndex.value++;
+        editingSummary.value = false;
+        editingSummaryText.value = '';
+        nextTick(() => { if (readContent.value) readContent.value.scrollTop = 0; });
       }
     };
 
@@ -693,7 +677,7 @@ const doPageTurn = async (dir, action) => {
       let prompt = `你现在扮演以下角色，正在和用户一起阅读小说：${charsDesc}。\n`;
       if (prevSummaries) prompt += `\n【前情提要（已读章节总结）】\n${prevSummaries}\n`;
       prompt += `\n【当前阅读章节】${ch?.title || ''}\n${chapterContent.slice(0, 4000)}\n`;
-      prompt += `\n请以各自角色性格，分享阅读这一章的感受（可以感动、紧张、吐槽、猜测后续等），口语化，每人一到两句。格式：\n角色名：评论内容\n每人一行。`;
+      prompt += `\n请以各自角色性格人设，分享阅读这一章的感受（可以感动、紧张、吐槽、猜测后续等），口语化，每人一到两句。格式：\n角色名：评论内容\n每人一行。`;
 
       try {
         const res = await fetch(`${apiConfig.value.url.replace(/\/$/, '')}/chat/completions`, {
@@ -771,7 +755,6 @@ const saveSummaryEdit = async () => {
             2. 提及本章出现的关键人物及其行动
             3. 说明本章对剧情推进的意义或伏笔
             4. 语言简洁，不超过30字
-            5. 描述本章的情感基调和氛围
             只输出总结内容，不要有标题、序号或其他多余内容。
 
             章节标题：${ch.title}
@@ -786,8 +769,6 @@ const saveSummaryEdit = async () => {
           const data = await res.json();
           const summary = data.choices?.[0]?.message?.content?.trim() || '';
           currentNovel.value.chapters[realIndex].summary = summary;
-          const idx = novels.value.findIndex(nv => nv.id === currentNovel.value.id);
-          if (idx !== -1) novels.value[idx] = JSON.parse(JSON.stringify(currentNovel.value));
           await saveNovels();
         } catch (e) {
           summaryProgress.value = `第 ${from + i} 章总结失败：${e.message}`;
@@ -846,7 +827,7 @@ const saveSummaryEdit = async () => {
       prompt += `\n【当前章节】${ch?.title || ''}\n${chapterContent.slice(0, 4000)}\n`;
       if (existingComments) prompt += `\n【已有评论】\n${existingComments}\n`;
       if (commentReplyTo.value) prompt += `\n【正在回复】${commentReplyTo.value.name}：${commentReplyTo.value.text}\n`;
-      prompt += `\n请每位角色用各自性格口吻发表评论，口语化，每人一到两句。格式：\n角色名：评论内容\n每人一行，不要有其他内容。`;
+      prompt += `\n请每位角色用各自性格口吻发表评论，谈论剧情，发表自己对剧情的感受，符合人设，口语化，每人一到两句。格式：\n角色名：评论内容\n每人一行，不要有其他内容。`;
 
       try {
         const res = await fetch(`${apiConfig.value.url.replace(/\/$/, '')}/chat/completions`, {
@@ -922,6 +903,7 @@ const saveSummaryEdit = async () => {
 
     const backToList = () => {
       view.value = 'list';
+      readSettingOpen.value = false;
       nextTick(() => refreshIcons());
     };
 
@@ -961,6 +943,8 @@ const saveSummaryEdit = async () => {
       if (savedApiPresets) apiPresets.value = savedApiPresets;
       if (savedStylePresets) stylePresets.value = savedStylePresets;
 
+      await loadReadSettings();
+
       setTimeout(() => { refreshIcons(); }, 100);
     });
 
@@ -992,9 +976,8 @@ const saveSummaryEdit = async () => {
       apiPresets, modelList, showModelDrop, fetchModels, goBack, editingSummary, editingSummaryText, saveSummaryEdit, summaryOverwrite,
 readLetterSpacing, readParaSpacing, readTextColor, readCustomBg,
 readWallpaper, readWallpaperUrl, readFontUploadUrl,
-readPageAnim, readFont, readCustomFont, readCustomFontName, readCustomFontLoaded,
+readFont, readCustomFont, readCustomFontName, readCustomFontLoaded,
 readIndent, readFontOptions, readTextStyle, readParaStyle, readContentStyle,
-pageAnimating, pageAnimDir,
 loadReadFont, triggerReadFontUpload, handleReadFontUpload, applyReadFontUrl,
 triggerReadWallpaperUpload, handleReadWallpaperUpload, applyReadWallpaperUrl,
 saveReadSettings,
