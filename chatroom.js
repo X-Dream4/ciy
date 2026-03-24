@@ -803,6 +803,7 @@ const openChatSettings = () => {
       if (idx !== -1) {
         charList[idx].messages = JSON.parse(JSON.stringify(allMessages.value.filter(m => !m.loading)));
         charList[idx].lastMsg = allMessages.value.filter(m => !m.loading && !m.recalled).slice(-1)[0]?.content || '';
+        charList[idx].lastTime = Date.now();
         await dbSet('charList', charList);
       }
       // 自动总结检测

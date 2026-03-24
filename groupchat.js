@@ -1202,6 +1202,7 @@ const onMouseUp = () => { clearTimeout(longPressTimer); };
       if (rIdx !== -1) {
         roomList[rIdx].messages = JSON.parse(JSON.stringify(allMessages.value.filter(m => !m.loading)));
         roomList[rIdx].lastMsg = allMessages.value.filter(m => !m.loading && !m.recalled).slice(-1)[0]?.content || '';
+        roomList[rIdx].lastTime = Date.now();
         await dbSet('roomList', roomList);
       }
     };
