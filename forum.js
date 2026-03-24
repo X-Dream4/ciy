@@ -208,7 +208,10 @@ createApp({
       const randomNpcNames = ['云游四海', '匿名小透明', '路过的风', '夜半钟声', '微笑刺客', '隐形战队', '悄悄说说', '不知名网友', '深夜emo', '快乐肥宅', '五月天粉', '边走边唱', '落叶归根', '星光下的你', '打工人小李', '摸鱼专家', '社恐本社'];
       const count = Math.floor(Math.random() * 5) + 5;
 
-      const prompt = `以下是一个论坛帖子：
+      const savedWorldBooks = await dbGet('worldBooks');
+      const globalInjectBooks = (savedWorldBooks || []).filter(b => b.globalInject);
+      const globalInjectText = globalInjectBooks.map(b => b.content).join('。');
+      const prompt = `${globalInjectText ? globalInjectText + '。' : ''}以下是一个论坛帖子：
 标题：${currentPost.value.title}
 内容：${currentPost.value.content}
 
@@ -386,7 +389,10 @@ ${fixedNpcs.length ? `固定NPC参与回复：${fixedNpcs.map(n => n.name + (n.p
       const randomNpcNames = ['云游四海', '匿名小透明', '路过的风', '夜半钟声', '微笑刺客', '隐形战队', '悄悄说说', '不知名网友', '深夜emo', '快乐肥宅', '五月天粉', '边走边唱', '落叶归根', '星光下的你', '打工人小李', '摸鱼专家', '社恐本社'];
       const count = Math.floor(Math.random() * 5) + 4;
 
-      const prompt = `以下是一个论坛帖子：
+      const savedWorldBooks = await dbGet('worldBooks');
+      const globalInjectBooks = (savedWorldBooks || []).filter(b => b.globalInject);
+      const globalInjectText = globalInjectBooks.map(b => b.content).join('。');
+      const prompt = `${globalInjectText ? globalInjectText + '。' : ''}以下是一个论坛帖子：
 标题：${post.title}
 内容：${post.content}
 
@@ -447,7 +453,10 @@ ${fixedNpcs.length ? `固定NPC参与回复：${fixedNpcs.map(n => n.name + (n.p
       const allNpcs = [...npcNames, ...fixedNpcs];
       const randomNpcNames = ['云游四海', '匿名小透明', '路过的风', '夜半钟声', '微笑刺客', '隐形战队', '悄悄说说', '不知名网友', '深夜emo', '快乐肥宅', '五月天粉', '边走边唱', '落叶归根', '星光下的你'];
       const count = Math.floor(Math.random() * 3) + 3;
-      const prompt = `你现在是一个真实运营的综合论坛，板块名称是「${currentCat.value}」。
+      const savedWorldBooks = await dbGet('worldBooks');
+      const globalInjectBooks = (savedWorldBooks || []).filter(b => b.globalInject);
+      const globalInjectText = globalInjectBooks.map(b => b.content).join('。');
+      const prompt = `${globalInjectText ? globalInjectText + '。' : ''}你现在是一个真实运营的综合论坛，板块名称是「${currentCat.value}」。
 请严格按照该板块主题生成${count}个真实的论坛帖子。
 板块风格提示：${catPrompt}
 ${catWorldBookInject ? '背景设定：' + catWorldBookInject : ''}
@@ -631,7 +640,10 @@ ${allNpcs.length ? `参与发帖的用户：${allNpcs.map(n => n.name + (n.perso
       }
       hotDetailLoading.value = true;
       const platform = hotPlatforms.value.find(p => p.key === hotPlatform.value)?.label || '';
-      const prompt = `当前热搜平台：${platform}
+      const savedWorldBooks = await dbGet('worldBooks');
+      const globalInjectBooks = (savedWorldBooks || []).filter(b => b.globalInject);
+      const globalInjectText = globalInjectBooks.map(b => b.content).join('。');
+      const prompt = `${globalInjectText ? globalInjectText + '。' : ''}当前热搜平台：${platform}
 热搜标题：${item.title}
 热度：${item.hot || '未知'}
 
@@ -724,8 +736,11 @@ ${allNpcs.length ? `参与发帖的用户：${allNpcs.map(n => n.name + (n.perso
       if (!cfg.url || !cfg.key || !cfg.model) { alert('请先配置API'); return; }
       dimHotLoading.value = true;
       const dimWbInject = getWorldBookInject(settingsForm.value.dimHotWorldBooks || []);
+      const savedWorldBooks = await dbGet('worldBooks');
+      const globalInjectBooks = (savedWorldBooks || []).filter(b => b.globalInject);
+      const globalInjectText = globalInjectBooks.map(b => b.content).join('。');
       const basePrompt = settingsForm.value.dimHotPrompt || DEFAULT_DIM_HOT_PROMPT;
-      const prompt = dimWbInject ? basePrompt + '\n额外背景设定：' + dimWbInject : basePrompt;
+      const prompt = `${globalInjectText ? globalInjectText + '。' : ''}${dimWbInject ? basePrompt + '\n额外背景设定：' + dimWbInject : basePrompt}`;
       try {
         const res = await fetch(`${cfg.url.replace(/\/$/, '')}/chat/completions`, {
           method: 'POST',
@@ -773,10 +788,14 @@ ${allNpcs.length ? `参与发帖的用户：${allNpcs.map(n => n.name + (n.perso
           alert('请先配置API'); searchLoading.value = false; return;
         }
         try {
+          const savedWorldBooks = await dbGet('worldBooks');
+          const globalInjectBooks = (savedWorldBooks || []).filter(b => b.globalInject);
+          const globalInjectText = globalInjectBooks.map(b => b.content).join('。');
+          const searchContent = globalInjectText ? globalInjectText + '。' + searchQuery.value : searchQuery.value;
           const res = await fetch(`${cfg.url.replace(/\/$/, '')}/chat/completions`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${cfg.key}` },
-            body: JSON.stringify({ model: cfg.model, messages: [{ role: 'user', content: searchQuery.value }] })
+            body: JSON.stringify({ model: cfg.model, messages: [{ role: 'user', content: searchContent }] })
           });
           const data = await res.json();
           aiSearchResult.value = data.choices?.[0]?.message?.content || '（无回答）';
@@ -850,6 +869,10 @@ ${allNpcs.length ? `参与发帖的用户：${allNpcs.map(n => n.name + (n.perso
       } else {
         systemPrompt = `你是论坛用户「${conv.name}」，正在与一个网友私聊。请用自然口语风格回应，有自己的个性和立场。`;
       }
+      const savedWorldBooks = await dbGet('worldBooks');
+      const globalInjectBooks = (savedWorldBooks || []).filter(b => b.globalInject);
+      const globalInjectText = globalInjectBooks.map(b => b.content).join('。');
+      if (globalInjectText) systemPrompt = globalInjectText + '。' + systemPrompt;
       systemPrompt += '\n主动发起或继续话题，每次只说1~3句话，像真实私信一样简短自然，不要使用Markdown格式。';
 
       const historyMsgs = conv.messages.slice(-12).map(m => ({
@@ -914,6 +937,10 @@ ${allNpcs.length ? `参与发帖的用户：${allNpcs.map(n => n.name + (n.perso
       } else {
         systemPrompt = `你是论坛用户「${conv.name}」，正在与一个网友私聊。请用自然口语风格回应，有自己的个性和立场。`;
       }
+      const savedWorldBooks = await dbGet('worldBooks');
+      const globalInjectBooks = (savedWorldBooks || []).filter(b => b.globalInject);
+      const globalInjectText = globalInjectBooks.map(b => b.content).join('。');
+      if (globalInjectText) systemPrompt = globalInjectText + '。' + systemPrompt;
       systemPrompt += '\n每次只回复1~3句话，像真实的私信一样简短自然，不要使用Markdown格式。';
 
       const historyMsgs = conv.messages.slice(-12).map(m => ({

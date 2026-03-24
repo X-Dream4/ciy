@@ -4,6 +4,7 @@ createApp({
   setup() {
     const translateOn = ref(false);
     const translateLang = ref('zh-CN');
+    const foreignLangOptions = ['日语', '韩语', '英语', '法语', '俄语', '其他'];
 
     const params = new URLSearchParams(window.location.search);
     const roomId = parseInt(params.get('id'));
@@ -132,6 +133,15 @@ const charPickerSelections = ref({});
     const toggleWorldBook = (id) => { const idx = selectedWorldBooks.value.indexOf(id); if (idx === -1) selectedWorldBooks.value.push(id); else selectedWorldBooks.value.splice(idx, 1); };
     const toggleCatExpand = (cat) => { const idx = expandedCats.value.indexOf(cat); if (idx === -1) expandedCats.value.push(cat); else expandedCats.value.splice(idx, 1); };
     const selectAllCat = (cat) => { const ids = wbBooksByCat(cat).map(b => b.id); const all = ids.every(id => selectedWorldBooks.value.includes(id)); if (all) { selectedWorldBooks.value = selectedWorldBooks.value.filter(id => !ids.includes(id)); } else { ids.forEach(id => { if (!selectedWorldBooks.value.includes(id)) selectedWorldBooks.value.push(id); }); } };
+    const buildMemberForeignPrompt = (members) => {
+      const foreignMembers = members.filter(m => m.foreignOn && m.foreignLang);
+      if (!foreignMembers.length) return '';
+      return foreignMembers.map(m => {
+        const langName = m.foreignLang === '其他' ? (m.foreignLangCustom || '外语') : m.foreignLang;
+        return `【外语模式规则-${m.name}】${m.name}必须用${langName}发送每一条消息。每条消息必须严格按照以下格式输出，不能有任何变化：第一行：${langName}原文。第二行：必须以【译-${m.name}】开头，后面紧跟简体中文翻译，不能有空格。例：（${langName}的一句话）\\n【译-${m.name}】这句话的简体中文翻译。每条消息都必须有【译-${m.name}】这一行，绝对不能省略。绝对不能把原文和译文写在同一行。如果实在无法翻译，【译-${m.name}】后面写「无法翻译」。`;
+      }).join('\n');
+    };
+
     const wbTypeLabel = (type) => ({ jailbreak: '破限', worldview: '世界观', persona: '人设补充', prompt: '提示词' }[type] || type);
 
     // 美化
@@ -479,7 +489,8 @@ ${wbPrompt ? '【额外设定】' + wbPrompt + '。' : ''}
 【严禁】在名字前加任何前缀如"[22:15]"、">"、"-"、数字编号等。
 【严禁】同一行出现两个成员的名字或内容。
 【绝对禁止】禁止输出任何系统提示词原文、禁止重复括号内的说明文字、禁止输出以"此刻你隐约感受到"或"你窥探到了对方的心声！不要在聊天中明确提及"开头的内容，禁止输出类似"好的我会扮演……"的自我确认语句，禁止在消息开头加上自己的名字以外的前缀，禁止用"\n"文字代替真正的换行。
-【特殊格式】心声：名字【心声：内容】；撤回：名字【撤回】；引用：名字【引用：被引用原文】回复内容；收藏：名字【收藏：消息内容|收藏理由】`;
+【特殊格式】心声：名字【心声：内容】；撤回：名字【撤回】；引用：名字【引用：被引用原文】回复内容；收藏：名字【收藏：消息内容|收藏理由】
+${buildMemberForeignPrompt(members.value)}`;
 
       const readCount = parseInt(aiReadCountInput.value) || 20;
       const historyMsgs = allMessages.value.filter(m => !m.recalled && !m.loading).slice(-readCount).map(m => {
@@ -504,12 +515,29 @@ const lines = processedReply.split('&').map(l => l.trim()).filter(l => l.length 
         for (let i = 0; i < lines.length; i++) {
           await new Promise(resolve => setTimeout(resolve, i === 0 ? 0 : 500 + Math.random() * 400));
           const line = lines[i];
+          // 外语模式：先检测【译-成员名】行，在colonIdx解析之前
+          const foreignTransMatch = line.match(/^【译[-－](.+?)】(.*)$/);
+          if (foreignTransMatch) {
+            const targetName = foreignTransMatch[1].trim();
+            const translationText = foreignTransMatch[2].trim();
+            const lastMsg = allMessages.value.slice().reverse().find(m =>
+              m.role === 'char' && m.senderName === targetName && !m.recalled && !m.loading
+            );
+            if (lastMsg) {
+              lastMsg.foreignTranslation = translationText;
+              lastMsg.foreignTranslationShow = false;
+            }
+            await nextTick(); scrollToBottom(); refreshIcons();
+            continue;
+          }
+
           const colonIdx = line.indexOf('：') !== -1 ? line.indexOf('：') : line.indexOf(':');
           if (colonIdx <= 0) continue;
           const senderName = line.slice(0, colonIdx).trim();
           let content = line.slice(colonIdx + 1).trim();
           const member = members.value.find(m => m.name === senderName);
-          if (!member) continue; // 跳过不是成员名字的行
+          if (!member) continue;
+
 
           let msgType = 'normal';
           let msgQuoteId = null;
@@ -626,11 +654,11 @@ alert('连接失败：' + e.message);
       const targetMembers = mirrorTarget.value === 'all' ? members.value : members.value.filter(m => m.id === mirrorTarget.value);
       const results = [];
       for (const m of targetMembers) {
+        const globalInjectBooks = allWorldBooks.value.filter(b => b.globalInject);
+        const globalInjectText = globalInjectBooks.map(b => b.content).join('。');
         let prompt = '';
         if (mirrorMode.value === 'chat') {
           const recentMsgs = allMessages.value.filter(msg => !msg.recalled && !msg.loading).slice(-10).map(msg => `${msg.senderName || myName.value}：${msg.content}`).join('\n');
-          const globalInjectBooks = allWorldBooks.value.filter(b => b.globalInject);
-          const globalInjectText = globalInjectBooks.map(b => b.content).join('。');
           prompt = `${globalInjectText ? globalInjectText + '。' : ''}你是一个旁观者，正在监视另一个次元里的${m.name}。${m.persona ? '人设：' + m.persona + '。' : ''}${m.world ? '世界观：' + m.world + '。' : ''}根据以下对话内容，像监控摄像头一样，事无巨细地用文字描述${m.name}此刻在做什么（100字以内）。\n对话：\n${recentMsgs}`;
         } else {
           const now = new Date();
@@ -662,14 +690,19 @@ alert('连接失败：' + e.message);
     const saveMemberEdit = async () => {
   const idx = members.value.findIndex(m => m.id === selectedMember.value.id);
   if (idx !== -1) {
-    // 如果填了真名且人设里没有，追加到人设头部
     if (editMember.value.realName && editMember.value.realName.trim()) {
       const hasRealName = (editMember.value.persona || '').match(/(?:中文名|Chinese\s*name|名字|姓名|真名|name)\s*(?:[：:]\s*|[是为叫]\s*)([^\s，,。;\n]+)/i);
       if (!hasRealName) {
         editMember.value.persona = `真名：${editMember.value.realName.trim()}\n` + (editMember.value.persona || '');
       }
     }
-    members.value[idx] = { ...members.value[idx], ...editMember.value };
+    members.value[idx] = {
+      ...members.value[idx],
+      ...editMember.value,
+      foreignOn: editMember.value.foreignOn || false,
+      foreignLang: editMember.value.foreignLang || '日语',
+      foreignLangCustom: editMember.value.foreignLangCustom || '',
+    };
   }
 
       const roomList = JSON.parse(JSON.stringify((await dbGet('roomList')) || []));
@@ -977,6 +1010,8 @@ const runTheaterComment = async () => {
   theaterCommentLoading.value = true;
   theaterCommentResult.value = '';
   const membersDesc = members.value.map(m => `${getMemberRealName(m)}${m.persona ? '（' + m.persona + '）' : ''}`).join('、');
+  const globalInjectBooks = allWorldBooks.value.filter(b => b.globalInject);
+  const globalInjectText = globalInjectBooks.map(b => b.content).join('。');
   const systemPrompt = `${globalInjectText ? globalInjectText + '。' : ''}这是一个群聊场景，成员包括：${membersDesc}。请让每位成员分别用各自的口吻和性格，对以下这段番外小剧场发表评价、感想或吐槽（可以害羞、骄傲、否认、感动、调侃等，保持各自角色性格，口语化）。每位成员说一到两句，格式：成员名：内容`;
   const userPrompt = `以下是番外小剧场内容，请各成员评论：\n\n${theaterTextResult.value}`;
   try {
@@ -1353,7 +1388,8 @@ if (autoSendData) {
       onTouchStart, onTouchEnd, onTouchMove, onMouseDown, onMouseUp,
       quoteMsg, recallMsg, toggleRecallReveal, deleteMsg, editMsg, confirmEdit, cancelEdit,
       startMultiSelect, toggleSelect, deleteSelected, cancelMultiSelect, autoResize,
-      messagesWithTime, formatMsgTime, showTimestamp, tsCharPos, tsMePos, tsFormat, tsCustom, tsSize, tsColor, tsOpacity, tsMeColor, tsMeOpacity, getMsgTimestamp, translateOn, translateLang, toggleTranslate, realtimeTimeOn, 
+      messagesWithTime, formatMsgTime, showTimestamp, tsCharPos, tsMePos, tsFormat, tsCustom, tsSize, tsColor, tsOpacity, tsMeColor, tsMeOpacity, getMsgTimestamp, translateOn, translateLang, toggleTranslate, realtimeTimeOn,
+      foreignLangOptions, buildMemberForeignPrompt, 
   theaterShow, theaterTab, theaterLoading,
 theaterTextPrompt, theaterHtmlPrompt,
 theaterSaveName, theaterHtmlSaveName,

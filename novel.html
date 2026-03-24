@@ -734,7 +734,7 @@
       <div style="font-size:11px;color:#aaa;">共 {{ currentNovel.chapters.length }} 章，每章单独调用一次API，使用总结专用API（如已配置）</div>
       <div style="display:flex;align-items:center;justify-content:space-between;font-size:12px;color:#555;">
         <span>覆盖已有总结</span>
-        <div class="novel-toggle" style="width:36px;height:22px;" :class="{on: summaryOverwrite}" @click="summaryOverwrite=!summaryOverwrite"></div>
+        <div class="novel-toggle" :class="{on: summaryOverwrite}" @click="summaryOverwrite=!summaryOverwrite"></div>
       </div>
       <div style="font-size:11px;color:#aaa;">关闭时跳过已有总结的章节</div>
       <div v-if="summaryProgress" style="font-size:12px;color:#888;">{{ summaryProgress }}</div>

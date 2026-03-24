@@ -59,8 +59,9 @@
               <div class="msg-timestamp ts-me" v-if="showTimestamp && !msg.isTimeDivider && msg.role==='user' && getMsgTimestamp(msg)" :class="'ts-'+tsMePos" :style="`font-size:${tsSize}px;color:${tsMeColor};opacity:${tsMeOpacity};`">{{ getMsgTimestamp(msg) }}</div>
 
               <div v-if="msg.type==='sticker'" class="msg-sticker"><img :src="getStickerUrl(msg.content)" :alt="msg.content" /></div>
-              <div v-else class="msg-bubble" :class="[msg.role==='user'?'bubble-right':'bubble-left', msg.type==='whisper'?'bubble-whisper':'', msg.editing?'bubble-editing':'']" :style="getMemberBubbleStyle(msg)"
-                @click="translateOn && msg.role==='char' && !msg.loading && !msg.editing ? toggleTranslate(msg) : null">
+              <div v-else class="msg-bubble" :class="[msg.role==='user'?'bubble-right':'bubble-left', msg.type==='whisper'?'bubble-whisper':'', msg.editing?'bubble-editing':'']"
+                :style="[getMemberBubbleStyle(msg), (msg.foreignTranslation && msg.role==='char') || (translateOn && msg.role==='char' && !msg.loading) ? {cursor:'pointer'} : {}]"
+                @click="msg.foreignTranslation && msg.role==='char' && !msg.loading && !msg.editing ? msg.foreignTranslationShow=!msg.foreignTranslationShow : (translateOn && msg.role==='char' && !msg.loading && !msg.editing ? toggleTranslate(msg) : null)">
                 <span v-if="msg.loading" class="msg-loading"><span></span><span></span><span></span></span>
                 <div v-else-if="msg.editing">
                   <textarea class="edit-textarea" v-model="msg.editContent" @keydown.enter.exact.prevent="confirmEdit(msg)"></textarea>
@@ -68,6 +69,11 @@
                 </div>
                 <span v-else>{{ msg.content }}</span>
                 <span v-if="msg.type==='whisper'" class="whisper-tag">心声</span>
+                <!-- 外语模式翻译 -->
+                <div v-if="msg.foreignTranslation && msg.foreignTranslationShow"
+                  style="font-size:12px;color:#888;margin-top:4px;padding-top:4px;border-top:1px solid rgba(0,0,0,0.08);">
+                  {{ msg.foreignTranslation }}
+                </div>
                 <div v-if="msg.translating" class="msg-translation">
                   <div class="msg-translation-loading"><span></span><span></span><span></span></div>
                 </div>
@@ -285,6 +291,26 @@
   <input class="modal-input" v-model="editMember.realName" placeholder="未能自动提取，可手动填写..." />
   <div style="font-size:11px;color:#aaa;margin-top:3px;">真名用于剧场生成等功能中的名字替换</div>
 </div>
+        <div class="modal-item">
+          <div style="display:flex;align-items:center;justify-content:space-between;">
+            <span style="font-size:13px;color:#555;font-weight:500;">外语模式</span>
+            <div class="toggle" :class="{on: editMember.foreignOn}" @click="editMember.foreignOn=!editMember.foreignOn"></div>
+          </div>
+          <div style="font-size:11px;color:#aaa;margin-top:2px;">开启后该成员用所选语言发消息，气泡内点击展开中文译文</div>
+        </div>
+        <div class="modal-item" v-if="editMember.foreignOn">
+          <label>使用语言</label>
+          <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:6px;">
+            <div v-for="lang in foreignLangOptions" :key="lang"
+              style="padding:6px 14px;border-radius:20px;font-size:13px;cursor:pointer;border:1.5px solid #e5e5ea;transition:all 0.15s;"
+              :style="editMember.foreignLang===lang ? 'background:#111;color:#fff;border-color:#111;' : 'background:#fff;color:#555;'"
+              @click="editMember.foreignLang=lang">{{ lang }}</div>
+          </div>
+          <div v-if="editMember.foreignLang==='其他'" style="margin-top:6px;">
+            <input class="modal-input" v-model="editMember.foreignLangCustom" placeholder="输入语言名称，如：泰语、德语..." />
+          </div>
+        </div>
+
           <div class="modal-item"><label>世界观</label><textarea class="modal-textarea" v-model="editMember.world" placeholder="角色世界观..."></textarea></div>
           <div class="modal-item"><label>角色人设</label><textarea class="modal-textarea" v-model="editMember.persona" placeholder="角色人设..."></textarea></div>
           <div class="modal-btns">
