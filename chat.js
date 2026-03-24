@@ -162,7 +162,10 @@ createApp({
       ]);
 
       if (dark) document.body.classList.add('dark');
-      if (wp) { document.body.style.backgroundImage = `url(${wp})`; document.body.style.backgroundSize = 'cover'; document.body.style.backgroundPosition = 'center'; }
+      const pageWp = await dbGet('wallpaper_chat');
+      const globalOn = await dbGet('wallpaperGlobal');
+      const finalWp = pageWp || (globalOn ? wp : '');
+      if (finalWp) { document.body.style.backgroundImage = `url(${finalWp})`; document.body.style.backgroundSize = 'cover'; document.body.style.backgroundPosition = 'center'; }
       charList.value = chars || [];
       roomList.value = rooms || [];
 

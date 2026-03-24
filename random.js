@@ -452,9 +452,16 @@ ${worldPart}${personaPart}${typePromptParts ? typePromptParts + '\n' : ''}${extr
       else gridLoading.value = true;
 
       const count = parseInt(settings.value.genCount) || 4;
-      const prompt = buildPrompt(count);
+      let prompt = buildPrompt(count);
 
       try {
+        const savedWorldBooks = await dbGet('worldBooks');
+        const globalInjectBooks = (savedWorldBooks || []).filter(b => b.globalInject);
+        const globalInjectText = globalInjectBooks.map(b => b.content).join('。');
+        if (globalInjectText) {
+          prompt = globalInjectText + '。' + prompt;
+        }
+
         const res = await fetch(`${apiConfig.value.url.replace(/\/$/, '')}/chat/completions`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiConfig.value.key}` },
@@ -646,7 +653,10 @@ if (typeof requestNotifyPermission === 'function') requestNotifyPermission();
       ]);
 
       if (dark) document.body.classList.add('dark');
-      if (wp) { document.body.style.backgroundImage = `url(${wp})`; document.body.style.backgroundSize = 'cover'; document.body.style.backgroundPosition = 'center'; }
+      const pageWp = await dbGet('wallpaper_random');
+      const globalOn = await dbGet('wallpaperGlobal');
+      const finalWp = pageWp || (globalOn ? wp : '');
+      if (finalWp) { document.body.style.backgroundImage = `url(${finalWp})`; document.body.style.backgroundSize = 'cover'; document.body.style.backgroundPosition = 'center'; }
       if (api) apiConfig.value = api;
 
       if (savedSettings) {

@@ -265,6 +265,9 @@
     <div v-if="tab==='theme'" class="tab-panel">
       <div class="settings-card">
         <div class="settings-card-title">页面壁纸</div>
+
+        <!-- 主页壁纸 -->
+        <div style="font-size:12px;font-weight:600;color:#888;margin-bottom:6px;">主页 / 喜欢页壁纸</div>
         <div class="wallpaper-preview" :style="wallpaperStyle">
           <span v-if="!wallpaper">未设置壁纸</span>
         </div>
@@ -275,6 +278,37 @@
         <button class="settings-btn" style="margin-top:8px;" @click="triggerWallpaper">本地上传</button>
         <button class="settings-btn danger" style="margin-top:8px;" @click="clearWallpaper">清除壁纸</button>
         <input type="file" ref="wallpaperFile" accept="image/*" style="display:none" @change="uploadWallpaper" />
+
+        <!-- 全局壁纸开关 -->
+        <div style="margin-top:16px;padding-top:12px;border-top:1px solid #f0f0f0;">
+          <div class="settings-row" style="justify-content:space-between;align-items:center;">
+            <div>
+              <div style="font-size:14px;color:#333;font-weight:500;">设为全局壁纸</div>
+              <div style="font-size:11px;color:#aaa;margin-top:2px;">开启后其他未单独设置壁纸的页面也使用主页壁纸</div>
+            </div>
+            <div class="toggle" :class="{on: wallpaperGlobal}" @click="toggleWallpaperGlobal"></div>
+          </div>
+        </div>
+
+        <!-- 各页面单独壁纸 -->
+        <div style="margin-top:16px;padding-top:12px;border-top:1px solid #f0f0f0;">
+          <div style="font-size:12px;font-weight:600;color:#888;margin-bottom:10px;">各页面单独壁纸（优先级高于全局）</div>
+          <div v-for="(label, key) in pageLabels" :key="key" style="margin-bottom:14px;">
+            <div style="font-size:13px;color:#333;font-weight:500;margin-bottom:6px;">{{ label }}</div>
+            <div class="wallpaper-preview" :style="pageWallpapers[key] ? `background-image:url(${pageWallpapers[key]})` : ''" style="height:60px;">
+              <span v-if="!pageWallpapers[key]">未设置</span>
+            </div>
+            <div class="settings-row" style="gap:8px;margin-top:6px;">
+              <input class="settings-input" v-model="pageWallpaperUrls[key]" placeholder="粘贴壁纸 URL..." />
+              <button class="settings-btn primary" @click="applyPageWallpaperUrl(key)">确认</button>
+            </div>
+            <div class="settings-row" style="gap:8px;margin-top:4px;">
+              <button class="settings-btn" @click="triggerPageWallpaper(key)">本地上传</button>
+              <button class="settings-btn danger" @click="clearPageWallpaper(key)" v-if="pageWallpapers[key]">清除</button>
+            </div>
+          </div>
+        </div>
+        <input type="file" ref="pageWallpaperFile" accept="image/*" style="display:none" @change="uploadPageWallpaper" />
       </div>
       <div class="settings-card">
         <div class="settings-card-title">自定义字体</div>

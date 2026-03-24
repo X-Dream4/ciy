@@ -93,7 +93,20 @@
                 </div>
                 <span v-else>{{ msg.content }}</span>
                 <span v-if="msg.type==='whisper'" class="whisper-tag">心声</span>
-                <!-- 翻译区域 -->
+                <!-- 外语模式翻译 -->
+                <div v-if="msg.foreignTranslation" style="margin-top:4px;">
+                  <div v-if="!msg.foreignTranslationShow"
+                    style="font-size:11px;color:#aaa;cursor:pointer;user-select:none;"
+                    @click.stop="msg.foreignTranslationShow=true">
+                    点击查看译文 ▼
+                  </div>
+                  <div v-else
+                    style="font-size:12px;color:#888;margin-top:4px;padding-top:4px;border-top:1px solid rgba(0,0,0,0.08);cursor:pointer;"
+                    @click.stop="msg.foreignTranslationShow=false">
+                    {{ msg.foreignTranslation }} ▲
+                  </div>
+                </div>
+                <!-- 普通翻译区域 -->
                 <div v-if="msg.translating" class="msg-translation">
                   <div class="msg-translation-loading"><span></span><span></span><span></span></div>
                 </div>
@@ -230,13 +243,34 @@
           </div>
           <div style="font-size:12px;color:#aaa;padding:8px 0;" v-else>世界书馆暂无世界书</div>
         </div>
+        <!-- 外语模式 -->
+        <div class="modal-item">
+          <div style="display:flex;align-items:center;justify-content:space-between;">
+            <span style="font-size:13px;color:#555;font-weight:500;">外语模式</span>
+            <div class="toggle" :class="{on: foreignOn}" @click="foreignOn=!foreignOn; if(foreignOn) translateOn=false;"></div>
+          </div>
+          <div style="font-size:11px;color:#aaa;margin-top:2px;">开启后角色用所选语言发消息，每条消息附带中文翻译，点击气泡展开</div>
+        </div>
+        <div class="modal-item" v-if="foreignOn">
+          <label>角色使用的语言</label>
+          <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:6px;">
+            <div v-for="lang in foreignLangOptions" :key="lang"
+              style="padding:6px 14px;border-radius:20px;font-size:13px;cursor:pointer;border:1.5px solid #e5e5ea;transition:all 0.15s;"
+              :style="foreignLang===lang ? 'background:#111;color:#fff;border-color:#111;' : 'background:#fff;color:#555;'"
+              @click="foreignLang=lang">{{ lang }}</div>
+          </div>
+          <div v-if="foreignLang==='其他'" style="margin-top:6px;">
+            <input class="modal-input" v-model="foreignLangCustom" placeholder="输入语言名称，如：泰语、德语..." />
+          </div>
+        </div>
+
         <!-- 翻译设置 -->
         <div class="modal-item">
           <div style="display:flex;align-items:center;justify-content:space-between;">
             <span style="font-size:13px;color:#555;font-weight:500;">点击气泡翻译</span>
-            <div class="toggle" :class="{on: translateOn}" @click="translateOn=!translateOn"></div>
+            <div class="toggle" :class="{on: translateOn && !foreignOn}" @click="if(!foreignOn) translateOn=!translateOn;" :style="foreignOn ? 'opacity:0.4;cursor:not-allowed;' : ''"></div>
           </div>
-          <div style="font-size:11px;color:#aaa;margin-top:2px;">开启后点击角色气泡自动翻译为所选语言</div>
+          <div style="font-size:11px;color:#aaa;margin-top:2px;">{{ foreignOn ? '外语模式开启时不可用' : '开启后点击角色气泡自动翻译为所选语言' }}</div>
         </div>
         <div class="modal-item" v-if="translateOn">
           <label>翻译目标语言</label>

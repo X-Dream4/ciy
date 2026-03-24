@@ -23,6 +23,20 @@ createApp({
     const darkMode = ref(false);
     const wallpaper = ref('');
     const wallpaperUrl = ref('');
+    const wallpaperGlobal = ref(false);
+    const pageWallpapers = ref({
+      chat: '', random: '', worldbook: '', world: '',
+      collect: '', share: '', forum: '', novel: ''
+    });
+    const pageWallpaperUrls = ref({
+      chat: '', random: '', worldbook: '', world: '',
+      collect: '', share: '', forum: '', novel: ''
+    });
+    const pageLabels = {
+      chat: '聊天App', random: '次元发现', worldbook: '世界书馆',
+      world: '世界次元', collect: '收藏', share: '涟波',
+      forum: '次元论坛', novel: '次元小说'
+    };
     const appIcons = ref([
       { key: 'chat',    label: '聊天',  icon: '' },
       { key: 'like',    label: '喜欢',  icon: '' },
@@ -34,6 +48,8 @@ createApp({
     const importFile = ref(null);
     const wallpaperFile = ref(null);
     const iconFile = ref(null);
+    const pageWallpaperFile = ref(null);
+    const currentPageWallpaperKey = ref('');
 
     const fontFile = ref(null);
     const customFontUrl = ref('');
@@ -369,6 +385,44 @@ createApp({
       addLog('所有储存已清空', 'warn');
       await loadStorageInfo();
     };
+    const toggleWallpaperGlobal = async () => {
+      wallpaperGlobal.value = !wallpaperGlobal.value;
+      await dbSet('wallpaperGlobal', wallpaperGlobal.value);
+      addLog(`全局壁纸已${wallpaperGlobal.value ? '开启' : '关闭'}`);
+    };
+
+    const applyPageWallpaperUrl = async (pageKey) => {
+      const url = pageWallpaperUrls.value[pageKey].trim();
+      if (!url) return;
+      pageWallpapers.value[pageKey] = url;
+      await dbSet(`wallpaper_${pageKey}`, url);
+      addLog(`${pageLabels[pageKey]} 壁纸已设置`);
+    };
+
+    const triggerPageWallpaper = (pageKey) => {
+      currentPageWallpaperKey.value = pageKey;
+      pageWallpaperFile.value.click();
+    };
+
+    const uploadPageWallpaper = async (e) => {
+      const file = e.target.files[0]; if (!file) return;
+      const reader = new FileReader();
+      reader.onload = async (evt) => {
+        const key = currentPageWallpaperKey.value;
+        pageWallpapers.value[key] = evt.target.result;
+        await dbSet(`wallpaper_${key}`, evt.target.result);
+        addLog(`${pageLabels[key]} 壁纸已上传`);
+        e.target.value = '';
+      };
+      reader.readAsDataURL(file);
+    };
+
+    const clearPageWallpaper = async (pageKey) => {
+      pageWallpapers.value[pageKey] = '';
+      pageWallpaperUrls.value[pageKey] = '';
+      await dbSet(`wallpaper_${pageKey}`, '');
+      addLog(`${pageLabels[pageKey]} 壁纸已清除`);
+    };
 
     const toggleDark = async () => {
       darkMode.value = !darkMode.value;
@@ -384,6 +438,7 @@ createApp({
       document.body.style.backgroundSize = 'cover';
       document.body.style.backgroundPosition = 'center';
       await dbSet('wallpaper', wallpaper.value);
+      await dbSet('wallpaper_like', wallpaper.value);
       addLog('壁纸已设置');
     };
 
@@ -399,6 +454,7 @@ createApp({
         document.body.style.backgroundSize = 'cover';
         document.body.style.backgroundPosition = 'center';
         await dbSet('wallpaper', wallpaper.value);
+        await dbSet('wallpaper_like', wallpaper.value);
         addLog('壁纸已上传');
         e.target.value = '';
       };
@@ -409,6 +465,7 @@ createApp({
       wallpaper.value = '';
       document.body.style.backgroundImage = 'none';
       await dbSet('wallpaper', '');
+      await dbSet('wallpaper_like', '');
       addLog('壁纸已清除');
     };
 
@@ -440,6 +497,24 @@ if (typeof requestNotifyPermission === 'function') requestNotifyPermission();
       if (dark) { darkMode.value = true; document.body.classList.add('dark'); }
       if (wp) { wallpaper.value = wp; }
       if (icons) appIcons.value = icons;
+      const savedGlobal = await dbGet('wallpaperGlobal');
+      if (savedGlobal !== null && savedGlobal !== undefined) wallpaperGlobal.value = savedGlobal;
+      for (const key of Object.keys(pageWallpapers.value)) {
+        const saved = await dbGet(`wallpaper_${key}`);
+        if (saved) pageWallpapers.value[key] = saved;
+      }
+      // like页自己的壁纸
+      const likeWp = await dbGet('wallpaper_like');
+      if (likeWp) {
+        wallpaper.value = likeWp;
+        document.body.style.backgroundImage = `url(${likeWp})`;
+        document.body.style.backgroundSize = 'cover';
+        document.body.style.backgroundPosition = 'center';
+      } else if (wp) {
+        document.body.style.backgroundImage = `url(${wp})`;
+        document.body.style.backgroundSize = 'cover';
+        document.body.style.backgroundPosition = 'center';
+      }
       await Promise.all([loadStorageInfo(), loadGlobalLogs()]);
       exportCharList.value = (await dbGet('charList')) || [];
       const savedFont = await dbGet('customFont');
@@ -719,6 +794,9 @@ const loadMemory = async () => {
       selectSummaryModel, fetchSummaryModels, loadSummaryPreset,
       exportData, triggerImport, importData, clearStorage,
       toggleDark, applyWallpaperUrl, triggerWallpaper, uploadWallpaper, clearWallpaper,
+      wallpaperGlobal, toggleWallpaperGlobal,
+      pageWallpapers, pageWallpaperUrls, pageLabels, pageWallpaperFile, currentPageWallpaperKey,
+      applyPageWallpaperUrl, triggerPageWallpaper, uploadPageWallpaper, clearPageWallpaper,
       triggerIconUpload, uploadIcon, goBack, drawerOpen, currentTabTitle,
       fontFile, customFontUrl, customFontName, previewFontLoaded, previewFontStyle,
       previewFontFromUrl, triggerFontUpload, previewFontFromFile, applyCustomFont, clearCustomFont,

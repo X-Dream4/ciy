@@ -237,7 +237,9 @@ createApp({
       } else {
         sourceText = n.content.slice(0, 5000);
       }
-      const prompt = `请根据以下小说内容，写一段吸引人的简介，500-100字，不剧透结局，突出亮点和看点，语言生动，风格类似网络小说简介。只需要输出一段简介即可！不要输出任何不相干的文字！\n\n${sourceText}`;
+      const globalInjectBooks = allWorldBooks.value.filter(b => b.globalInject);
+      const globalInjectText = globalInjectBooks.map(b => b.content).join('。');
+      const prompt = `${globalInjectText ? globalInjectText + '。' : ''}请根据以下小说内容，写一段吸引人的简介，500-100字，不剧透结局，突出亮点和看点，语言生动，风格类似网络小说简介。只需要输出一段简介即可！不要输出任何不相干的文字！\n\n${sourceText}`;
       try {
         const res = await fetch(`${apiConfig.value.url.replace(/\/$/, '')}/chat/completions`, {
           method: 'POST',
@@ -327,7 +329,9 @@ const runAiNextChapter = async () => {
   const hasChapters = n.chapters && n.chapters.length > 0;
   const total = hasChapters ? n.chapters.length : 0;
 
-  let prompt = `以下是小说《${n.title}》，请续写下一章。\n\n`;
+  const globalInjectBooks = allWorldBooks.value.filter(b => b.globalInject);
+  const globalInjectText = globalInjectBooks.map(b => b.content).join('。');
+  let prompt = `${globalInjectText ? globalInjectText + '。' : ''}以下是小说《${n.title}》，请续写下一章。\n\n`;
 
   if (hasChapters && total > 0) {
     // 前情提要：用指定章节的summary
@@ -538,6 +542,9 @@ const addAiTag = () => {
       const toneText = f.tone === '其他' ? f.toneCustom : f.tone;
 
       let prompt = '';
+      const globalInjectBooks = allWorldBooks.value.filter(b => b.globalInject);
+      const globalInjectText = globalInjectBooks.map(b => b.content).join('。');
+      if (globalInjectText) prompt += globalInjectText + '。';
       if (f.type === 'fanfic') prompt += '这是一篇同人文。';
       else prompt += '这是一篇原创小说。';
       if (charsDesc) prompt += `\n【登场角色】${charsDesc}`;
@@ -570,6 +577,9 @@ const addAiTag = () => {
       if (!apiConfig.value.url || !apiConfig.value.key || !apiConfig.value.model) { alert('请先在设置里配置API'); return; }
       aiLoading.value = true; aiResult.value = ''; aiComment.value = '';
       try {
+        const globalInjectBooks = allWorldBooks.value.filter(b => b.globalInject);
+        const globalInjectText = globalInjectBooks.map(b => b.content).join('。');
+
         const prompt = buildAiPrompt();
         const res = await fetch(`${apiConfig.value.url.replace(/\/$/, '')}/chat/completions`, {
           method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiConfig.value.key}` },
@@ -1108,7 +1118,9 @@ const confirmAddBookmark = async () => {
       const selectedChars = chatChars.value.filter(c => companionChars.value.includes(c.id));
       const charsDesc = selectedChars.map(c => `${c.name}${c.persona ? '（人设：' + c.persona.slice(0, 50) + '）' : ''}`).join('、');
 
-      let prompt = `你现在扮演以下角色，正在和用户一起阅读小说：${charsDesc}。\n`;
+      const globalInjectBooks = allWorldBooks.value.filter(b => b.globalInject);
+      const globalInjectText = globalInjectBooks.map(b => b.content).join('。');
+      let prompt = `${globalInjectText ? globalInjectText + '。' : ''}你现在扮演以下角色，正在和用户一起阅读小说：${charsDesc}。\n`;
       if (prevSummaries) prompt += `\n【前情提要（已读章节总结）】\n${prevSummaries}\n`;
       prompt += `\n【当前阅读章节】${ch?.title || ''}\n${chapterContent.slice(0, 4000)}\n`;
       prompt += `\n请以各自角色性格人设，分享阅读这一章的感受（可以感动、紧张、吐槽、猜测后续等），口语化，每人一到两句。格式：\n角色名：评论内容\n每人一行。`;
@@ -1184,7 +1196,9 @@ const saveSummaryEdit = async () => {
         continue;
        }
         try {
-          const prompt = `请对以下小说章节进行总结，要求如下：
+          const globalInjectBooks = allWorldBooks.value.filter(b => b.globalInject);
+          const globalInjectText = globalInjectBooks.map(b => b.content).join('。');
+          const prompt = `${globalInjectText ? globalInjectText + '。' : ''}请对以下小说章节进行总结，要求如下：
             1. 用2-4句话概括本章核心情节和重要事件
             2. 提及本章出现的关键人物及其行动
             3. 说明本章对剧情推进的意义或伏笔
@@ -1256,7 +1270,9 @@ const saveSummaryEdit = async () => {
       const selectedChars = chatChars.value.filter(c => selectedCommentChars.value.includes(c.id));
       const charsDesc = selectedChars.map(c => `${c.name}${c.persona ? '（人设：' + c.persona.slice(0, 50) + '）' : ''}`).join('、');
 
-      let prompt = `你现在需要扮演以下角色，对这一章节内容发表评论：${charsDesc}。\n`;
+      const globalInjectBooks = allWorldBooks.value.filter(b => b.globalInject);
+      const globalInjectText = globalInjectBooks.map(b => b.content).join('。');
+      let prompt = `${globalInjectText ? globalInjectText + '。' : ''}你现在需要扮演以下角色，对这一章节内容发表评论：${charsDesc}。\n`;
       if (prevSummaries) prompt += `\n【前情提要】\n${prevSummaries}\n`;
       prompt += `\n【当前章节】${ch?.title || ''}\n${chapterContent.slice(0, 4000)}\n`;
       if (existingComments) prompt += `\n【已有评论】\n${existingComments}\n`;
@@ -1358,6 +1374,11 @@ Vue.watch(() => view.value, () => {
     onMounted(async () => {
       const dark = await dbGet('darkMode');
       if (dark) document.body.classList.add('dark');
+      const pageWp = await dbGet('wallpaper_novel');
+      const globalOn = await dbGet('wallpaperGlobal');
+      const globalWp = await dbGet('wallpaper');
+      const finalWp = pageWp || (globalOn ? globalWp : '');
+      if (finalWp) { document.body.style.backgroundImage = `url(${finalWp})`; document.body.style.backgroundSize = 'cover'; document.body.style.backgroundPosition = 'center'; }
 
       const savedFont = await dbGet('customFont');
       if (savedFont && savedFont.src) {

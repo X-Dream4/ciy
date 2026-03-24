@@ -29,11 +29,18 @@ createApp({
       if (!form.value.content.trim()) { alert('请填写内容'); return; }
       formShow.value = false;
       if (editIndex.value === -1) {
-        books.value.push({ id: Date.now(), ...form.value });
+        books.value.push({ id: Date.now(), globalInject: false, ...form.value });
       } else {
         books.value[editIndex.value] = { ...books.value[editIndex.value], ...form.value };
       }
       await dbSet('worldBooks', JSON.parse(JSON.stringify(books.value)));
+    };
+    const toggleGlobalInject = async (book) => {
+      const idx = books.value.findIndex(b => b.id === book.id);
+      if (idx !== -1) {
+        books.value[idx].globalInject = !books.value[idx].globalInject;
+        await dbSet('worldBooks', JSON.parse(JSON.stringify(books.value)));
+      }
     };
 
     const deleteBook = async (book) => {
@@ -81,6 +88,11 @@ if (typeof requestNotifyPermission === 'function') requestNotifyPermission();
 
       const dark = await dbGet('darkMode');
       if (dark) document.body.classList.add('dark');
+      const pageWp = await dbGet('wallpaper_worldbook');
+      const globalOn = await dbGet('wallpaperGlobal');
+      const globalWp = await dbGet('wallpaper');
+      const finalWp = pageWp || (globalOn ? globalWp : '');
+      if (finalWp) { document.body.style.backgroundImage = `url(${finalWp})`; document.body.style.backgroundSize = 'cover'; document.body.style.backgroundPosition = 'center'; }
       const data = await dbGet('worldBooks');
       if (data) books.value = data;
       const cats = await dbGet('worldBookCats');
@@ -92,7 +104,7 @@ if (typeof requestNotifyPermission === 'function') requestNotifyPermission();
 
     return {
       books, categories, formShow, catFormShow, editIndex, newCatName, currentCat, form,
-      typeLabel, filteredBooks, goBack, openAdd, openEdit, saveBook, deleteBook, addCategory, deleteCategory
+      typeLabel, filteredBooks, goBack, openAdd, openEdit, saveBook, deleteBook, addCategory, deleteCategory, toggleGlobalInject
     };
   }
 }).mount('#worldbook-app');

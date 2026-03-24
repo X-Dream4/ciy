@@ -203,6 +203,11 @@ createApp({
       }
       const dark = await dbGet('darkMode');
       if (dark) document.body.classList.add('dark');
+      const pageWp = await dbGet('wallpaper_share');
+      const globalOn = await dbGet('wallpaperGlobal');
+      const globalWp = await dbGet('wallpaper');
+      const finalWp = pageWp || (globalOn ? globalWp : '');
+      if (finalWp) { document.body.style.backgroundImage = `url(${finalWp})`; document.body.style.backgroundSize = 'cover'; document.body.style.backgroundPosition = 'center'; }
 
       const [charList, randomCharList, api, savedPosts] = await Promise.all([
         dbGet('charList'), dbGet('randomCharList'), dbGet('apiConfig'), dbGet('sharePosts')

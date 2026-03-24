@@ -424,6 +424,9 @@ const collectTheaterRoom = async (content) => {
         if (!book.keywords?.trim()) return true;
         return book.keywords.split(',').some(kw => recentContent.includes(kw.trim()));
       });
+      const globalInjectBooks = allWorldBooks.value.filter(b => b.globalInject);
+      const globalInjectText = globalInjectBooks.map(b => b.content).join('。');
+
       const wbJailbreak = activeBooks.filter(b => b.type === 'jailbreak').map(b => b.content).join('；');
       const wbWorldview = activeBooks.filter(b => b.type === 'worldview').map(b => b.content).join('；');
       const wbPersona = activeBooks.filter(b => b.type === 'persona').map(b => b.content).join('；');
@@ -443,7 +446,7 @@ const collectTheaterRoom = async (content) => {
       const beforeHistorySummaries = summaries.value.filter(s => s.pos === 'before_history').map(s => ({ role: 'system', content: `【回忆摘要】${s.content}` }));
       const afterSystemSummaries = summaries.value.filter(s => s.pos === 'after_system').map(s => `【回忆摘要】${s.content}`).join('；');
 
-            const systemPrompt = `本群共有${members.value.length}名成员，名单：${memberNames}。每条消息必须明确标注发言者名字。${realtimeTimeOn.value ? `【当前时间】现在是${new Date().toLocaleString('zh-CN', {year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',weekday:'short'})}，所有成员都知道现在的准确时间。` : ''}${wbJailbreak ? wbJailbreak + '。' : ''}${wbWorldview ? '补充世界观：' + wbWorldview + '。\n' : ''}${wbPersona ? '补充人设：' + wbPersona + '。\n' : ''}
+            const systemPrompt = `${globalInjectText ? globalInjectText + '。' : ''}本群共有${members.value.length}名成员，名单：${memberNames}。每条消息必须明确标注发言者名字。${realtimeTimeOn.value ? `【当前时间】现在是${new Date().toLocaleString('zh-CN', {year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',weekday:'short'})}，所有成员都知道现在的准确时间。` : ''}${wbJailbreak ? wbJailbreak + '。' : ''}${wbWorldview ? '补充世界观：' + wbWorldview + '。\n' : ''}${wbPersona ? '补充人设：' + wbPersona + '。\n' : ''}
 【群成员信息】
 ${membersDesc}
 ${myPersona.value ? `【用户】(就是我)${myName.value}的人设：${myPersona.value}` : ''}
@@ -597,7 +600,9 @@ alert('连接失败：' + e.message);
       const targetMembers = peekTarget.value === 'all' ? members.value : members.value.filter(m => m.id === peekTarget.value);
       const results = [];
       for (const m of targetMembers) {
-        const prompt = `你是${m.name}。${m.persona ? '人设：' + m.persona : ''}。根据以下最近的对话，用简短文字（20字以内）描述当前动作和情绪，再用简短文字（30字以内）描述此刻内心独白。用JSON格式返回：{"action":"动作情绪","soul":"内心独白"}\n对话：\n${recentMsgs}`;
+        const globalInjectBooks = allWorldBooks.value.filter(b => b.globalInject);
+        const globalInjectText = globalInjectBooks.map(b => b.content).join('。');
+        const prompt = `${globalInjectText ? globalInjectText + '。' : ''}你是${m.name}。${m.persona ? '人设：' + m.persona : ''}。根据以下最近的对话，用简短文字（20字以内）描述当前动作和情绪，再用简短文字（30字以内）描述此刻内心独白。用JSON格式返回：{"action":"动作情绪","soul":"内心独白"}\n对话：\n${recentMsgs}`;
         try {
           const res = await fetch(`${apiConfig.value.url.replace(/\/$/, '')}/chat/completions`, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiConfig.value.key}` }, body: JSON.stringify({ model: apiConfig.value.model, messages: [{ role: 'user', content: prompt }] }) });
           const data = await res.json();
@@ -624,11 +629,13 @@ alert('连接失败：' + e.message);
         let prompt = '';
         if (mirrorMode.value === 'chat') {
           const recentMsgs = allMessages.value.filter(msg => !msg.recalled && !msg.loading).slice(-10).map(msg => `${msg.senderName || myName.value}：${msg.content}`).join('\n');
-          prompt = `你是一个旁观者，正在监视另一个次元里的${m.name}。${m.persona ? '人设：' + m.persona + '。' : ''}${m.world ? '世界观：' + m.world + '。' : ''}根据以下对话内容，像监控摄像头一样，事无巨细地用文字描述${m.name}此刻在做什么（100字以内）。\n对话：\n${recentMsgs}`;
+          const globalInjectBooks = allWorldBooks.value.filter(b => b.globalInject);
+          const globalInjectText = globalInjectBooks.map(b => b.content).join('。');
+          prompt = `${globalInjectText ? globalInjectText + '。' : ''}你是一个旁观者，正在监视另一个次元里的${m.name}。${m.persona ? '人设：' + m.persona + '。' : ''}${m.world ? '世界观：' + m.world + '。' : ''}根据以下对话内容，像监控摄像头一样，事无巨细地用文字描述${m.name}此刻在做什么（100字以内）。\n对话：\n${recentMsgs}`;
         } else {
           const now = new Date();
           const timeStr = `${now.getHours()}时${now.getMinutes()}分`;
-          prompt = `你是一个旁观者，正在监视另一个次元里的${m.name}。${m.persona ? '人设：' + m.persona + '。' : ''}${m.world ? '世界观：' + m.world + '。' : ''}现在是${timeStr}，${m.name}没有在和任何人聊天，像监控摄像头一样，事无巨细地用文字描述${m.name}此刻可能在做什么（100字以内）。`;
+          prompt = `${globalInjectText ? globalInjectText + '。' : ''}你是一个旁观者，正在监视另一个次元里的${m.name}。${m.persona ? '人设：' + m.persona + '。' : ''}${m.world ? '世界观：' + m.world + '。' : ''}现在是${timeStr}，${m.name}没有在和任何人聊天，像监控摄像头一样，事无巨细地用文字描述${m.name}此刻可能在做什么（100字以内）。`;
         }
         try {
           const res = await fetch(`${apiConfig.value.url.replace(/\/$/, '')}/chat/completions`, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiConfig.value.key}` }, body: JSON.stringify({ model: apiConfig.value.model, messages: [{ role: 'user', content: prompt }] }) });
@@ -845,7 +852,9 @@ const runTextTheater = async () => {
   ).join('、');
   const styleDesc = theaterStylePrompt.value.trim();
 
-  const systemPrompt = `${wbJailbreak ? wbJailbreak + '。' : ''}这是一段群聊番外/小剧场，成员包括：${membersDesc}。${wbWorldview ? '补充世界观：' + wbWorldview + '。' : ''}${wbPersona ? '人设补充：' + wbPersona + '。' : ''}${wbPrompt ? '额外设定：' + wbPrompt + '。' : ''}${styleDesc ? '【文风要求】' + styleDesc + '。' : ''}这是一段不计入主线剧情、不计入记忆的番外/小剧场内容，请完整生成。`;
+  const globalInjectBooks = allWorldBooks.value.filter(b => b.globalInject);
+  const globalInjectText = globalInjectBooks.map(b => b.content).join('。');
+  const systemPrompt = `${globalInjectText ? globalInjectText + '。' : ''}${wbJailbreak ? wbJailbreak + '。' : ''}这是一段群聊番外/小剧场，成员包括：${membersDesc}。${wbWorldview ? '补充世界观：' + wbWorldview + '。' : ''}${wbPersona ? '人设补充：' + wbPersona + '。' : ''}${wbPrompt ? '额外设定：' + wbPrompt + '。' : ''}${styleDesc ? '【文风要求】' + styleDesc + '。' : ''}这是一段不计入主线剧情、不计入记忆的番外/小剧场内容，请完整生成。`;
 
   try {
     const res = await fetch(`${apiConfig.value.url.replace(/\/$/, '')}/chat/completions`, {
@@ -891,7 +900,9 @@ const runHtmlTheater = async () => {
   ).join('、');
   const styleDesc = theaterStylePrompt.value.trim();
 
-  const systemPrompt = `${wbJailbreak ? wbJailbreak + '。' : ''}这是一段群聊番外/小剧场，成员包括：${membersDesc}。${wbWorldview ? '补充世界观：' + wbWorldview + '。' : ''}${wbPersona ? '人设补充：' + wbPersona + '。' : ''}${wbPrompt ? '额外设定：' + wbPrompt + '。' : ''}${styleDesc ? '【文风要求】' + styleDesc + '。' : ''}`;
+  const globalInjectBooks = allWorldBooks.value.filter(b => b.globalInject);
+  const globalInjectText = globalInjectBooks.map(b => b.content).join('。');
+  const systemPrompt = `${globalInjectText ? globalInjectText + '。' : ''}${wbJailbreak ? wbJailbreak + '。' : ''}这是一段群聊番外/小剧场，成员包括：${membersDesc}。${wbWorldview ? '补充世界观：' + wbWorldview + '。' : ''}${wbPersona ? '人设补充：' + wbPersona + '。' : ''}${wbPrompt ? '额外设定：' + wbPrompt + '。' : ''}${styleDesc ? '【文风要求】' + styleDesc + '。' : ''}`;
 
   try {
     const res = await fetch(`${apiConfig.value.url.replace(/\/$/, '')}/chat/completions`, {
@@ -966,7 +977,7 @@ const runTheaterComment = async () => {
   theaterCommentLoading.value = true;
   theaterCommentResult.value = '';
   const membersDesc = members.value.map(m => `${getMemberRealName(m)}${m.persona ? '（' + m.persona + '）' : ''}`).join('、');
-  const systemPrompt = `这是一个群聊场景，成员包括：${membersDesc}。请让每位成员分别用各自的口吻和性格，对以下这段番外小剧场发表评价、感想或吐槽（可以害羞、骄傲、否认、感动、调侃等，保持各自角色性格，口语化）。每位成员说一到两句，格式：成员名：内容`;
+  const systemPrompt = `${globalInjectText ? globalInjectText + '。' : ''}这是一个群聊场景，成员包括：${membersDesc}。请让每位成员分别用各自的口吻和性格，对以下这段番外小剧场发表评价、感想或吐槽（可以害羞、骄傲、否认、感动、调侃等，保持各自角色性格，口语化）。每位成员说一到两句，格式：成员名：内容`;
   const userPrompt = `以下是番外小剧场内容，请各成员评论：\n\n${theaterTextResult.value}`;
   try {
     const res = await fetch(`${apiConfig.value.url.replace(/\/$/, '')}/chat/completions`, {
@@ -1002,7 +1013,9 @@ const runTheaterComment = async () => {
       summaryLoading.value = true; summaryResult.value = null;
       const msgText = selected.map(m => `${m.senderName || myName.value}：${m.content}`).join('\n');
       const memberNames = members.value.map(m => m.name).join('、');
-      const prompt = `请将以下对话内容总结成简短精悍的回忆摘要（100字以内），保留关键情节、情感和重要信息，以旁白视角描述。注意：群成员名字：${memberNames}，用户名字是「${myName.value}」，请使用真实名字。\n\n${msgText}`;
+      const globalInjectBooks = allWorldBooks.value.filter(b => b.globalInject);
+      const globalInjectText = globalInjectBooks.map(b => b.content).join('。');
+      const prompt = `${globalInjectText ? globalInjectText + '。' : ''}请将以下对话内容总结成简短精悍的回忆摘要（100字以内），保留关键情节、情感和重要信息，以旁白视角描述。注意：群成员名字：${memberNames}，用户名字是「${myName.value}」，请使用真实名字。\n\n${msgText}`;
       try {
         const res = await fetch(`${sUrl.replace(/\/$/, '')}/chat/completions`, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${sKey}` }, body: JSON.stringify({ model: sModel, messages: [{ role: 'user', content: prompt }] }) });
         const data = await res.json();

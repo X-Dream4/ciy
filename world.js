@@ -26,8 +26,11 @@ if (typeof requestNotifyPermission === 'function') requestNotifyPermission();
 
       const dark = await dbGet('darkMode');
       if (dark) document.body.classList.add('dark');
-      const wp = await dbGet('wallpaper');
-      if (wp) { document.body.style.backgroundImage = `url(${wp})`; document.body.style.backgroundSize = 'cover'; document.body.style.backgroundPosition = 'center'; }
+      const globalWp = await dbGet('wallpaper');
+      const pageWp = await dbGet('wallpaper_world');
+      const globalOn = await dbGet('wallpaperGlobal');
+      const finalWp = pageWp || (globalOn ? globalWp : '');
+      if (finalWp) { document.body.style.backgroundImage = `url(${finalWp})`; document.body.style.backgroundSize = 'cover'; document.body.style.backgroundPosition = 'center'; }
       lucide.createIcons();
       setTimeout(() => { lucide.createIcons(); }, 200);
       setTimeout(() => { lucide.createIcons(); }, 500);
