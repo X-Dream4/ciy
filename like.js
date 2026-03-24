@@ -276,6 +276,10 @@ createApp({
         emoji: await dbGet('emoji'),
         customFont: await dbGet('customFont'), customFontSize: await dbGet('customFontSize'),
         randomCharList: await dbGet('randomCharList'),
+        novels: await dbGet('novels'),
+        novelReadSettings: await dbGet('novelReadSettings'),
+        novelStylePresets: await dbGet('novelStylePresets'),
+        novelApiConfig: await dbGet('novelApiConfig'),
         charExtras, roomExtras,
         globalLogs: await dbGet('globalLogs')
       };
@@ -295,7 +299,7 @@ createApp({
       try {
         const text = await file.text();
         const data = JSON.parse(text);
-        const basicKeys = ['charName','charBio','images','filmImages','apiConfig','apiPresets','darkMode','wallpaper','appIcons','charList','roomList','worldBooks','worldBookCats','collects','emoji','customFont','customFontSize','randomCharList','globalLogs'];
+        const basicKeys = ['charName','charBio','images','filmImages','apiConfig','apiPresets','darkMode','wallpaper','appIcons','charList','roomList','worldBooks','worldBookCats','collects','emoji','customFont','customFontSize','randomCharList','novels','novelReadSettings','novelStylePresets','novelApiConfig','globalLogs'];
         for (const k of basicKeys) { if (data[k] !== undefined && data[k] !== null) await dbSet(k, data[k]); }
         if (data.charExtras) {
           for (const [id, extras] of Object.entries(data.charExtras)) {
@@ -564,7 +568,7 @@ const memoryDonut = ref([]);
 const memoryTotal = ref('0 KB');
 const memoryLoading = ref(false);
 
-const COLORS = ['#6c63ff','#ff6584','#43b97f','#f7b731','#fd9644','#45aaf2','#a55eea','#26de81'];
+const COLORS = ['#c2d9ff','#b89aff','#89d171','#ffca59','#ff7337','#61bdff','#debdff','#54ffee','#d4d4d4','#73d7ff','#e979ff','#8f8f8f'];
 
 const formatBytes = (bytes) => {
   if (bytes < 1024) return bytes + ' B';
@@ -640,6 +644,32 @@ const loadMemory = async () => {
   // 日志
   const logsSize = calcSize(await dbGet('globalLogs'));
   blocks.push({ label: '控制台日志', raw: logsSize, children: [] });
+  // 小说数据
+  const savedNovels = await dbGet('novels');
+  const novelList = savedNovels || [];
+  let novelContentTotal = 0;
+  const novelChildren = [];
+  for (const n of novelList) {
+    let size = 0;
+    if (n.chapters && n.chapters.length) {
+      size = n.chapters.reduce((a, ch) => a + (ch.content || '').length + (ch.summary || '').length, 0);
+    } else {
+      size = (n.content || '').length;
+    }
+    novelContentTotal += size;
+    novelChildren.push({ label: n.title, size: formatBytes(size) });
+  }
+  blocks.push({ label: '小说内容', raw: novelContentTotal, children: novelChildren });
+
+  // 小说阅读设置
+  const novelReadSettingsSize = calcSize(await dbGet('novelReadSettings'));
+  const novelStylePresetsSize = calcSize(await dbGet('novelStylePresets'));
+  const novelApiConfigSize = calcSize(await dbGet('novelApiConfig'));
+  blocks.push({ label: '小说设置/预设', raw: novelReadSettingsSize + novelStylePresetsSize + novelApiConfigSize, children: [
+    { label: '阅读设置', size: formatBytes(novelReadSettingsSize) },
+    { label: '文风预设', size: formatBytes(novelStylePresetsSize) },
+    { label: '小说API配置', size: formatBytes(novelApiConfigSize) }
+  ]});
 
   // 其他
   const otherSize = calcSize(await dbGet('apiConfig')) + calcSize(await dbGet('apiPresets')) + calcSize(await dbGet('appIcons')) + calcSize(await dbGet('customFont'));

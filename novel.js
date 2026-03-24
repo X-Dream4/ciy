@@ -178,6 +178,172 @@ createApp({
       view.value = 'write';
       nextTick(() => refreshIcons());
     };
+const chapterAddShow = ref(false);
+const newChapterTitle = ref('');
+const aiNextChapterShow = ref(false);
+const aiNextChapterLoading = ref(false);
+const aiNextChapterResult = ref('');
+const aiNextChapterPlot = ref('');
+const aiNextChapterStyle = ref('');
+const aiNextChapterMinWords = ref(1000);
+const aiNextChapterMaxWords = ref(3000);
+const appendMode = ref('chapter');
+const aiNextChapterChars = ref([]);
+const aiNextChapterSummaryFrom = ref(1);
+const aiNextChapterSummaryTo = ref(0);
+const aiNextChapterFullFrom = ref(0);
+const aiNextChapterFullTo = ref(0);
+
+const openAddChapter = () => {
+  newChapterTitle.value = `第${(editForm.value.chapters.length + 1)}章`;
+  chapterAddShow.value = true;
+};
+
+const confirmAddChapter = () => {
+  if (!newChapterTitle.value.trim()) { alert('请输入章节标题'); return; }
+  editForm.value.chapters.push({
+    title: newChapterTitle.value.trim(),
+    content: '',
+    summary: '',
+    comments: []
+  });
+  const newIdx = editForm.value.chapters.length - 1;
+  chapterAddShow.value = false;
+  openChapterEdit(newIdx);
+};
+
+const convertToChapters = () => {
+  if (!editForm.value.content.trim()) { alert('正文为空，无法转换'); return; }
+  if (!confirm('确定将现有正文转换为第一章？')) return;
+  editForm.value.chapters = [{
+    title: '第一章',
+    content: editForm.value.content,
+    summary: '',
+    comments: []
+  }];
+  editForm.value.content = '';
+};
+
+const openAiNextChapter = () => {
+  aiNextChapterResult.value = '';
+  aiNextChapterPlot.value = '';
+  aiNextChapterChars.value = [];
+  const n = editForm.value;
+  const total = (n.chapters && n.chapters.length) ? n.chapters.length : 0;
+  if (total > 0) {
+    aiNextChapterSummaryFrom.value = 1;
+    aiNextChapterSummaryTo.value = Math.max(1, total - 1);
+    aiNextChapterFullFrom.value = Math.max(1, total - 2);
+    aiNextChapterFullTo.value = total;
+  }
+  aiNextChapterShow.value = true;
+};
+
+const runAiNextChapter = async () => {
+  if (!apiConfig.value.url || !apiConfig.value.key || !apiConfig.value.model) { alert('请先配置API'); return; }
+  aiNextChapterLoading.value = true;
+  aiNextChapterResult.value = '';
+
+  const n = editForm.value;
+  const hasChapters = n.chapters && n.chapters.length > 0;
+  const total = hasChapters ? n.chapters.length : 0;
+
+  let prompt = `以下是小说《${n.title}》，请续写下一章。\n\n`;
+
+  if (hasChapters && total > 0) {
+    // 前情提要：用指定章节的summary
+    const sumFrom = Math.max(1, parseInt(aiNextChapterSummaryFrom.value) || 1);
+    const sumTo = Math.min(total, parseInt(aiNextChapterSummaryTo.value) || total);
+    const summaryChapters = n.chapters.slice(sumFrom - 1, sumTo);
+    const hasSummary = summaryChapters.some(ch => ch.summary);
+    if (hasSummary) {
+      prompt += `【前情提要（第${sumFrom}-${sumTo}章总结）】\n`;
+      summaryChapters.forEach((ch, i) => {
+        if (ch.summary) {
+          prompt += `第${sumFrom + i}章《${ch.title}》：${ch.summary}\n`;
+        } else {
+          prompt += `第${sumFrom + i}章《${ch.title}》：（暂无总结）\n`;
+        }
+      });
+      prompt += '\n';
+    } else {
+      prompt += `（提示：第${sumFrom}-${sumTo}章暂无总结，建议先生成章节总结以获得更好的续写效果）\n\n`;
+    }
+
+    // 参考全文：用指定章节的完整内容
+    const fullFrom = Math.max(1, parseInt(aiNextChapterFullFrom.value) || Math.max(1, total - 2));
+    const fullTo = Math.min(total, parseInt(aiNextChapterFullTo.value) || total);
+    const fullChapters = n.chapters.slice(fullFrom - 1, fullTo);
+    prompt += `【近期章节全文（第${fullFrom}-${fullTo}章）】\n`;
+    fullChapters.forEach((ch, i) => {
+      prompt += `\n第${fullFrom + i}章《${ch.title}》\n${ch.content.slice(0, 2000)}\n`;
+    });
+    prompt += '\n';
+  } else {
+    prompt += `【前文内容】\n${n.content.slice(-2000)}\n\n`;
+  }
+
+  // 角色信息
+  if (aiNextChapterChars.value.length) {
+    const charsDesc = aiNextChapterChars.value.map(c => `${c.role === '其他' ? c.customRole : c.role}：${c.name}`).join('、');
+    prompt += `【登场角色】${charsDesc}\n\n`;
+  }
+
+  prompt += `请根据以上内容，续写下一章。`;
+  if (aiNextChapterPlot.value.trim()) prompt += `\n【下一章方向】${aiNextChapterPlot.value.trim()}`;
+  if (aiNextChapterStyle.value.trim()) prompt += `\n【文风要求】${aiNextChapterStyle.value.trim()}`;
+  else prompt += `\n【文风要求】保持与前文一致的文风和叙事风格。`;
+  prompt += `\n【字数要求】不少于${aiNextChapterMinWords.value}字，不超过${aiNextChapterMaxWords.value}字。`;
+  if (hasChapters) {
+    prompt += `\n请在第一行单独给出章节标题，格式：【章节标题】，然后换行开始正文内容。`;
+  }
+  prompt += `\n自然衔接剧情，保持人物性格一致。`;
+
+  try {
+    const res = await fetch(`${apiConfig.value.url.replace(/\/$/, '')}/chat/completions`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiConfig.value.key}` },
+      body: JSON.stringify({ model: apiConfig.value.model, messages: [{ role: 'user', content: prompt }] })
+    });
+    const data = await res.json();
+    aiNextChapterResult.value = data.choices?.[0]?.message?.content || '（生成失败）';
+  } catch (e) {
+    aiNextChapterResult.value = '（生成失败：' + e.message + '）';
+  }
+  aiNextChapterLoading.value = false;
+};
+
+
+const saveAiNextChapter = () => {
+  if (!aiNextChapterResult.value.trim()) return;
+  const n = editForm.value;
+  const hasChapters = n.chapters && n.chapters.length > 0;
+  const raw = aiNextChapterResult.value.trim();
+
+  if (hasChapters) {
+    const firstLine = raw.split('\n')[0];
+    const titleMatch = firstLine.match(/^【(.+)】$/) || firstLine.match(/^第.+章.*/);
+    const chapterTitle = titleMatch ? firstLine.replace(/^【|】$/g, '').trim() : `第${n.chapters.length + 1}章`;
+    const content = titleMatch ? raw.slice(firstLine.length).trim() : raw;
+    n.chapters.push({ title: chapterTitle, content, summary: '', comments: [] });
+    aiNextChapterShow.value = false;
+    alert(`已添加为「${chapterTitle}」`);
+  } else {
+    if (appendMode.value === 'append') {
+      n.content = n.content + '\n\n' + raw;
+      aiNextChapterShow.value = false;
+      alert('已追加到正文末尾');
+    } else {
+      n.chapters = [
+        { title: '第一章', content: n.content, summary: '', comments: [] },
+        { title: '第二章', content: raw, summary: '', comments: [] }
+      ];
+      n.content = '';
+      aiNextChapterShow.value = false;
+      alert('已转换为章节模式，原文为第一章，续写为第二章');
+    }
+  }
+};
 
     const applyWriteCoverUrl = () => {
       if (editForm.value.coverUrl.trim()) editForm.value.cover = editForm.value.coverUrl.trim();
@@ -235,7 +401,7 @@ createApp({
 
     // ===== AI创作 =====
     const aiForm = ref({
-      type: 'fanfic', title: '', chars: [], charRelations: '',
+      type: 'fanfic', title: '', tags: [], chars: [], charRelations: '',
       selectedWorldBooks: [], worldDesc: '',
       era: '现代', eraCustom: '', tone: '甜宠', toneCustom: '',
       pov: '第三人称', writingStyle: '', plot: '',
@@ -245,12 +411,24 @@ createApp({
     const aiResult = ref('');
     const aiComment = ref('');
     const aiLoading = ref(false);
+const aiTagInput = ref('');
+
+const addAiTag = () => {
+  const t = aiTagInput.value.trim();
+  if (!t) return;
+  if (!aiForm.value.tags) aiForm.value.tags = [];
+  if (!aiForm.value.tags.includes(t)) aiForm.value.tags.push(t);
+  aiTagInput.value = '';
+};
+
     const stylePresets = ref([]);
     const stylePresetName = ref('');
 
     const startAi = () => {
       openNewMenu.value = false;
       aiResult.value = ''; aiComment.value = '';
+      aiTagInput.value = '';
+      aiForm.value.tags = [];
       view.value = 'ai';
       nextTick(() => refreshIcons());
     };
@@ -299,6 +477,13 @@ createApp({
       if (f.chapterMode) prompt += '\n【格式要求】生成带章节标题的长文，每章有标题。';
       if (f.title) prompt += `\n【标题】${f.title}`;
       prompt += '\n\n请根据以上设定生成完整的小说内容，注意文笔流畅，情节合理，人物性格鲜明。';
+      if (!f.title && f.type === 'fanfic') {
+        prompt += '\n【标题要求】请在正文开头第一行单独给出标题，格式：《标题》。标题要求：简洁有意境不超过12个字，契合故事风格和情感基调；请你自己从角色设定和剧情中判断谁和谁是CP关系，在标题中体现CP，可以用"名字×名字"格式或者自创有意境的CP称呼；不要直接用角色名堆砌，要有诗意。标题单独一行，正文从第二行开始。';
+      } else if (!f.title) {
+        prompt += '\n【标题要求】请在正文开头第一行单独给出标题，格式：《标题》，标题简洁有意境不超过12个字，契合故事风格和情感基调。标题单独一行，正文从第二行开始。';
+      }
+      prompt += '\n【标签要求】请在正文最后单独一行输出标签，格式：#标签1,标签2,标签3（3-6个，每个2-4字，涵盖题材风格情感等，用英文逗号分隔）。';
+
       return prompt;
     };
 
@@ -312,7 +497,15 @@ createApp({
           body: JSON.stringify({ model: apiConfig.value.model, messages: [{ role: 'user', content: prompt }] })
         });
         const data = await res.json();
-        aiResult.value = data.choices?.[0]?.message?.content || '（生成失败）';
+        let raw = data.choices?.[0]?.message?.content || '（生成失败）';
+        // 解析末尾标签行
+        const tagLineMatch = raw.match(/\n#([^\n]+)$/);
+        if (tagLineMatch) {
+          const tags = tagLineMatch[1].split(',').map(t => t.trim()).filter(t => t && t.length <= 8);
+          if (tags.length) aiForm.value.tags = tags;
+          raw = raw.slice(0, raw.lastIndexOf('\n#' + tagLineMatch[1])).trimEnd();
+        }
+        aiResult.value = raw;
       } catch (e) { aiResult.value = '（生成失败：' + e.message + '）'; }
       aiLoading.value = false;
     };
@@ -352,11 +545,21 @@ createApp({
     const saveAiResult = async () => {
       if (!aiResult.value.trim()) return;
       const now = Date.now();
-      const title = aiForm.value.title.trim() || `AI创作_${new Date().toLocaleDateString()}`;
+      let title = aiForm.value.title.trim();
+      if (!title) {
+        const firstLine = aiResult.value.trim().split('\n')[0];
+        const titleMatch = firstLine.match(/^《(.+)》/);
+        if (titleMatch) {
+          title = titleMatch[1].trim();
+          aiResult.value = aiResult.value.trim().slice(firstLine.length).trim();
+        } else {
+          title = `劳斯大大创作_${new Date().toLocaleDateString()}`;
+        }
+      }
       const novel = {
         id: now, title, content: aiResult.value,
         cover: '', type: aiForm.value.type,
-        tags: [], chars: JSON.parse(JSON.stringify(aiForm.value.chars)),
+        tags: JSON.parse(JSON.stringify(aiForm.value.tags || [])), chars: JSON.parse(JSON.stringify(aiForm.value.chars)),
         charRelations: aiForm.value.charRelations,
         chapters: [],
         wordCount: aiResult.value.length,
@@ -1152,7 +1355,13 @@ tocTab, currentBookmarks, addBookmark, deleteBookmark, jumpToBookmark,
 searchQuery, searchResults, doSearch, jumpToSearchResult,
 paraMenuShow, paraMenuChapterIndex, paraMenuParaIndex, paraMenuText,
 onParaTouchStart, onParaTouchEnd, onParaMouseDown, onParaMouseUp, confirmAddBookmark,
-highlightParaIndex, highlightChapterIndex,
+highlightParaIndex, highlightChapterIndex, aiTagInput, addAiTag,
+chapterAddShow, newChapterTitle, openAddChapter, confirmAddChapter, convertToChapters,
+aiNextChapterShow, aiNextChapterLoading, aiNextChapterResult,
+aiNextChapterPlot, aiNextChapterStyle, aiNextChapterMinWords, aiNextChapterMaxWords,
+appendMode, openAiNextChapter, runAiNextChapter, saveAiNextChapter,
+aiNextChapterChars, aiNextChapterSummaryFrom, aiNextChapterSummaryTo,
+aiNextChapterFullFrom, aiNextChapterFullTo,
 
     };
   }
