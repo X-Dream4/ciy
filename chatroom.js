@@ -57,15 +57,15 @@ createApp({
     };
 
     const saveAwareSettings = async () => {
-      await dbSet(`hotAware_${charId}`, {
+      await dbSet(`hotAware_${charId}`, JSON.parse(JSON.stringify({
         on: hotAwareOn.value,
         platforms: hotAwarePlatforms.value,
         counts: hotAwareCounts.value
-      });
-      await dbSet(`novelAware_${charId}`, {
+      })));
+      await dbSet(`novelAware_${charId}`, JSON.parse(JSON.stringify({
         on: novelAwareOn.value,
-        settings: JSON.parse(JSON.stringify(novelAwareSettings.value))
-      });
+        settings: novelAwareSettings.value
+      })));
     };
 
     const buildHotAwareText = async () => {
