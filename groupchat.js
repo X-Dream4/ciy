@@ -538,6 +538,26 @@ const lines = processedReply.split('&').map(l => l.trim()).filter(l => l.length 
           const member = members.value.find(m => m.name === senderName);
           if (!member) continue;
 
+          // 处理译文混在content里的情况（AI把译文写在同一行）
+          const inlineTransMatch = content.match(/^([\s\S]*?)【译[-－](.+?)】(.*)$/);
+          if (inlineTransMatch) {
+            const actualContent = inlineTransMatch[1].trim();
+            const targetName = inlineTransMatch[2].trim();
+            const translationText = inlineTransMatch[3].trim();
+            if (actualContent) content = actualContent;
+            // 把译文存起来，等消息push后附加
+            const pendingTrans = { targetName, translationText };
+            // 正常走后续逻辑，消息push后附加
+            const memberForeign = members.value.find(m => m.name === senderName);
+            const isForeignMember = memberForeign && memberForeign.foreignOn;
+            allMessages.value.push({ id: Date.now() + i * 100, role: 'char', content, type: 'normal', senderName, memberId: member.id, quoteId: null, recalled: false, revealed: false });
+            const justPushed = allMessages.value[allMessages.value.length - 1];
+            justPushed.foreignTranslation = translationText;
+            justPushed.foreignTranslationShow = false;
+            await nextTick(); scrollToBottom(); refreshIcons();
+            continue;
+          }
+
 
           let msgType = 'normal';
           let msgQuoteId = null;
@@ -593,16 +613,26 @@ if (collectMatch) {
             await nextTick(); scrollToBottom(); refreshIcons(); continue;
           }
 
-          // 按句子分割成多条短消息
-          const sentences = content.split(/(?<=[。！？~～…」』\n])|(?<=[!?])/).map(s => s.trim()).filter(s => s.length > 0);
-          if (sentences.length <= 1) {
+          // 外语模式开启时不分割句子，保证译文能正确附加
+          const memberForeign = members.value.find(m => m.name === senderName);
+          const isForeignMember = memberForeign && memberForeign.foreignOn;
+          
+          if (isForeignMember) {
+            // 外语模式：整条发送，不分割
             allMessages.value.push({ id: Date.now() + i * 100, role: 'char', content, type: msgType, senderName, memberId: member.id, quoteId: msgQuoteId, recalled: false, revealed: false });
             await nextTick(); scrollToBottom(); refreshIcons();
           } else {
-            for (let j = 0; j < sentences.length; j++) {
-              if (j > 0) await new Promise(resolve => setTimeout(resolve, 300 + Math.random() * 300));
-              allMessages.value.push({ id: Date.now() + i * 100 + j, role: 'char', content: sentences[j], type: msgType, senderName, memberId: member.id, quoteId: j === 0 ? msgQuoteId : null, recalled: false, revealed: false });
+            // 按句子分割成多条短消息
+            const sentences = content.split(/(?<=[。！？~～…」』\n])|(?<=[!?])/).map(s => s.trim()).filter(s => s.length > 0);
+            if (sentences.length <= 1) {
+              allMessages.value.push({ id: Date.now() + i * 100, role: 'char', content, type: msgType, senderName, memberId: member.id, quoteId: msgQuoteId, recalled: false, revealed: false });
               await nextTick(); scrollToBottom(); refreshIcons();
+            } else {
+              for (let j = 0; j < sentences.length; j++) {
+                if (j > 0) await new Promise(resolve => setTimeout(resolve, 300 + Math.random() * 300));
+                allMessages.value.push({ id: Date.now() + i * 100 + j, role: 'char', content: sentences[j], type: msgType, senderName, memberId: member.id, quoteId: j === 0 ? msgQuoteId : null, recalled: false, revealed: false });
+                await nextTick(); scrollToBottom(); refreshIcons();
+              }
             }
           }
         }

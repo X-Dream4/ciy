@@ -146,6 +146,253 @@ createApp({
         if (el) el.click();
       });
     };
+    const triggerPdfUpload = () => {
+      openNewMenu.value = false;
+      nextTick(() => {
+        const el = document.getElementById('novel-upload-pdf');
+        if (el) el.click();
+      });
+    };
+
+    const handlePdfUpload = async (e) => {
+      const file = e.target.files[0]; if (!file) return;
+      const title = file.name.replace(/\.pdf$/i, '');
+      try {
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+        const buffer = await file.arrayBuffer();
+        const pdfDoc = await pdfjsLib.getDocument({ data: buffer }).promise;
+        const numPages = pdfDoc.numPages;
+        if (numPages === 0) { alert('PDF 没有内容'); e.target.value = ''; return; }
+
+        let fullText = '';
+        for (let i = 1; i <= numPages; i++) {
+          const page = await pdfDoc.getPage(i);
+          const textContent = await page.getTextContent();
+          const pageText = textContent.items.map(item => item.str).join(' ');
+          if (pageText.trim()) fullText += pageText + '\n\n';
+        }
+
+        if (!fullText.trim()) {
+          alert('这个 PDF 是扫描版（图片型），无法提取文字。请尝试用 OCR 工具转换后再导入，或使用漫画功能导入图片型 PDF。');
+          e.target.value = '';
+          return;
+        }
+
+        await doImportNovel(title, fullText.trim());
+      } catch (err) {
+        alert('PDF 解析失败：' + err.message);
+      }
+      e.target.value = '';
+    };
+
+    const triggerEpubUpload = () => {
+      openNewMenu.value = false;
+      nextTick(() => {
+        const el = document.getElementById('novel-upload-epub');
+        if (el) el.click();
+      });
+    };
+
+    const handleEpubUpload = async (e) => {
+      const file = e.target.files[0]; if (!file) return;
+      let bookTitle = file.name.replace(/\.epub$/i, '');
+      try {
+        const buffer = await file.arrayBuffer();
+        const zip = await JSZip.loadAsync(buffer);
+
+        // ===== 1. 读 container.xml 找 OPF =====
+        const containerXml = await zip.file('META-INF/container.xml')?.async('string');
+        if (!containerXml) { alert('无法解析 epub，格式不正确'); e.target.value = ''; return; }
+        const opfMatch = containerXml.match(/full-path="([^"]+\.opf)"/);
+        if (!opfMatch) { alert('无法找到 epub 内容文件'); e.target.value = ''; return; }
+        const opfPath = opfMatch[1];
+        const opfDir = opfPath.includes('/') ? opfPath.slice(0, opfPath.lastIndexOf('/') + 1) : '';
+
+        // ===== 2. 解析 OPF =====
+        const opfXml = await zip.file(opfPath)?.async('string');
+        if (!opfXml) { alert('无法读取 epub 内容'); e.target.value = ''; return; }
+
+        // 读书名
+        const titleMatch = opfXml.match(/<dc:title[^>]*>([^<]+)<\/dc:title>/i);
+        if (titleMatch) bookTitle = titleMatch[1].trim();
+
+        // 读 manifest（id -> href, 以及 media-type）
+        const manifestMap = {};
+        const manifestTypeMap = {};
+        for (const m of opfXml.matchAll(/<item\s[^>]*>/g)) {
+          const idM = m[0].match(/\bid="([^"]+)"/);
+          const hrefM = m[0].match(/\bhref="([^"]+)"/);
+          const typeM = m[0].match(/\bmedia-type="([^"]+)"/);
+          const propsM = m[0].match(/\bproperties="([^"]+)"/);
+          if (idM && hrefM) {
+            manifestMap[idM[1]] = hrefM[1];
+            manifestTypeMap[idM[1]] = { type: typeM?.[1] || '', props: propsM?.[1] || '' };
+          }
+        }
+
+        // ===== 3. 解析封面 =====
+        let coverBase64 = '';
+        // 方式一：OPF meta name="cover"
+        const coverMetaMatch = opfXml.match(/<meta\s+name="cover"\s+content="([^"]+)"/i)
+          || opfXml.match(/<meta\s+content="([^"]+)"\s+name="cover"/i);
+        let coverImgId = coverMetaMatch?.[1] || '';
+        // 方式二：properties="cover-image"
+        if (!coverImgId) {
+          for (const [id, info] of Object.entries(manifestTypeMap)) {
+            if (info.props.includes('cover-image')) { coverImgId = id; break; }
+          }
+        }
+        if (coverImgId && manifestMap[coverImgId]) {
+          const coverPath = opfDir + manifestMap[coverImgId];
+          const coverFile = zip.file(coverPath) || zip.file(decodeURIComponent(coverPath));
+          if (coverFile) {
+            const coverData = await coverFile.async('base64');
+            const mimeType = manifestTypeMap[coverImgId]?.type || 'image/jpeg';
+            coverBase64 = `data:${mimeType};base64,${coverData}`;
+          }
+        }
+
+        // ===== 4. 读目录（toc.ncx 或 nav.xhtml）=====
+        const extractText = (html) => html
+          .replace(/<style[\s\S]*?<\/style>/gi, '')
+          .replace(/<script[\s\S]*?<\/script>/gi, '')
+          .replace(/<br\s*\/?>/gi, '\n')
+          .replace(/<\/p>/gi, '\n')
+          .replace(/<\/div>/gi, '\n')
+          .replace(/<\/h[1-6]>/gi, '\n')
+          .replace(/<[^>]+>/g, '')
+          .replace(/&nbsp;/g, ' ')
+          .replace(/&lt;/g, '<')
+          .replace(/&gt;/g, '>')
+          .replace(/&amp;/g, '&')
+          .replace(/&quot;/g, '"')
+          .replace(/&#(\d+);/g, (_, n) => String.fromCharCode(parseInt(n)))
+          .replace(/&[a-z]+;/g, ' ')
+          .replace(/\r\n/g, '\n')
+          .replace(/\r/g, '\n')
+          .replace(/\n{3,}/g, '\n\n')
+          .trim();
+
+        // 尝试找 toc.ncx
+        let tocEntries = []; // [{title, href}]
+
+        const ncxId = Object.keys(manifestMap).find(id =>
+          manifestTypeMap[id]?.type?.includes('ncx') || manifestMap[id]?.endsWith('.ncx')
+        );
+        const navId = Object.keys(manifestTypeMap).find(id =>
+          manifestTypeMap[id]?.props?.includes('nav')
+        );
+
+        if (ncxId && manifestMap[ncxId]) {
+          // 解析 toc.ncx
+          const ncxPath = opfDir + manifestMap[ncxId];
+          const ncxXml = await zip.file(ncxPath)?.async('string')
+            || await zip.file(decodeURIComponent(ncxPath))?.async('string');
+          if (ncxXml) {
+            for (const m of ncxXml.matchAll(/<navPoint[\s\S]*?<navLabel[\s\S]*?<text>([^<]*)<\/text>[\s\S]*?<content\s+src="([^"#]+)/g)) {
+              const chTitle = m[1].trim();
+              const chHref = m[2].trim();
+              if (chTitle && chHref) tocEntries.push({ title: chTitle, href: chHref });
+            }
+          }
+        }
+
+        if (tocEntries.length === 0 && navId && manifestMap[navId]) {
+          // 解析 nav.xhtml
+          const navPath = opfDir + manifestMap[navId];
+          const navXml = await zip.file(navPath)?.async('string')
+            || await zip.file(decodeURIComponent(navPath))?.async('string');
+          if (navXml) {
+            for (const m of navXml.matchAll(/<a\s+href="([^"#]+)[^"]*"[^>]*>([\s\S]*?)<\/a>/g)) {
+              const chHref = m[1].trim();
+              const chTitle = extractText(m[2]).trim();
+              if (chTitle && chHref) tocEntries.push({ title: chTitle, href: chHref });
+            }
+          }
+        }
+
+        // ===== 5. 按目录分章 =====
+        const chapters = [];
+
+        if (tocEntries.length > 0) {
+          // 有目录：按目录分章，每个目录项对应一章
+          // 去重（同一个 href 可能出现多次）
+          const seen = new Set();
+          const uniqueEntries = tocEntries.filter(entry => {
+            const key = entry.href.split('#')[0];
+            if (seen.has(key)) return false;
+            seen.add(key);
+            return true;
+          });
+
+          for (const entry of uniqueEntries) {
+            const hrefFile = entry.href.split('#')[0];
+            const fullPath = opfDir + hrefFile;
+            const htmlContent = await zip.file(fullPath)?.async('string')
+              || await zip.file(decodeURIComponent(fullPath))?.async('string');
+            if (!htmlContent) continue;
+            const text = extractText(htmlContent);
+            if (!text.trim()) continue;
+            chapters.push({ title: entry.title, content: text.trim(), summary: '', comments: [] });
+          }
+        }
+
+        if (chapters.length === 0) {
+          // 没有目录或目录解析失败：按 spine 顺序合并所有文字，再走原有章节识别逻辑
+          const spineMatches = [...opfXml.matchAll(/<itemref[^>]+idref="([^"]+)"/g)].map(m => m[1]);
+          let fullText = '';
+          for (const idref of spineMatches) {
+            const href = manifestMap[idref];
+            if (!href) continue;
+            const filePath = opfDir + href;
+            const htmlContent = await zip.file(filePath)?.async('string')
+              || await zip.file(decodeURIComponent(filePath))?.async('string');
+            if (!htmlContent) continue;
+            const text = extractText(htmlContent);
+            if (text.trim()) fullText += text + '\n\n';
+          }
+          // 走原有 parseChapters 逻辑
+          const now = Date.now();
+          const parsedChapters = parseChapters(fullText.trim());
+          novels.value.unshift({
+            id: now,
+            title: bookTitle,
+            content: parsedChapters ? '' : fullText.trim(),
+            cover: coverBase64,
+            type: 'upload',
+            tags: [], chars: [], charRelations: '',
+            chapters: parsedChapters || [],
+            wordCount: fullText.length,
+            createTime: now, updateTime: now
+          });
+          await saveNovels();
+          alert(parsedChapters ? `导入成功，已识别 ${parsedChapters.length} 个章节` : '导入成功（未识别到章节）');
+          e.target.value = '';
+          return;
+        }
+
+        // ===== 6. 保存 =====
+        const now = Date.now();
+        const wordCount = chapters.reduce((a, c) => a + c.content.length, 0);
+        novels.value.unshift({
+          id: now,
+          title: bookTitle,
+          content: '',
+          cover: coverBase64,
+          type: 'upload',
+          tags: [], chars: [], charRelations: '',
+          chapters,
+          wordCount,
+          createTime: now, updateTime: now
+        });
+        await saveNovels();
+        importShow.value = false;
+        alert(`导入成功！共 ${chapters.length} 章${coverBase64 ? '，已自动设置封面' : ''}`);
+      } catch (err) {
+        alert('epub 解析失败：' + err.message + '\n建议将 epub 转为 txt 后再导入');
+      }
+      e.target.value = '';
+    };
 
     const triggerWriteCover = () => {
       const el = document.getElementById('novel-write-cover-file');
@@ -1035,22 +1282,24 @@ const confirmAddBookmark = async () => {
     });
 
     const jumpToChapter = (i) => {
-  currentChapterIndex.value = i;
-  tocOpen.value = false;
-  editingSummary.value = false;
-  editingSummaryText.value = '';
-  nextTick(() => { if (readContent.value) readContent.value.scrollTop = 0; });
-};
-
-
-    const prevChapter = () => {
-      if (currentChapterIndex.value > 0) {
-        currentChapterIndex.value--;
-        editingSummary.value = false;
-        editingSummaryText.value = '';
-        nextTick(() => { if (readContent.value) readContent.value.scrollTop = 0; });
-      }
+      currentChapterIndex.value = i;
+      tocOpen.value = false;
+      editingSummary.value = false;
+      editingSummaryText.value = '';
+      nextTick(() => {
+        if (readContent.value) readContent.value.scrollTop = 0;
+        window.scrollTo(0, 0);
+        document.documentElement.scrollTop = 0;
+        document.body.scrollTop = 0;
+        setTimeout(() => {
+          if (readContent.value) readContent.value.scrollTop = 0;
+          window.scrollTo(0, 0);
+          document.documentElement.scrollTop = 0;
+          document.body.scrollTop = 0;
+        }, 100);
+      });
     };
+
 
     const nextChapter = () => {
       const n = currentNovel.value;
@@ -1058,7 +1307,38 @@ const confirmAddBookmark = async () => {
         currentChapterIndex.value++;
         editingSummary.value = false;
         editingSummaryText.value = '';
-        nextTick(() => { if (readContent.value) readContent.value.scrollTop = 0; });
+        nextTick(() => {
+          if (readContent.value) readContent.value.scrollTop = 0;
+          window.scrollTo(0, 0);
+          document.documentElement.scrollTop = 0;
+          document.body.scrollTop = 0;
+          setTimeout(() => {
+            if (readContent.value) readContent.value.scrollTop = 0;
+            window.scrollTo(0, 0);
+            document.documentElement.scrollTop = 0;
+            document.body.scrollTop = 0;
+          }, 100);
+        });
+      }
+    };
+
+    const prevChapter = () => {
+      if (currentChapterIndex.value > 0) {
+        currentChapterIndex.value--;
+        editingSummary.value = false;
+        editingSummaryText.value = '';
+        nextTick(() => {
+          if (readContent.value) readContent.value.scrollTop = 0;
+          window.scrollTo(0, 0);
+          document.documentElement.scrollTop = 0;
+          document.body.scrollTop = 0;
+          setTimeout(() => {
+            if (readContent.value) readContent.value.scrollTop = 0;
+            window.scrollTo(0, 0);
+            document.documentElement.scrollTop = 0;
+            document.body.scrollTop = 0;
+          }, 100);
+        });
       }
     };
 
@@ -1422,7 +1702,8 @@ Vue.watch(() => view.value, () => {
       view, novels, listTab, searchText, filterTag, openNewMenu, settingsShow,
       chatChars, allWorldBooks, apiConfig, readContent, companionComments,
       allTags, filteredNovels, typeLabel, formatTime, deleteNovel,
-      triggerUpload, handleUpload,
+      triggerUpload, handleUpload, triggerEpubUpload, handleEpubUpload,
+      triggerPdfUpload, handlePdfUpload,
       importShow, importTab, importTitle, importUrl, importContent, importLoading,
       confirmImportUrl, confirmImportPaste,
       editForm, tagInput, writeWordCount,

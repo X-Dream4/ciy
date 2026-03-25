@@ -365,7 +365,7 @@ const lines = processedReply.split('\n').map(l => l.trim()).filter(l => l.length
           await new Promise(resolve => setTimeout(resolve, i === 0 ? 0 : 600 + Math.random() * 400));
           let line = lines[i];
 
-          // 外语模式：【译】行附加到上一条角色消息
+          // 外语模式：【译】单独一行的情况
           if (foreignOn.value && line.startsWith('【译】')) {
             const translationText = line.slice(3).trim();
             if (lastCharMsgIndex !== -1 && allMessages.value[lastCharMsgIndex]) {
@@ -374,6 +374,24 @@ const lines = processedReply.split('\n').map(l => l.trim()).filter(l => l.length
             }
             await nextTick(); scrollToBottom(); refreshIcons();
             continue;
+          }
+
+          // 外语模式：【译】混在同一行的情况
+          if (foreignOn.value) {
+            const inlineTransMatch = line.match(/^([\s\S]*?)【译】(.*)$/);
+            if (inlineTransMatch) {
+              const actualContent = inlineTransMatch[1].trim();
+              const translationText = inlineTransMatch[2].trim();
+              if (actualContent) {
+                const newMsg = { id: Date.now() + i, role: 'char', content: actualContent, type: 'normal', quoteId: null, recalled: false, revealed: false, blockedWhenSent: isBlocked.value, timestamp: Date.now() + i };
+                allMessages.value.push(newMsg);
+                lastCharMsgIndex = allMessages.value.length - 1;
+                allMessages.value[lastCharMsgIndex].foreignTranslation = translationText;
+                allMessages.value[lastCharMsgIndex].foreignTranslationShow = false;
+              }
+              await nextTick(); scrollToBottom(); refreshIcons();
+              continue;
+            }
           }
           let msgType = 'normal';
           let msgQuoteId = null;

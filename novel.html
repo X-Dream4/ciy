@@ -5,6 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>次元小说</title>
 <script src="vue.global.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script src="lucide.min.js"></script>
 <link rel="stylesheet" href="novel.css" />
 </head>
@@ -23,7 +25,9 @@
       <div class="novel-new-menu" v-if="openNewMenu">
         <div class="novel-new-menu-item" @click="startWrite"><i data-lucide="pen-line"></i> 手写创作</div>
         <div class="novel-new-menu-item" @click="startAi"><i data-lucide="sparkles"></i> 劳斯大大创作</div>
-        <div class="novel-new-menu-item" @click="triggerUpload"><i data-lucide="upload"></i> 上传本地文件</div>
+        <div class="novel-new-menu-item" @click="triggerUpload"><i data-lucide="upload"></i> 上传 txt/md 文件</div>
+        <div class="novel-new-menu-item" @click="triggerEpubUpload"><i data-lucide="book"></i> 上传 epub 文件</div>
+        <div class="novel-new-menu-item" @click="triggerPdfUpload"><i data-lucide="file-text"></i> 上传 PDF 文件</div>
         <div class="novel-new-menu-item" @click="importShow=true; openNewMenu=false"><i data-lucide="file-input"></i> 导入小说</div>
       </div>
     </div>
@@ -982,6 +986,8 @@
   </transition>
 
   <input type="file" id="novel-upload-file" accept=".txt,.md" style="display:none" @change="handleUpload" />
+  <input type="file" id="novel-upload-epub" accept=".epub" style="display:none" @change="handleEpubUpload" />
+  <input type="file" id="novel-upload-pdf" accept=".pdf" style="display:none" @change="handlePdfUpload" />
   <input type="file" id="novel-write-cover-file" accept="image/*" style="display:none" @change="uploadWriteCover" />
   <input type="file" id="novel-read-font-file" accept=".ttf,.otf,.woff,.woff2" style="display:none" @change="handleReadFontUpload" />
   <input type="file" id="novel-read-wallpaper-file" accept="image/*" style="display:none" @change="handleReadWallpaperUpload" />
