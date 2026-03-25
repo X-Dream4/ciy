@@ -45,14 +45,24 @@ createApp({
     };
 
     const saveMangaData = async (manga) => {
-      await dbSet(`mangaData_${manga.id}`, JSON.parse(JSON.stringify(manga)));
+      // 把每章图片单独存储，主数据只存元数据
+      const mangaMeta = JSON.parse(JSON.stringify(manga));
+      for (let i = 0; i < mangaMeta.chapters.length; i++) {
+        const pages = mangaMeta.chapters[i].pages || [];
+        if (pages.length > 0) {
+          await dbSet(`mangaPages_${manga.id}_${i}`, pages);
+          mangaMeta.chapters[i].pages = []; // 主数据不存图片
+          mangaMeta.chapters[i].pageCount = pages.length;
+        }
+      }
+      await dbSet(`mangaData_${manga.id}`, mangaMeta);
     };
 
     const openManga = async (m) => {
-      // 加载完整数据
       const data = await dbGet(`mangaData_${m.id}`);
       if (data) {
         currentManga.value = data;
+        // 章节图片按需不加载，点击阅读时才加载
       } else {
         currentManga.value = m;
       }
@@ -60,10 +70,18 @@ createApp({
       nextTick(() => refreshIcons());
     };
 
+
     const deleteManga = async (m) => {
       if (!confirm(`确定删除「${m.title}」吗？`)) return;
       mangaList.value = mangaList.value.filter(x => x.id !== m.id);
+      // 清理主数据
       await dbSet(`mangaData_${m.id}`, null);
+      // 清理所有章节图片（最多尝试清理100章）
+      const data = await dbGet(`mangaData_${m.id}`);
+      const chapterCount = (data?.chapters?.length) || (m.chapterMeta?.length) || 100;
+      for (let i = 0; i < chapterCount; i++) {
+        await dbSet(`mangaPages_${m.id}_${i}`, null);
+      }
       await saveMangaList();
       nextTick(() => refreshIcons());
     };
@@ -411,13 +429,22 @@ createApp({
     };
 
     // ===== 阅读模式 =====
-    const openRead = (chapterIdx) => {
+    const openRead = async (chapterIdx) => {
       currentChapterIndex.value = chapterIdx;
       currentPage.value = 0;
       readUIShow.value = true;
       view.value = 'read';
       clearTimeout(readUITimer);
       readUITimer = setTimeout(() => { readUIShow.value = false; }, 3000);
+
+      // 按需加载图片
+      const ch = currentManga.value.chapters[chapterIdx];
+      if (!ch.pages || ch.pages.length === 0) {
+        const pages = await dbGet(`mangaPages_${currentManga.value.id}_${chapterIdx}`);
+        if (pages) {
+          currentManga.value.chapters[chapterIdx].pages = pages;
+        }
+      }
     };
 
     const closeRead = () => {
@@ -449,19 +476,29 @@ createApp({
       else { nextChapterRead(); }
     };
 
-    const prevChapterRead = () => {
+    const prevChapterRead = async () => {
       if (currentChapterIndex.value > 0) {
         currentChapterIndex.value--;
         currentPage.value = 0;
         if (scrollArea.value) scrollArea.value.scrollTop = 0;
+        const ch = currentManga.value.chapters[currentChapterIndex.value];
+        if (!ch.pages || ch.pages.length === 0) {
+          const pages = await dbGet(`mangaPages_${currentManga.value.id}_${currentChapterIndex.value}`);
+          if (pages) currentManga.value.chapters[currentChapterIndex.value].pages = pages;
+        }
       }
     };
 
-    const nextChapterRead = () => {
+    const nextChapterRead = async () => {
       if (currentChapterIndex.value < currentManga.value.chapters.length - 1) {
         currentChapterIndex.value++;
         currentPage.value = 0;
         if (scrollArea.value) scrollArea.value.scrollTop = 0;
+        const ch = currentManga.value.chapters[currentChapterIndex.value];
+        if (!ch.pages || ch.pages.length === 0) {
+          const pages = await dbGet(`mangaPages_${currentManga.value.id}_${currentChapterIndex.value}`);
+          if (pages) currentManga.value.chapters[currentChapterIndex.value].pages = pages;
+        }
       }
     };
 
@@ -495,6 +532,24 @@ createApp({
 
       const savedManga = await dbGet('mangaList');
       if (savedManga) mangaList.value = savedManga;
+
+      // 迁移旧数据：把大图片从主数据里分离出去
+      for (const m of mangaList.value) {
+        try {
+          const oldData = await dbGet(`mangaData_${m.id}`);
+          if (!oldData) continue;
+          let needMigrate = false;
+          for (let i = 0; i < oldData.chapters.length; i++) {
+            if (oldData.chapters[i].pages && oldData.chapters[i].pages.length > 0) {
+              needMigrate = true;
+              break;
+            }
+          }
+          if (needMigrate) {
+            await saveMangaData(oldData);
+          }
+        } catch(e) {}
+      }
 
       document.addEventListener('keydown', onKeyDown);
 

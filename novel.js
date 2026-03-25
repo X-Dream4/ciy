@@ -62,7 +62,7 @@ createApp({
     const importLoading = ref(false);
 
     const parseChapters = (content) => {
-      const chapterRegex = /^[\s\u3000]*(第[零一二三四五六七八九十百千\d]+[章节卷回集部][^\n]*|Chapter\s*\d+[^\n]*|【[^】]+】[^\n]*)/gm;
+      const chapterRegex = /^[\s\u3000]*(第[零一二三四五六七八九十百千\d]+[章节卷回集部][\s　\u3000]*[^\n]{0,40}$|Chapter\s*\d+[^\n]{0,40}$|【[^】]+】[^\n]{0,20}$)/gm;
       const matches = [];
       let match;
       while ((match = chapterRegex.exec(content)) !== null) {
@@ -709,6 +709,11 @@ const saveAiNextChapter = () => {
     };
 
     const cancelChapterEdit = () => { editingChapterIndex.value = -1; };
+    const deleteChapterEdit = async (i) => {
+      if (!confirm(`确定删除「${editForm.value.chapters[i].title}」吗？`)) return;
+      editForm.value.chapters.splice(i, 1);
+      editingChapterIndex.value = -1;
+    };
 
     const saveWrite = async () => {
       if (!editForm.value.title.trim()) { alert('请输入标题'); return; }
@@ -1401,7 +1406,12 @@ const confirmAddBookmark = async () => {
       let prompt = `${globalInjectText ? globalInjectText + '。' : ''}你现在扮演以下角色，正在和用户一起阅读小说：${charsDesc}。\n`;
       if (prevSummaries) prompt += `\n【前情提要（已读章节总结）】\n${prevSummaries}\n`;
       prompt += `\n【当前阅读章节】${ch?.title || ''}\n${chapterContent.slice(0, 4000)}\n`;
-      prompt += `\n请以各自角色性格人设，分享阅读这一章的感受（可以感动、紧张、吐槽、猜测后续等），口语化，每人一到两句。格式：\n角色名：评论内容\n每人一行。`;
+      const exampleCompanion = selectedChars.slice(0, 2).map(c => `${c.name}：（${c.name}对这章的真实感受）`).join('\n');
+      prompt += `\n请以各自角色性格人设，分享阅读这一章的感受（可以感动、紧张、吐槽、猜测后续等），口语化，每人一到两句。
+【严格格式要求】每位角色单独一行，格式：角色名：评论内容
+【示例】
+${exampleCompanion}
+【绝对禁止】把多个角色写在同一行，只能每人一行。`;
 
       try {
         const res = await fetch(`${apiConfig.value.url.replace(/\/$/, '')}/chat/completions`, {
@@ -1413,6 +1423,7 @@ const confirmAddBookmark = async () => {
         const lines = reply.split('\n').map(l => l.trim()).filter(l => l);
         const chapterKey = currentChapterIndex.value;
         if (!companionCommentsByChapter.value[chapterKey]) companionCommentsByChapter.value[chapterKey] = [];
+        let companionParsed = 0;
         for (const line of lines) {
           const colonIdx = line.indexOf('：') !== -1 ? line.indexOf('：') : line.indexOf(':');
           if (colonIdx <= 0) continue;
@@ -1421,11 +1432,17 @@ const confirmAddBookmark = async () => {
           if (!name || !text) continue;
           companionCommentsByChapter.value[chapterKey].push({ name, text });
           companionHistory.value.push({ name, text });
+          companionParsed++;
+        }
+        if (companionParsed === 0) {
+          alert('陪读评论格式有误，请重试');
+          companionHistory.value.push({ name: '系统', text: '评论格式解析失败，请重试' });
         }
         await nextTick();
         if (companionComments.value) companionComments.value.scrollTop = companionComments.value.scrollHeight;
       } catch (e) {
         companionHistory.value.push({ name: '系统', text: '评论失败：' + e.message });
+        alert('角色陪读评论失败：' + e.message);
       }
       companionLoading.value = false;
     };
@@ -1555,8 +1572,12 @@ const saveSummaryEdit = async () => {
       prompt += `\n【当前章节】${ch?.title || ''}\n${chapterContent.slice(0, 4000)}\n`;
       if (existingComments) prompt += `\n【已有评论】\n${existingComments}\n`;
       if (commentReplyTo.value) prompt += `\n【正在回复】${commentReplyTo.value.name}：${commentReplyTo.value.text}\n`;
-      prompt += `\n请每位角色用各自性格口吻发表评论，谈论剧情，发表自己对剧情的感受，符合人设，口语化，每人一到两句。格式：\n角色名：评论内容\n每人一行，不要有其他内容。`;
-
+      const exampleLines = selectedChars.slice(0, 2).map(c => `${c.name}：（${c.name}对这章内容的真实感受）`).join('\n');
+      prompt += `\n请每位角色用各自性格口吻发表评论，谈论剧情，发表自己对剧情的感受，符合人设，口语化，每人一到两句。
+【严格格式要求】每位角色的评论必须单独占一行，格式为：角色名：评论内容
+【示例格式】
+${exampleLines}
+【绝对禁止】把多个角色的评论写在同一行，禁止用序号、禁止用其他格式，只能用「角色名：内容」每人一行。`;
       try {
         const res = await fetch(`${apiConfig.value.url.replace(/\/$/, '')}/chat/completions`, {
           method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiConfig.value.key}` },
@@ -1565,12 +1586,14 @@ const saveSummaryEdit = async () => {
         const data = await res.json();
         const reply = data.choices?.[0]?.message?.content || '';
         const lines = reply.split('\n').map(l => l.trim()).filter(l => l);
+        let parsedCount = 0;
         for (const line of lines) {
           const colonIdx = line.indexOf('：') !== -1 ? line.indexOf('：') : line.indexOf(':');
           if (colonIdx <= 0) continue;
           const name = line.slice(0, colonIdx).trim();
           const text = line.slice(colonIdx + 1).trim();
           if (!name || !text) continue;
+          parsedCount++;
           const comment = {
             id: Date.now() + Math.random(), type: 'char', name, text,
             replyTo: commentReplyTo.value ? { id: commentReplyTo.value.id, name: commentReplyTo.value.name, text: commentReplyTo.value.text.slice(0, 20) } : null,
@@ -1584,6 +1607,10 @@ const saveSummaryEdit = async () => {
             n.comments.push(comment);
           }
         }
+        if (parsedCount === 0) {
+          alert('评论生成格式有误，AI没有按照要求输出，请重试');
+        }
+
         commentReplyTo.value = null;
         const idx = novels.value.findIndex(nv => nv.id === n.id);
         if (idx !== -1) novels.value[idx] = JSON.parse(JSON.stringify(n));
@@ -1744,6 +1771,7 @@ aiNextChapterPlot, aiNextChapterStyle, aiNextChapterMinWords, aiNextChapterMaxWo
 appendMode, openAiNextChapter, runAiNextChapter, saveAiNextChapter,
 aiNextChapterChars, aiNextChapterSummaryFrom, aiNextChapterSummaryTo,
 aiNextChapterFullFrom, aiNextChapterFullTo,
+      cancelChapterEdit, deleteChapterEdit,
 
     };
   }
