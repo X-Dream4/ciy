@@ -44,8 +44,6 @@ createApp({
     };
 
     const saveNovels = async () => {
-      const idx = novels.value.findIndex(nv => nv.id === currentNovel.value?.id);
-      if (idx !== -1) novels.value[idx] = JSON.parse(JSON.stringify(currentNovel.value));
       await dbSet('novels', JSON.parse(JSON.stringify(novels.value)));
     };
 
@@ -64,11 +62,11 @@ createApp({
     const importLoading = ref(false);
 
     const parseChapters = (content) => {
-      const chapterRegex = /^(第[零一二三四五六七八九十百千\d]+[章节卷回集部][^\n]*|Chapter\s*\d+[^\n]*|【[^】]+】[^\n]*)/gm;
+      const chapterRegex = /^[\s\u3000]*(第[零一二三四五六七八九十百千\d]+[章节卷回集部][^\n]*|Chapter\s*\d+[^\n]*|【[^】]+】[^\n]*)/gm;
       const matches = [];
       let match;
       while ((match = chapterRegex.exec(content)) !== null) {
-        matches.push({ title: match[0].trim(), index: match.index });
+        matches.push({ title: match[1].trim(), index: match.index });
       }
       if (matches.length < 2) return null;
       const chapters = [];
