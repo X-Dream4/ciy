@@ -4,6 +4,126 @@ createApp({
   setup() {
     const translateOn = ref(false);
     const translateLang = ref('zh-CN');
+    // ===== 知晓热搜 =====
+    const hotAwareOn = ref(false);
+    const hotAwarePlatforms = ref([]);
+    const hotAwareCounts = ref({});
+    const hotPlatformOptions = [
+      { key: 'weibo', label: '微博' },
+      { key: 'baidu', label: '百度' },
+      { key: 'douyin', label: '抖音' },
+      { key: 'toutiao', label: '头条' },
+      { key: 'bilibili', label: 'B站' },
+      { key: 'hackernews', label: 'HN' },
+    ];
+
+    // ===== 知晓小说 =====
+    const novelAwareOn = ref(false);
+    const novelAwareSettings = ref({});
+    const allNovels = ref([]);
+    const expandedNovelIds = ref([]);
+
+    const toggleNovelExpand = (id) => {
+      const idx = expandedNovelIds.value.indexOf(id);
+      if (idx === -1) expandedNovelIds.value.push(id);
+      else expandedNovelIds.value.splice(idx, 1);
+    };
+
+    const toggleNovelAware = (novel) => {
+      if (novelAwareSettings.value[novel.id]) {
+        delete novelAwareSettings.value[novel.id];
+        const idx = expandedNovelIds.value.indexOf(novel.id);
+        if (idx !== -1) expandedNovelIds.value.splice(idx, 1);
+      } else {
+        novelAwareSettings.value[novel.id] = {
+          title: true, type: false, synopsis: false, tags: false,
+          chars: false, charRelations: false,
+          summaryChapters: [], contentChapters: [], commentChapters: []
+        };
+        if (!expandedNovelIds.value.includes(novel.id)) {
+          expandedNovelIds.value.push(novel.id);
+        }
+      }
+    };
+
+    const getNovelSetting = (novelId) => novelAwareSettings.value[novelId] || null;
+
+    const toggleChapterItem = (novelId, field, chapterIndex) => {
+      if (!novelAwareSettings.value[novelId]) return;
+      const arr = novelAwareSettings.value[novelId][field];
+      const idx = arr.indexOf(chapterIndex);
+      if (idx === -1) arr.push(chapterIndex);
+      else arr.splice(idx, 1);
+    };
+
+    const saveAwareSettings = async () => {
+      await dbSet(`hotAware_room_${roomId}`, {
+        on: hotAwareOn.value,
+        platforms: hotAwarePlatforms.value,
+        counts: hotAwareCounts.value
+      });
+      await dbSet(`novelAware_room_${roomId}`, {
+        on: novelAwareOn.value,
+        settings: JSON.parse(JSON.stringify(novelAwareSettings.value))
+      });
+    };
+
+    const buildHotAwareText = async () => {
+      if (!hotAwareOn.value || !hotAwarePlatforms.value.length) return '';
+      const parts = [];
+      for (const key of hotAwarePlatforms.value) {
+        const cached = await dbGet(`hotCache_${key}`);
+        if (!cached || !cached.data || !cached.data.length) continue;
+        const count = parseInt(hotAwareCounts.value[key]) || 5;
+        const label = hotPlatformOptions.find(p => p.key === key)?.label || key;
+        const items = cached.data.slice(0, count).map((item, i) => `${i+1}.${item.title}`).join('、');
+        if (items) parts.push(`${label}热搜：${items}`);
+      }
+      if (!parts.length) return '';
+      return `【当前热搜】${parts.join('；')}`;
+    };
+
+    const buildNovelAwareText = () => {
+      if (!novelAwareOn.value || !Object.keys(novelAwareSettings.value).length) return '';
+      const parts = [];
+      for (const [novelId, setting] of Object.entries(novelAwareSettings.value)) {
+        const novel = allNovels.value.find(n => String(n.id) === String(novelId));
+        if (!novel) continue;
+        let text = `《${novel.title}》`;
+        const details = [];
+        if (setting.type && novel.type) details.push(`类型：${{ original: '原创', fanfic: '同人', upload: '上传' }[novel.type] || novel.type}`);
+        if (setting.synopsis && novel.synopsis) details.push(`简介：${novel.synopsis}`);
+        if (setting.tags && novel.tags && novel.tags.length) details.push(`标签：${novel.tags.join('、')}`);
+        if (setting.chars && novel.chars && novel.chars.length) details.push(`登场角色：${novel.chars.map(c => `${c.role}${c.name}`).join('、')}`);
+        if (setting.charRelations && novel.charRelations) details.push(`角色关系：${novel.charRelations}`);
+        if (setting.summaryChapters && setting.summaryChapters.length && novel.chapters) {
+          const summaries = setting.summaryChapters
+            .filter(i => novel.chapters[i] && novel.chapters[i].summary)
+            .map(i => `第${i+1}章《${novel.chapters[i].title}》总结：${novel.chapters[i].summary}`)
+            .join('；');
+          if (summaries) details.push(summaries);
+        }
+        if (setting.contentChapters && setting.contentChapters.length && novel.chapters) {
+          const contents = setting.contentChapters
+            .filter(i => novel.chapters[i] && novel.chapters[i].content)
+            .map(i => `第${i+1}章《${novel.chapters[i].title}》正文：${novel.chapters[i].content.slice(0, 2000)}`)
+            .join('；');
+          if (contents) details.push(contents);
+        }
+        if (setting.commentChapters && setting.commentChapters.length && novel.chapters) {
+          const comments = setting.commentChapters
+            .filter(i => novel.chapters[i] && novel.chapters[i].comments && novel.chapters[i].comments.length)
+            .map(i => `第${i+1}章评论：${novel.chapters[i].comments.map(c => `${c.name}：${c.text}`).join('，')}`)
+            .join('；');
+          if (comments) details.push(comments);
+        }
+        if (details.length) text += `（${details.join('，')}）`;
+        parts.push(text);
+      }
+      if (!parts.length) return '';
+      return `【知晓作品】${parts.join('；')}`;
+    };
+
     const foreignLangOptions = ['日语', '韩语', '英语', '法语', '俄语', '其他'];
 
     const params = new URLSearchParams(window.location.search);
@@ -456,7 +576,9 @@ const collectTheaterRoom = async (content) => {
       const beforeHistorySummaries = summaries.value.filter(s => s.pos === 'before_history').map(s => ({ role: 'system', content: `【回忆摘要】${s.content}` }));
       const afterSystemSummaries = summaries.value.filter(s => s.pos === 'after_system').map(s => `【回忆摘要】${s.content}`).join('；');
 
-            const systemPrompt = `${globalInjectText ? globalInjectText + '。' : ''}本群共有${members.value.length}名成员，名单：${memberNames}。每条消息必须明确标注发言者名字。${realtimeTimeOn.value ? `【当前时间】现在是${new Date().toLocaleString('zh-CN', {year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',weekday:'short'})}，所有成员都知道现在的准确时间。` : ''}${wbJailbreak ? wbJailbreak + '。' : ''}${wbWorldview ? '补充世界观：' + wbWorldview + '。\n' : ''}${wbPersona ? '补充人设：' + wbPersona + '。\n' : ''}
+            const hotAwareText = await buildHotAwareText();
+      const novelAwareText = buildNovelAwareText();
+      const systemPrompt = `${globalInjectText ? globalInjectText + '。' : ''}${hotAwareText ? hotAwareText + '。' : ''}${novelAwareText ? novelAwareText + '。' : ''}本群共有${members.value.length}名成员，名单：${memberNames}。每条消息必须明确标注发言者名字。${realtimeTimeOn.value ? `【当前时间】现在是${new Date().toLocaleString('zh-CN', {year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',weekday:'short'})}，所有成员都知道现在的准确时间。` : ''}${wbJailbreak ? wbJailbreak + '。' : ''}${wbWorldview ? '补充世界观：' + wbWorldview + '。\n' : ''}${wbPersona ? '补充人设：' + wbPersona + '。\n' : ''}
 【群成员信息】
 ${membersDesc}
 ${myPersona.value ? `【用户】(就是我)${myName.value}的人设：${myPersona.value}` : ''}
@@ -749,6 +871,7 @@ alert('连接失败：' + e.message);
     const openChatSettings = () => { toolbarOpen.value = false; aiReadCountInput.value = aiReadCount.value; chatSettingsShow.value = true; nextTick(() => refreshIcons()); };
     const saveChatSettings = async () => {
       chatSettingsShow.value = false; aiReadCount.value = parseInt(aiReadCountInput.value) || 20;
+      await saveAwareSettings();
       await dbSet(`groupTranslate_${roomId}`, { on: translateOn.value, lang: translateLang.value });
       await dbSet(`groupRealtimeTime_${roomId}`, realtimeTimeOn.value); 
       const roomList = JSON.parse(JSON.stringify((await dbGet('roomList')) || []));
@@ -1336,6 +1459,20 @@ if (groupTheaterStylePresetsData) theaterStylePresets.value = groupTheaterStyleP
 
       if (mySettings) { myName.value = mySettings.name || '我'; myPersona.value = mySettings.persona || ''; }
       const translateSettings = await dbGet(`groupTranslate_${roomId}`);
+      const hotAwareData = await dbGet(`hotAware_room_${roomId}`);
+      if (hotAwareData) {
+        hotAwareOn.value = hotAwareData.on || false;
+        hotAwarePlatforms.value = hotAwareData.platforms || [];
+        hotAwareCounts.value = hotAwareData.counts || {};
+      }
+      const novelAwareData = await dbGet(`novelAware_room_${roomId}`);
+      if (novelAwareData) {
+        novelAwareOn.value = novelAwareData.on || false;
+        novelAwareSettings.value = novelAwareData.settings || {};
+      }
+      const savedNovels = await dbGet('novels');
+      allNovels.value = savedNovels || [];
+
       if (translateSettings) { translateOn.value = translateSettings.on || false; translateLang.value = translateSettings.lang || 'zh-CN'; }
       if (api) apiConfig.value = api;
       if (worldBooks) allWorldBooks.value = worldBooks;
@@ -1419,6 +1556,9 @@ if (autoSendData) {
       quoteMsg, recallMsg, toggleRecallReveal, deleteMsg, editMsg, confirmEdit, cancelEdit,
       startMultiSelect, toggleSelect, deleteSelected, cancelMultiSelect, autoResize,
       messagesWithTime, formatMsgTime, showTimestamp, tsCharPos, tsMePos, tsFormat, tsCustom, tsSize, tsColor, tsOpacity, tsMeColor, tsMeOpacity, getMsgTimestamp, translateOn, translateLang, toggleTranslate, realtimeTimeOn,
+      hotAwareOn, hotAwarePlatforms, hotAwareCounts, hotPlatformOptions,
+      novelAwareOn, novelAwareSettings, allNovels, expandedNovelIds,
+      toggleNovelExpand, toggleNovelAware, getNovelSetting, toggleChapterItem,
       foreignLangOptions, buildMemberForeignPrompt, 
   theaterShow, theaterTab, theaterLoading,
 theaterTextPrompt, theaterHtmlPrompt,

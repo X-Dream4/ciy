@@ -580,16 +580,17 @@ ${allNpcs.length ? `参与发帖的用户：${allNpcs.map(n => n.name + (n.perso
       translating.value[idx] = false;
     };
 
-    const hotCache = {};
     const HOT_CACHE_TTL = 2 * 60 * 60 * 1000;
 
     const fetchHotList = async (type, force = false) => {
-      const cached = hotCache[type];
+      const cacheKey = `hotCache_${type}`;
+      const cached = await dbGet(cacheKey);
       if (!force && cached && Date.now() - cached.time < HOT_CACHE_TTL) {
         hotList.value = cached.data;
         hotError.value = '';
         return;
       }
+
       hotLoading.value = true;
       hotError.value = '';
       try {
@@ -601,7 +602,7 @@ ${allNpcs.length ? `参与发帖的用户：${allNpcs.map(n => n.name + (n.perso
             title: item.title || '',
             hot: item.hot || ''
           }));
-          hotCache[type] = { data: list, time: Date.now() };
+          await dbSet(`hotCache_${type}`, { data: list, time: Date.now() });
           hotList.value = list;
         } else {
           hotError.value = '暂无数据，请稍后重试';

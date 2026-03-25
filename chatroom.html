@@ -255,6 +255,108 @@
             <input class="modal-input" v-model="foreignLangCustom" placeholder="输入语言名称，如：泰语、德语..." />
           </div>
         </div>
+        <!-- 知晓热搜 -->
+        <div class="modal-item">
+          <div style="display:flex;align-items:center;justify-content:space-between;">
+            <span style="font-size:13px;color:#555;font-weight:500;">知晓热搜</span>
+            <div class="toggle" :class="{on: hotAwareOn}" @click="hotAwareOn=!hotAwareOn"></div>
+          </div>
+          <div style="font-size:11px;color:#aaa;margin-top:2px;">开启后调用API时注入当前热搜内容，角色可以聊热搜话题</div>
+        </div>
+        <div v-if="hotAwareOn" class="modal-item" style="display:flex;flex-direction:column;gap:8px;">
+          <div style="font-size:12px;color:#555;font-weight:500;">选择热搜平台和注入条数</div>
+          <div v-for="p in hotPlatformOptions" :key="p.key" style="display:flex;align-items:center;gap:8px;">
+            <div style="display:flex;align-items:center;gap:6px;flex:1;cursor:pointer;" @click="hotAwarePlatforms.includes(p.key) ? hotAwarePlatforms.splice(hotAwarePlatforms.indexOf(p.key),1) : hotAwarePlatforms.push(p.key)">
+              <div :style="'width:18px;height:18px;border-radius:4px;border:1.5px solid;display:flex;align-items:center;justify-content:center;flex-shrink:0;' + (hotAwarePlatforms.includes(p.key) ? 'background:#111;border-color:#111;' : 'background:#fff;border-color:#ccc;')">
+                <span v-if="hotAwarePlatforms.includes(p.key)" style="color:#fff;font-size:12px;line-height:1;">✓</span>
+              </div>
+              <span style="font-size:13px;color:#333;">{{ p.label }}</span>
+            </div>
+            <div v-if="hotAwarePlatforms.includes(p.key)" style="display:flex;align-items:center;gap:4px;">
+              <span style="font-size:11px;color:#aaa;">条数</span>
+              <input class="modal-input" type="number" min="1" max="20"
+                :value="hotAwareCounts[p.key] || 5"
+                @change="hotAwareCounts[p.key]=parseInt($event.target.value)||5"
+                style="width:52px;text-align:center;padding:4px 6px;font-size:12px;" />
+            </div>
+          </div>
+          <div style="font-size:11px;color:#aaa;">注意：需要先在次元论坛里刷新过热搜才有缓存数据</div>
+        </div>
+
+        <!-- 知晓次元小说 -->
+        <div class="modal-item">
+          <div style="display:flex;align-items:center;justify-content:space-between;">
+            <span style="font-size:13px;color:#555;font-weight:500;">知晓次元小说</span>
+            <div class="toggle" :class="{on: novelAwareOn}" @click="novelAwareOn=!novelAwareOn"></div>
+          </div>
+          <div style="font-size:11px;color:#aaa;margin-top:2px;">开启后调用API时注入小说内容，角色可以了解作品</div>
+        </div>
+        <div v-if="novelAwareOn" class="modal-item" style="display:flex;flex-direction:column;gap:10px;">
+          <div style="font-size:12px;color:#555;font-weight:500;">选择要让角色知晓的小说作品</div>
+          <div v-if="!allNovels.length" style="font-size:12px;color:#aaa;">次元小说里还没有作品</div>
+          <div v-for="novel in allNovels" :key="novel.id" style="border:1.5px solid #e5e5ea;border-radius:12px;overflow:hidden;">
+            <!-- 作品头部 -->
+            <div style="display:flex;align-items:center;gap:8px;padding:10px 12px;background:#f9f9f9;cursor:pointer;" @click="toggleNovelExpand(novel.id)">
+              <div style="display:flex;align-items:center;gap:6px;flex:1;" @click.stop="toggleNovelAware(novel)">
+                <div style="width:18px;height:18px;border-radius:4px;border:1.5px solid;flex-shrink:0;display:flex;align-items:center;justify-content:center;"
+                  :style="getNovelSetting(novel.id) ? 'background:#111;border-color:#111;' : 'background:#fff;border-color:#ccc;'">
+                  <span v-if="getNovelSetting(novel.id)" style="color:#fff;font-size:12px;line-height:1;">✓</span>
+                </div>
+                <span style="font-size:13px;font-weight:600;color:#333;">《{{ novel.title }}》</span>
+              </div>
+              <i :data-lucide="expandedNovelIds.includes(novel.id)?'chevron-up':'chevron-down'" style="width:14px;height:14px;color:#aaa;flex-shrink:0;"></i>
+            </div>
+
+            <!-- 作品详细设置 -->
+            <div v-if="expandedNovelIds.includes(novel.id) && getNovelSetting(novel.id)" style="padding:10px 12px;display:flex;flex-direction:column;gap:8px;border-top:1px solid #f0f0f0;">
+
+              <!-- 基础信息 -->
+              <div style="font-size:11px;font-weight:700;color:#aaa;">基础信息</div>
+              <div style="display:flex;flex-wrap:wrap;gap:6px;">
+                <div style="padding:4px 10px;border-radius:20px;font-size:12px;background:#111;color:#fff;cursor:default;">作品名（默认）</div>
+                <div v-for="field in [{key:'type',label:'类型'},{key:'synopsis',label:'简介'},{key:'tags',label:'标签'},{key:'chars',label:'登场角色'},{key:'charRelations',label:'角色关系'}]"
+                  :key="field.key"
+                  style="padding:4px 10px;border-radius:20px;font-size:12px;cursor:pointer;border:1.5px solid #e5e5ea;transition:all 0.15s;"
+                  :style="getNovelSetting(novel.id)[field.key] ? 'background:#111;color:#fff;border-color:#111;' : 'background:#fff;color:#555;'"
+                  @click="getNovelSetting(novel.id)[field.key]=!getNovelSetting(novel.id)[field.key]">
+                  {{ field.label }}
+                </div>
+              </div>
+
+              <!-- 章节设置 -->
+              <div v-if="novel.chapters && novel.chapters.length">
+                <div style="font-size:11px;font-weight:700;color:#aaa;margin-bottom:6px;">章节内容（选择后注入）</div>
+                <div style="display:flex;flex-direction:column;gap:6px;max-height:200px;overflow-y:auto;">
+                  <div v-for="(ch, ci) in novel.chapters" :key="ci" style="background:#f9f9f9;border-radius:8px;padding:8px 10px;">
+                    <div style="font-size:12px;font-weight:600;color:#333;margin-bottom:6px;">第{{ ci+1 }}章 《{{ ch.title }}》</div>
+                    <div style="display:flex;flex-wrap:wrap;gap:4px;">
+                      <div style="padding:3px 8px;border-radius:12px;font-size:11px;cursor:pointer;border:1px solid #e5e5ea;transition:all 0.15s;"
+                        :style="getNovelSetting(novel.id).summaryChapters.includes(ci) ? 'background:#111;color:#fff;border-color:#111;' : 'background:#fff;color:#555;'"
+                        @click="toggleChapterItem(novel.id,'summaryChapters',ci)">
+                        章节总结{{ ch.summary ? '' : '（暂无）' }}
+                      </div>
+                      <div style="padding:3px 8px;border-radius:12px;font-size:11px;cursor:pointer;border:1px solid #e5e5ea;transition:all 0.15s;"
+                        :style="getNovelSetting(novel.id).contentChapters.includes(ci) ? 'background:#111;color:#fff;border-color:#111;' : 'background:#fff;color:#555;'"
+                        @click="toggleChapterItem(novel.id,'contentChapters',ci)">
+                        章节正文（最多2000字）
+                      </div>
+                      <div style="padding:3px 8px;border-radius:12px;font-size:11px;cursor:pointer;border:1px solid #e5e5ea;transition:all 0.15s;"
+                        :style="getNovelSetting(novel.id).commentChapters.includes(ci) ? 'background:#111;color:#fff;border-color:#111;' : 'background:#fff;color:#555;'"
+                        @click="toggleChapterItem(novel.id,'commentChapters',ci)">
+                        章节评论{{ (ch.comments && ch.comments.length) ? `（${ch.comments.length}条）` : '（暂无）' }}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div v-else style="font-size:11px;color:#aaa;">该作品暂无章节</div>
+            </div>
+
+            <div v-else-if="expandedNovelIds.includes(novel.id) && !getNovelSetting(novel.id)" style="padding:10px 12px;font-size:12px;color:#aaa;border-top:1px solid #f0f0f0;">
+              请先勾选作品再展开设置
+            </div>
+          </div>
+        </div>
 
         <!-- 翻译设置 -->
         <div class="modal-item">
@@ -1107,5 +1209,6 @@
 <script src="db.js"></script>
 <script src="emoji.js"></script>
 <script src="chatroom.js"></script>
+<script src="floatbtn.js"></script>
 </body>
 </html>
