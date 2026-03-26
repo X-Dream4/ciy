@@ -14,10 +14,9 @@
   <!-- 顶部栏 -->
   <div class="collect-topbar">
     <button class="topbar-icon-btn" @click="goBack" v-if="!currentChar && !currentRoom"><i data-lucide="arrow-left"></i></button>
-    <button onclick="openQuickNav()" style="width:12px;height:12px;border-radius:50%;background:#555;border:none;cursor:pointer;padding:0;flex-shrink:0;"></button>
     <button class="topbar-icon-btn" @click="goBackList" v-else><i data-lucide="arrow-left"></i></button>
     <div class="collect-topbar-title">{{ currentTitle }}</div>
-    <div style="width:36px;"></div>
+    <button onclick="openQuickNav()" style="width:12px;height:12px;border-radius:50%;background:#555;border:none;cursor:pointer;padding:0;flex-shrink:0;"></button>
   </div>
 
   <!-- 主列表页 -->

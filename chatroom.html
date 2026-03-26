@@ -81,8 +81,8 @@
                 <img :src="getStickerUrl(msg.content)" :alt="msg.content" />
               </div>
                 <div v-else class="msg-bubble" :class="[msg.role==='user'?'bubble-right':'bubble-left', msg.type==='whisper'?'bubble-whisper':'', msg.editing?'bubble-editing':'']"
-                  @click="foreignOn && msg.foreignTranslation && msg.role==='char' && !msg.loading && !msg.editing ? msg.foreignTranslationShow=!msg.foreignTranslationShow : (translateOn && msg.role==='char' && !msg.loading && !msg.editing ? toggleTranslate(msg) : null)"
-                  :style="(foreignOn && msg.foreignTranslation && msg.role==='char') || (translateOn && msg.role==='char' && !msg.loading) ? 'cursor:pointer;' : ''">
+                  @click="msg.foreignTranslation && msg.role==='char' && !msg.loading && !msg.editing ? msg.foreignTranslationShow=!msg.foreignTranslationShow : (translateOn && msg.role==='char' && !msg.loading && !msg.editing ? toggleTranslate(msg) : null)"
+                  :style="(msg.foreignTranslation && msg.role==='char') || (translateOn && msg.role==='char' && !msg.loading) ? 'cursor:pointer;' : ''">
                 <span v-if="msg.loading" class="msg-loading"><span></span><span></span><span></span></span>
                 <div v-else-if="msg.editing">
                   <textarea class="edit-textarea" v-model="msg.editContent" @keydown.enter.exact.prevent="confirmEdit(msg)"></textarea>
