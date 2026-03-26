@@ -484,104 +484,6 @@ createApp({
       };
       reader.readAsDataURL(file);
     };
-    // ===== 悬浮按键设置 =====
-    const floatBtnEnabled = ref(false);
-    const floatBtnSettingsShow = ref(false);
-    const floatBtnImgFile = ref(null);
-    const allCharListForFloat = ref([]);
-    const allRoomListForFloat = ref([]);
-
-    const floatShapeOptions = [
-      { value: 'heart', label: '爱心' },
-      { value: 'circle', label: '圆形' },
-      { value: 'rounded', label: '圆角' },
-      { value: 'square', label: '方形' },
-      { value: 'hexagon', label: '六边形' },
-      { value: 'star', label: '星形' },
-      { value: 'image', label: '自定义图片' },
-    ];
-
-    const floatTextureOptions = [
-      { value: 'glass', label: '玻璃' },
-      { value: 'blur', label: '磨砂' },
-      { value: 'liquid', label: '琉璃' },
-      { value: 'neon', label: '霓虹' },
-      { value: 'metal', label: '金属' },
-      { value: 'rubber', label: '橡皮' },
-      { value: 'cream', label: '奶油' },
-      { value: 'shadow', label: '阴影' },
-      { value: 'transparent', label: '透明' },
-    ];
-
-    const floatForm = ref({
-      btnShape: 'heart', btnImage: '', btnSize: 52, btnColor: '#6c63ff',
-      btnOpacity: 0.92, btnTexture: 'glass',
-      panelLayout: 'grid', panelShape: 'rounded', panelColor: '#ffffff',
-      panelOpacity: 0.88, panelTexture: 'blur', panelSize: 'medium',
-      itemMode: 'icontext', itemSize: 48, itemColor: '#ffffff',
-      itemOpacity: 0.9, itemTexture: 'glass',
-      items: [], charItems: [], roomItems: [],
-    });
-
-    const loadFloatBtnSettings = async () => {
-      const saved = await dbGet('floatBtnSettings');
-      if (saved) {
-        floatBtnEnabled.value = saved.enabled !== false;
-        floatForm.value = Object.assign({}, floatForm.value, saved);
-        if (!floatForm.value.items || !floatForm.value.items.length) {
-          floatForm.value.items = window.FloatBtn?.getSettings()?.items || [];
-        }
-        if (!floatForm.value.charItems) floatForm.value.charItems = [];
-        if (!floatForm.value.roomItems) floatForm.value.roomItems = [];
-      } else {
-        if (window.FloatBtn) {
-          const s = window.FloatBtn.getSettings();
-          floatForm.value = Object.assign({}, floatForm.value, s);
-          floatBtnEnabled.value = s.enabled !== false;
-        }
-      }
-    };
-
-    const toggleFloatBtn = async () => {
-      floatBtnEnabled.value = !floatBtnEnabled.value;
-      if (window.FloatBtn) {
-        await window.FloatBtn.updateSettings({ enabled: floatBtnEnabled.value });
-      }
-      addLog(`悬浮按键已${floatBtnEnabled.value ? '开启' : '关闭'}`);
-    };
-
-    const applyFloatBtnSettings = async () => {
-      floatBtnSettingsShow.value = false;
-      const newSettings = {
-        ...JSON.parse(JSON.stringify(floatForm.value)),
-        enabled: floatBtnEnabled.value,
-      };
-      if (window.FloatBtn) {
-        await window.FloatBtn.updateSettings(newSettings);
-      }
-      addLog('悬浮按键设置已保存');
-    };
-
-    const resetFloatBtnSettings = async () => {
-      if (!confirm('确定恢复默认设置吗？')) return;
-      if (window.FloatBtn) {
-        await window.FloatBtn.updateSettings({ enabled: floatBtnEnabled.value });
-        await loadFloatBtnSettings();
-      }
-      addLog('悬浮按键已恢复默认');
-    };
-
-    const triggerFloatBtnImg = () => { floatBtnImgFile.value.click(); };
-
-    const uploadFloatBtnImg = (e) => {
-      const file = e.target.files[0]; if (!file) return;
-      const reader = new FileReader();
-      reader.onload = (evt) => {
-        floatForm.value.btnImage = evt.target.result;
-        e.target.value = '';
-      };
-      reader.readAsDataURL(file);
-    };
 
     onMounted(async () => {
 if (typeof listenForNotifications === 'function') listenForNotifications();
@@ -623,16 +525,6 @@ if (typeof requestNotifyPermission === 'function') requestNotifyPermission();
       }
       const savedFontSize = await dbGet('customFontSize');
       if (savedFontSize) { globalFontSize.value = savedFontSize; applyGlobalFontSize(); }
-
-      await loadFloatBtnSettings();
-      const [charListForFloat, roomListForFloat] = await Promise.all([
-        dbGet('charList'), dbGet('roomList')
-      ]);
-      allCharListForFloat.value = [...(charListForFloat || []), ...(await dbGet('randomCharList') || [])];
-      allRoomListForFloat.value = roomListForFloat || [];
-      if (!floatForm.value.items || !floatForm.value.items.length) {
-        if (window.FloatBtn) floatForm.value.items = window.FloatBtn.getSettings().items || [];
-      }
 
       refreshIcons();
       addLog('喜欢App已打开');
@@ -913,11 +805,6 @@ const loadMemory = async () => {
       exportBeauty, triggerImportBeauty, importBeauty,
       exportSingleChar, triggerImportChar, importSingleChar,
       memoryDetails, memoryDonut, memoryTotal, memoryLoading, loadMemory,
-      floatBtnEnabled, floatBtnSettingsShow, floatBtnImgFile,
-      floatShapeOptions, floatTextureOptions, floatForm,
-      allCharListForFloat, allRoomListForFloat,
-      toggleFloatBtn, applyFloatBtnSettings, resetFloatBtnSettings,
-      triggerFloatBtnImg, uploadFloatBtnImg,
     };
   }
 }).mount('#like-app');

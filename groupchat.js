@@ -695,7 +695,7 @@ if (whisperErrorMatch) { content = whisperErrorMatch[1].trim(); msgType = 'whisp
           const quoteMatch = content.match(/^【引用[^：:】]*[：:]([^】]+)】(.*)$/);
           if (quoteMatch) {
             const quotedContent = quoteMatch[1].trim();
-            const actualContent = quoteMatch[2].trim();
+            const actualContent = quoteMatch[2].trim().replace(/^\[\d{1,2}:\d{2}[^\]]*\]\s*/, '');
             const quotedMsg = allMessages.value.slice().reverse().find(m => m.content && !m.recalled && !m.loading && m.content.includes(quotedContent));
             if (quotedMsg) { msgQuoteId = quotedMsg.id; }
             content = actualContent || quotedContent;

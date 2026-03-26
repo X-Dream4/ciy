@@ -1284,11 +1284,16 @@ const confirmAddBookmark = async () => {
       return n.chapters[currentChapterIndex.value]?.comments || [];
     });
 
-    const jumpToChapter = (i) => {
+    const jumpToChapter = async (i) => {
       currentChapterIndex.value = i;
       tocOpen.value = false;
       editingSummary.value = false;
       editingSummaryText.value = '';
+      // 保存阅读进度
+      if (currentNovel.value && currentNovel.value.id) {
+        await dbSet(`novelProgress_${currentNovel.value.id}`, { chapterIndex: i });
+        novelProgressMap.value = { ...novelProgressMap.value, [currentNovel.value.id]: i };
+      }
       nextTick(() => {
         if (readContent.value) readContent.value.scrollTop = 0;
         window.scrollTo(0, 0);
@@ -1304,12 +1309,17 @@ const confirmAddBookmark = async () => {
     };
 
 
-    const nextChapter = () => {
+    const nextChapter = async () => {
       const n = currentNovel.value;
       if (n.chapters && currentChapterIndex.value < n.chapters.length - 1) {
         currentChapterIndex.value++;
         editingSummary.value = false;
         editingSummaryText.value = '';
+        if (n.id) {
+          await dbSet(`novelProgress_${n.id}`, { chapterIndex: currentChapterIndex.value });
+          novelProgressMap.value = { ...novelProgressMap.value, [n.id]: currentChapterIndex.value };
+        }
+
         nextTick(() => {
           if (readContent.value) readContent.value.scrollTop = 0;
           window.scrollTo(0, 0);
@@ -1325,11 +1335,15 @@ const confirmAddBookmark = async () => {
       }
     };
 
-    const prevChapter = () => {
+    const prevChapter = async () => {
       if (currentChapterIndex.value > 0) {
         currentChapterIndex.value--;
         editingSummary.value = false;
         editingSummaryText.value = '';
+        if (currentNovel.value && currentNovel.value.id) {
+          await dbSet(`novelProgress_${currentNovel.value.id}`, { chapterIndex: currentChapterIndex.value });
+          novelProgressMap.value = { ...novelProgressMap.value, [currentNovel.value.id]: currentChapterIndex.value };
+        }
         nextTick(() => {
           if (readContent.value) readContent.value.scrollTop = 0;
           window.scrollTo(0, 0);
@@ -1344,15 +1358,23 @@ const confirmAddBookmark = async () => {
         });
       }
     };
+    const novelProgressMap = ref({});
 
-    const openRead = (n) => {
+    const openRead = async (n) => {
       currentNovel.value = n;
       readProgress.value = 0;
       readSettingOpen.value = false;
       companionOpen.value = false;
       companionHistory.value = [];
       companionCommentsByChapter.value = {};
-      currentChapterIndex.value = 0;
+      // 读取上次阅读进度
+      const savedProgress = await dbGet(`novelProgress_${n.id}`);
+      if (savedProgress && savedProgress.chapterIndex !== undefined) {
+        currentChapterIndex.value = savedProgress.chapterIndex;
+      } else {
+        currentChapterIndex.value = 0;
+      }
+      novelProgressMap.value = { ...novelProgressMap.value, [n.id]: currentChapterIndex.value };
       tocOpen.value = false;
       summaryPanelOpen.value = false;
       commentInput.value = '';
@@ -1670,6 +1692,21 @@ ${exampleLines}
         setTimeout(() => lucide.createIcons(), 200);
       }, 50);
     };
+    const tocListRef = ref(null);
+
+    Vue.watch(() => tocOpen.value, (val) => {
+      if (val) {
+        nextTick(() => {
+          setTimeout(() => {
+            const activeEl = document.getElementById(`toc-item-${currentChapterIndex.value}`);
+            if (activeEl) {
+              activeEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+          }, 100);
+        });
+      }
+    });
+
 Vue.watch(() => view.value, () => {
   nextTick(() => {
     lucide.createIcons();
@@ -1704,6 +1741,16 @@ Vue.watch(() => view.value, () => {
       ]);
 
       novels.value = savedNovels || [];
+      // 加载所有小说的阅读进度
+      if (novels.value.length) {
+        for (const n of novels.value) {
+          const p = await dbGet(`novelProgress_${n.id}`);
+          if (p && p.chapterIndex !== undefined) {
+            novelProgressMap.value[n.id] = p.chapterIndex;
+          }
+        }
+      }
+
       chatChars.value = [...(savedChars || []), ...(savedRandomChars || [])];
       allWorldBooks.value = savedWorldBooks || [];
       if (savedNovelApi) {
@@ -1772,6 +1819,8 @@ appendMode, openAiNextChapter, runAiNextChapter, saveAiNextChapter,
 aiNextChapterChars, aiNextChapterSummaryFrom, aiNextChapterSummaryTo,
 aiNextChapterFullFrom, aiNextChapterFullTo,
       cancelChapterEdit, deleteChapterEdit,
+      tocListRef,
+      novelProgressMap,
 
     };
   }
