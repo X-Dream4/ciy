@@ -15,6 +15,8 @@
       appId: "821ab26a-5541-4f0e-a63d-fe385e28a417",
       safari_web_id: "web.onesignal.auto.4bf73218-3550-4659-982d-970270d14d2d",
       notifyButton: { enable: false },
+      serviceWorkerPath: "OneSignalSDKWorker.js",
+      serviceWorkerParam: { scope: "/ciy/" },
     });
     await OneSignal.Notifications.requestPermission();
   });
