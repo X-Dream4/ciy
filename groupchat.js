@@ -492,6 +492,15 @@ const collectPeekHistory = async (h) => {
   });
   alert('已收藏');
 };
+const deletePeekHistory = async (i) => {
+  peekHistory.value.splice(i, 1);
+  await dbSet(`groupPeekHistory_${roomId}`, JSON.parse(JSON.stringify(peekHistory.value)));
+};
+
+const deleteMirrorHistory = async (i) => {
+  mirrorHistory.value.splice(i, 1);
+  await dbSet(`groupMirrorHistory_${roomId}`, JSON.parse(JSON.stringify(mirrorHistory.value)));
+};
 
 const collectMirrorHistory = async (h) => {
   const content = h.results.map(r => `${r.name}：${r.content}`).join('\n\n');
@@ -782,7 +791,7 @@ alert('连接失败：' + e.message);
       for (const m of targetMembers) {
         const globalInjectBooks = allWorldBooks.value.filter(b => b.globalInject);
         const globalInjectText = globalInjectBooks.map(b => b.content).join('。');
-        const prompt = `${globalInjectText ? globalInjectText + '。' : ''}你是${m.name}。${m.persona ? '人设：' + m.persona : ''}。根据以下最近的对话，用简短文字（20字以内）描述当前动作和情绪，再用简短文字（30字以内）描述此刻内心独白。用JSON格式返回：{"action":"动作情绪","soul":"内心独白"}\n对话：\n${recentMsgs}`;
+        const prompt = `${globalInjectText ? globalInjectText + '。' : ''}你现在扮演一个角色，你是${m.name}。${m.persona ? '人设：' + m.persona : ''}。根据以下最近的对话，用简短文字（20字以内）描述当前动作和情绪（注意，你现在是隔着次元壁、屏幕在聊天，不能写任何与聊天人直接接触之类的字眼！），再用简短文字（30字以内）描述此刻内心独白。用JSON格式返回：{"action":"动作情绪","soul":"内心独白"}\n对话：\n${recentMsgs}`;
         try {
           const res = await fetch(`${apiConfig.value.url.replace(/\/$/, '')}/chat/completions`, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiConfig.value.key}` }, body: JSON.stringify({ model: apiConfig.value.model, messages: [{ role: 'user', content: prompt }] }) });
           const data = await res.json();
@@ -1583,6 +1592,7 @@ toggleAutoSend, startAutoSend, saveAutoSendSettings, addAutoSendTime, removeAuto
 collectMsg, collectPeekRoom, collectMirrorRoom, collectSummaryRoom, collectTheaterRoom,
 collectPeekHistory, collectMirrorHistory, htmlViewWidth, htmlViewHeight, htmlViewRounded, htmlViewPanelOpen,
 openPeekHistory, openMirrorHistory,
+      deletePeekHistory, deleteMirrorHistory,
 
     };
   }

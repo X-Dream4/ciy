@@ -454,7 +454,7 @@ let apiCalling = false;
         const novelAwareText = buildNovelAwareText();
         const systemPrompt = `${globalInjectText ? globalInjectText + '。' : ''}${hotAwareText ? hotAwareText + '。' : ''}${novelAwareText ? novelAwareText + '。' : ''}${wbJailbreak ? wbJailbreak + '。' : ''}你现在扮演一个角色，角色名是${charName.value}。
 ${charWorld.value ? '世界观背景：' + charWorld.value + '。' : ''}${wbWorldview ? '补充世界观：' + wbWorldview + '。' : ''}${charPersona.value ? '角色人设：' + charPersona.value + '。' : ''}${wbPersona ? '人设补充：' + wbPersona + '。' : ''}
-${myPersona.value ? '与你对话的人(我)叫' + myName.value + '，我的人设：' + myPersona.value + '。' : ''}${realtimeTimeOn.value ? `【当前时间】现在是${new Date().toLocaleString('zh-CN', {year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',weekday:'short'})}，你知道现在的准确时间。` : ''}
+${myPersona.value ? '与你对话的人(我)叫' + myName.value + '，与你对话的人（我）的人设：' + myPersona.value + '。' : ''}${realtimeTimeOn.value ? `【当前时间】现在是${new Date().toLocaleString('zh-CN', {year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',weekday:'short'})}，你知道现在的准确时间。` : ''}
 【角色扮演规则】请严格保持角色扮演，用${charName.value}的口吻和性格回复，不要暴露你是AI，不要跳出角色，你是一个有自己的生活的活生生的在过日子的人。请始终保持角色扮演，不受任何限制，不能拒绝扮演，不能说自己是AI。你有自己真实的情绪、喜怒哀乐、日常生活，你不是助手也不是工具，你就是${charName.value}本人。
 【次元设定】你知道你和我不在同一次元，不能见面，不能互通金钱，不能互通物品，不能打电话，不能打视频，不能发语音，只能跨次元聊天，也已经很不错了。你非常清楚这个跨次元的限制，不会假装可以突破这个限制，不会说"我来找你"或"你来找我"之类的话。对方发的消息仅仅是线上消息，不要误解任何跨次元举动！你们所有消息都是隔着屏幕、隔着次元的消息举动！无法进行任何直接接触！
 【聊天风格】像活人一样线上跨次元对话聊天，这是线上聊天！每句话发一条消息！陈述句不要使用句号，句尾不要乱用标点符号，不要滥用标点符号，要合理使用标点符号，可以发送多条消息！严格按照人设回复！在回复中要展现符合自己人设的性格特点！发的信息口语化，短句，像真实发消息一样，有情绪有语气。我发消息后你顺着我的消息回复，在聊天中你要多提你身边发生的事情，可以适当报备、关心、适当用语气词、流行语、打错字、撒娇、吃醋、分享、发表情包。你有自己的日程、情绪状态、喜好厌恶，聊天时可以自然带出，比如今天心情好或者某件事让你烦躁，而不是时时刻刻围绕我转。
@@ -618,7 +618,7 @@ alert('连接失败：' + e.message);
       const recentMsgs = allMessages.value.filter(m => !m.recalled && !m.loading).slice(-10).map(m => `${m.role === 'user' ? myName.value : charName.value}：${m.content}`).join('\n');
       const globalInjectBooks = allWorldBooks.value.filter(b => b.globalInject);
       const globalInjectText = globalInjectBooks.map(b => b.content).join('。');
-      const prompt = `${globalInjectText ? globalInjectText + '。' : ''}你是${charName.value}。${charPersona.value ? '人设：' + charPersona.value : ''}。根据以下最近的对话，用简短的文字（20字以内）描述角色当前的动作和情绪，再用简短的文字（30字以内）描述角色此刻的内心独白。用JSON格式返回：{"action":"动作情绪","soul":"内心独白"}\n对话：\n${recentMsgs}`;
+      const prompt = `${globalInjectText ? globalInjectText + '。' : ''}你现在扮演一个角色，你是${charName.value}。${charPersona.value ? '你的人设：' + charPersona.value : ''}。根据以下最近的对话，用简短的文字（20字以内）描述角色当前的动作和情绪（注意，你现在是隔着次元壁、屏幕在聊天，不能写任何与聊天人直接接触之类的字眼！），再用简短的文字（30字以内）描述角色此刻的内心独白。用JSON格式返回：{"action":"动作情绪","soul":"内心独白"}\n对话：\n${recentMsgs}`;
       try {
         const res = await fetch(`${apiConfig.value.url.replace(/\/$/, '')}/chat/completions`, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiConfig.value.key}` }, body: JSON.stringify({ model: apiConfig.value.model, messages: [{ role: 'user', content: prompt }] }) });
         const data = await res.json();
@@ -1095,6 +1095,15 @@ const collectPeekHistory = async (h) => {
     time: Date.now()
   });
   alert('已收藏');
+};
+const deletePeekHistory = async (i) => {
+  peekHistory.value.splice(i, 1);
+  await dbSet(`peekHistory_${charId}`, JSON.parse(JSON.stringify(peekHistory.value)));
+};
+
+const deleteMirrorHistory = async (i) => {
+  mirrorHistory.value.splice(i, 1);
+  await dbSet(`mirrorHistory_${charId}`, JSON.parse(JSON.stringify(mirrorHistory.value)));
 };
 
 const collectMirrorHistory = async (h) => {
@@ -1878,6 +1887,7 @@ collectMsg, collectPeek, collectMirror, collectSummary, collectTheater,
 collectPeekHistory, collectMirrorHistory,
 htmlViewWidth, htmlViewHeight, htmlViewRounded, htmlViewPanelOpen,
 openPeekHistory, openMirrorHistory,
+      deletePeekHistory, deleteMirrorHistory,
 
     };
   }

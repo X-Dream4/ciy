@@ -649,7 +649,10 @@
           <div class="history-item" v-for="(h,i) in peekHistory" :key="i">
             <div style="display:flex;align-items:center;justify-content:space-between;">
               <div class="history-time">{{ h.time }}</div>
-              <button @click="collectPeekHistory(h)" style="background:transparent;border:none;cursor:pointer;color:#aaa;display:flex;align-items:center;padding:3px;"><i data-lucide="bookmark" style="width:14px;height:14px;"></i></button>
+              <div style="display:flex;gap:0;align-items:center;">
+                <button @click="deletePeekHistory(i)" style="background:transparent;border:none;cursor:pointer;color:#aaa;display:flex;align-items:center;padding:3px;"><i data-lucide="x" style="width:14px;height:14px;"></i></button>
+                <button @click="collectPeekHistory(h)" style="background:transparent;border:none;cursor:pointer;color:#aaa;display:flex;align-items:center;padding:3px;"><i data-lucide="bookmark" style="width:14px;height:14px;"></i></button>
+              </div>
             </div>
             <div class="peek-section-title">动作 / 情绪</div>
             <div class="peek-content">{{ h.action }}</div>
@@ -671,7 +674,10 @@
           <div class="history-item" v-for="(h,i) in mirrorHistory" :key="i">
             <div style="display:flex;align-items:center;justify-content:space-between;">
               <div class="history-time">{{ h.time }} · {{ h.mode==='chat'?'聊时窥探':'闲时窥镜' }}</div>
-              <button @click="collectMirrorHistory(h)" style="background:transparent;border:none;cursor:pointer;color:#aaa;display:flex;align-items:center;padding:3px;"><i data-lucide="bookmark" style="width:14px;height:14px;"></i></button>
+              <div style="display:flex;gap:0;align-items:center;">
+                <button @click="deleteMirrorHistory(i)" style="background:transparent;border:none;cursor:pointer;color:#aaa;display:flex;align-items:center;padding:3px;"><i data-lucide="x" style="width:14px;height:14px;"></i></button>
+                <button @click="collectMirrorHistory(h)" style="background:transparent;border:none;cursor:pointer;color:#aaa;display:flex;align-items:center;padding:3px;"><i data-lucide="bookmark" style="width:14px;height:14px;"></i></button>
+              </div>
             </div>
             <div class="peek-content">{{ h.content }}</div>
           </div>
@@ -881,10 +887,11 @@
         </div>
 
         <!-- 预览选中消息 -->
-        <div class="summary-preview-box" v-if="summaryPreviewMsgs.length">
-          <div class="summary-preview-item" v-for="(m,i) in summaryPreviewMsgs" :key="i">
-            <span class="summary-preview-role">{{ m.role==='user'?myName:charName }}：</span>
-            <span class="summary-preview-content">{{ m.content.slice(0,30) }}{{ m.content.length>30?'...':'' }}</span>
+        <div style="max-height:160px;overflow-y:auto;border:1px solid #f0f0f0;border-radius:10px;padding:6px;" v-if="summaryPreviewMsgs.length">
+          <div v-for="(m,i) in summaryPreviewMsgs" :key="i"
+            style="display:flex;align-items:flex-start;gap:6px;padding:6px 4px;border-bottom:1px solid #f5f5f5;min-height:32px;">
+            <span style="font-size:11px;font-weight:600;color:#888;flex-shrink:0;padding-top:1px;">{{ m.role==='user'?myName:charName }}：</span>
+            <span style="font-size:12px;color:#555;line-height:1.5;word-break:break-all;">{{ m.content.slice(0,50) }}{{ m.content.length>50?'...':'' }}</span>
           </div>
         </div>
 
