@@ -19,8 +19,7 @@
       serviceWorkerPath: "OneSignalSDKWorker.js",
       serviceWorkerParam: { scope: "/ciy/" },
     });
-    await OneSignal.Notifications.requestPermission();
-  });
+      });
 </script>
 
 
@@ -64,6 +63,12 @@
 
     <div v-if="tab==='like'" class="tab-panel">
       <div class="panel-title">喜欢</div>
+<div class="settings-card">
+  <div class="settings-card-title">消息推送通知</div>
+  <div style="font-size:13px;color:#555;margin-bottom:10px;">开启后角色发消息时，即使切换到其他软件也能收到通知</div>
+  <button class="settings-btn primary" onclick="enablePushNotification()">开启后台推送通知</button>
+  <div id="push-status" style="font-size:12px;color:#aaa;margin-top:8px;"></div>
+</div>
 
       <div class="like-empty">
         <i data-lucide="heart" style="width:48px;height:48px;color:#ccc;"></i>
@@ -449,6 +454,28 @@ function openQuickNav() {
 function closeQuickNav() {
   const el = document.getElementById('quick-nav-mask');
   if (el) el.style.display = 'none';
+}
+</script>
+<script>
+async function enablePushNotification() {
+  const statusEl = document.getElementById('push-status');
+  try {
+    if (window.OneSignalDeferred) {
+      OneSignalDeferred.push(async function(OneSignal) {
+        const permission = await OneSignal.Notifications.requestPermission();
+        if (permission) {
+          statusEl.textContent = '已开启！角色发消息时会推送通知';
+          statusEl.style.color = '#27ae60';
+        } else {
+          statusEl.textContent = '未开启，请在浏览器设置里允许通知';
+          statusEl.style.color = '#e53e3e';
+        }
+      });
+    }
+  } catch(e) {
+    statusEl.textContent = '开启失败：' + e.message;
+    statusEl.style.color = '#e53e3e';
+  }
 }
 </script>
 
