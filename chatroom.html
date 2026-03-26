@@ -8,6 +8,20 @@
 <script src="lucide.min.js"></script>
 <script src="notify.js"></script>
 <link rel="stylesheet" href="chatroom.css" />
+<script src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js" defer></script>
+<script>
+  window.OneSignalDeferred = window.OneSignalDeferred || [];
+  OneSignalDeferred.push(async function(OneSignal) {
+    await OneSignal.init({
+      appId: "821ab26a-5541-4f0e-a63d-fe385e28a417",
+      safari_web_id: "web.onesignal.auto.4bf73218-3550-4659-982d-970270d14d2d",
+      notifyButton: {
+        enable: false,
+      },
+    });
+  });
+</script>
+
 </head>
 <body>
 <div class="page-loading-mask" id="loadingMask">

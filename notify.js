@@ -1,5 +1,7 @@
 // 全局通知系统
 const NOTIFY_KEY = 'pendingNotifications';
+const ONESIGNAL_APP_ID = '821ab26a-5541-4f0e-a63d-fe385e28a417';
+const ONESIGNAL_REST_KEY = 'os_v2_app_qinle2svifhq5jr57y4f4kfec6hyf4zbnzbe6gn75ptisp47u6uum7oaiccsnl3fc4gjoaxp4s4f2chqignoewmdkh6k2fmz3s53j7y'; // 等你找到REST API Key再填这里
 
 // 发送通知（在 chatroom.js 里调用）
 async function sendCharNotification(charName, content, charAvatar) {
@@ -12,17 +14,78 @@ async function sendCharNotification(charName, content, charAvatar) {
     avatar: charAvatar || '',
     time: Date.now()
   });
-  // 只保留最近10条
   if (pending.length > 10) pending.splice(0, pending.length - 10);
   localStorage.setItem(NOTIFY_KEY, JSON.stringify(pending));
 
-  // 2. 浏览器系统通知
+  // 2. 浏览器系统通知（前台）
   if ('Notification' in window && Notification.permission === 'granted') {
     new Notification(charName, {
       body: content.slice(0, 80),
       tag: `char_${charName}`,
       renotify: true
     });
+  }
+
+  // 3. 标题闪烁（切到其他标签页时）
+  if (document.hidden) {
+    const originalTitle = document.title;
+    let showAlert = true;
+    const titleTimer = setInterval(() => {
+      document.title = showAlert ? `【新消息】${charName}` : originalTitle;
+      showAlert = !showAlert;
+    }, 1000);
+    const restore = () => {
+      if (!document.hidden) {
+        clearInterval(titleTimer);
+        document.title = originalTitle;
+        document.removeEventListener('visibilitychange', restore);
+      }
+    };
+    document.addEventListener('visibilitychange', restore);
+  }
+
+  // 4. OneSignal 后台推送（切到其他软件时）
+  if (document.hidden && ONESIGNAL_REST_KEY) {
+    sendOneSignalPush(charName, content.slice(0, 80), charAvatar);
+  }
+}
+
+// OneSignal 后台推送
+async function sendOneSignalPush(title, message, icon) {
+  try {
+    const subId = await getOneSignalSubId();
+    if (!subId) return;
+    await fetch('https://onesignal.com/api/v1/notifications', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Basic ${ONESIGNAL_REST_KEY}`,
+      },
+      body: JSON.stringify({
+        app_id: ONESIGNAL_APP_ID,
+        include_subscription_ids: [subId],
+        headings: { en: title, zh: title },
+        contents: { en: message, zh: message },
+        chrome_web_icon: icon || '',
+        url: window.location.href,
+      }),
+    });
+  } catch(e) {
+    console.warn('OneSignal推送失败:', e);
+  }
+}
+
+// 获取 OneSignal 订阅ID
+async function getOneSignalSubId() {
+  try {
+    if (window.OneSignal) {
+      const id = await OneSignal.User.PushSubscription.id;
+      if (id) localStorage.setItem('osSubId', id);
+      return id;
+    }
+    return localStorage.getItem('osSubId');
+  } catch(e) {
+    return localStorage.getItem('osSubId');
   }
 }
 
@@ -34,26 +97,29 @@ async function requestNotifyPermission() {
   return result === 'granted';
 }
 
-// 在其他页面监听通知
+// 请求 OneSignal 推送权限
+async function requestOneSignalPermission() {
+  if (window.OneSignalDeferred) {
+    OneSignalDeferred.push(async function(OneSignal) {
+      await OneSignal.Notifications.requestPermission();
+    });
+  }
+}
 
-// 在各个页面的 onMounted 里调用此函数
-function listenForNotifications(currentPageName) {
-  // 监听 storage 事件（其他标签页写入时触发）
+// 在各个页面的 onMounted 里调用
+function listenForNotifications() {
   window.addEventListener('storage', (e) => {
     if (e.key !== NOTIFY_KEY) return;
     const pending = JSON.parse(e.newValue || '[]');
     if (!pending.length) return;
-    // 显示最新一条
     const latest = pending[pending.length - 1];
     showInAppToast(latest.charName, latest.content, latest.avatar);
-    // 清空已显示的
     localStorage.removeItem(NOTIFY_KEY);
   });
 }
 
 // 应用内浮窗提示
 function showInAppToast(charName, content, avatar) {
-  // 如果已有 toast 就移除
   const existing = document.getElementById('char-notify-toast');
   if (existing) existing.remove();
 
@@ -92,7 +158,6 @@ function showInAppToast(charName, content, avatar) {
   toast.appendChild(avatarEl);
   toast.appendChild(textEl);
 
-  // 注入动画样式
   if (!document.getElementById('toast-style')) {
     const s = document.createElement('style');
     s.id = 'toast-style';
@@ -105,7 +170,6 @@ function showInAppToast(charName, content, avatar) {
 
   document.body.appendChild(toast);
 
-  // 4秒后自动消失
   const dismiss = () => {
     toast.style.animation = 'toastOut 0.3s ease forwards';
     setTimeout(() => toast.remove(), 300);
